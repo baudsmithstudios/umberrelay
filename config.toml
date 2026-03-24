@@ -1,0 +1,7 @@
+# config.toml — Scrye bootstrap configuration
+# Everything else is configured via the web UI at http://<host>:<http_port>
+
+listen = "0.0.0.0:53"
+upstream = ["1.1.1.1:53", "8.8.8.8:53"]
+data_dir = "/data"
+http_port = 8080
