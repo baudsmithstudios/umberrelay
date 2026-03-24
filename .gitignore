@@ -2,7 +2,7 @@ DEV_NOTES.md
 docs/superpowers/
 
 # Build output
-scrye
+/scrye
 *.exe
 
 # Database files
