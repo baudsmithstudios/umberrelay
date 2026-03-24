@@ -1,0 +1,36 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+<div class="stat-grid">
+    <article class="stat-card">
+        <h3>Queries Today</h3>
+        <div class="value">{{.Stats.TotalQueries}}</div>
+    </article>
+    <article class="stat-card">
+        <h3>Tracker Queries</h3>
+        <div class="value tracker-pct">{{printf "%.0f" .Stats.TrackerPercent}}%</div>
+    </article>
+    <article class="stat-card">
+        <h3>Active Devices</h3>
+        <div class="value">{{.Stats.DeviceCount}}</div>
+    </article>
+</div>
+<h2>Noisiest Devices</h2>
+<table role="grid">
+    <thead>
+        <tr>
+            <th scope="col">Device</th>
+            <th scope="col">Queries (24h)</th>
+            <th scope="col">Tracker %</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Stats.TopDevices}}
+        <tr>
+            <td><a href="/devices/{{.MAC}}">{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else}}{{.Vendor}}{{end}}</a></td>
+            <td>{{.QueryCount}}</td>
+            <td class="tracker-pct">{{printf "%.0f" .TrackerPercent}}%</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

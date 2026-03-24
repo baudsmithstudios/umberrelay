@@ -1,0 +1,30 @@
+{{define "content"}}
+<h1>
+    {{if .Device.Label}}{{.Device.Label}}{{else if .Device.Hostname}}{{.Device.Hostname}}{{else}}{{.Device.MAC}}{{end}}
+</h1>
+<dl>
+    <dt>Vendor</dt><dd>{{.Device.Vendor}}</dd>
+    <dt>IP</dt><dd>{{.Device.IP}}</dd>
+    <dt>MAC</dt><dd><code>{{.Device.MAC}}</code></dd>
+    <dt>First Seen</dt><dd>{{.Device.FirstSeen.Format "2006-01-02 15:04"}}</dd>
+</dl>
+<h2>Top Domains</h2>
+<table role="grid">
+    <thead>
+        <tr>
+            <th scope="col">Domain</th>
+            <th scope="col">Category</th>
+            <th scope="col">Count (24h)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .TopDomains}}
+        <tr>
+            <td>{{.Domain}}</td>
+            <td>{{if .Category}}{{.Category}}{{else}}<em>none</em>{{end}}</td>
+            <td>{{.Count}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

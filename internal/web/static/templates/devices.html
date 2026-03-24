@@ -1,0 +1,27 @@
+{{define "content"}}
+<h1>Devices</h1>
+<table role="grid">
+    <thead>
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Vendor</th>
+            <th scope="col">IP</th>
+            <th scope="col">MAC</th>
+            <th scope="col">Queries (24h)</th>
+            <th scope="col">Tracker %</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Devices}}
+        <tr>
+            <td><a href="/devices/{{.MAC}}">{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else}}Unknown{{end}}</a></td>
+            <td>{{.Vendor}}</td>
+            <td>{{.IP}}</td>
+            <td><code>{{.MAC}}</code></td>
+            <td>{{.QueryCount}}</td>
+            <td class="tracker-pct">{{printf "%.0f" .TrackerPercent}}%</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

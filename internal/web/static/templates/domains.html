@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Top Domains</h1>
+<table role="grid">
+    <thead>
+        <tr>
+            <th scope="col">Domain</th>
+            <th scope="col">Category</th>
+            <th scope="col">Queries (24h)</th>
+            <th scope="col">Devices</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Domains}}
+        <tr>
+            <td>{{.Domain}}</td>
+            <td>{{if .Category}}{{.Category}}{{else}}<em>none</em>{{end}}</td>
+            <td>{{.QueryCount}}</td>
+            <td>{{.DeviceCount}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}
