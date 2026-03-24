@@ -43,9 +43,20 @@ func (t *Tracker) SetARPEntry(ip, mac string) {
 	t.arpCache.Store(ip, mac)
 }
 
-// Run starts the ARP polling loop. Blocks until ctx is cancelled.
+// Run starts the ARP polling loop and broadcast listeners. Blocks until ctx is cancelled.
 func (t *Tracker) Run(ctx context.Context) {
 	t.pollARP()
+
+	done := make(chan struct{})
+	go func() {
+		<-ctx.Done()
+		close(done)
+	}()
+
+	go t.RunDHCP(done)
+	go t.RunMDNS(done)
+	go t.RunSSDP(done)
+
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
