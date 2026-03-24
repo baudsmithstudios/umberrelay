@@ -1,0 +1,32 @@
+DEV_NOTES.md
+docs/superpowers/
+
+# Build output
+scrye
+*.exe
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage.out
+*.test
+
+# Docker
+.env
