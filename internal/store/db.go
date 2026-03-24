@@ -357,3 +357,169 @@ func (d *DB) ListDomainOverrides() (map[string]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// DashboardStats holds summary data for the dashboard page.
+type DashboardStats struct {
+	TotalQueries   int
+	TrackerPercent float64
+	DeviceCount    int
+	TopDevices     []DeviceSummary
+}
+
+// DeviceSummary holds per-device stats for the dashboard.
+type DeviceSummary struct {
+	MAC            string
+	Hostname       string
+	Vendor         string
+	Label          string
+	QueryCount     int
+	TrackerPercent float64
+}
+
+// DashboardSummary returns aggregate stats for the dashboard (last 24 hours).
+func (d *DB) DashboardSummary() (DashboardStats, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	var stats DashboardStats
+
+	var trackerCount int
+	err := d.sql.QueryRow(`
+        SELECT COUNT(*), COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0)
+        FROM queries WHERE timestamp >= ?`, cutoff,
+	).Scan(&stats.TotalQueries, &trackerCount)
+	if err != nil {
+		return stats, err
+	}
+	if stats.TotalQueries > 0 {
+		stats.TrackerPercent = float64(trackerCount) / float64(stats.TotalQueries) * 100
+	}
+
+	err = d.sql.QueryRow(`
+        SELECT COUNT(DISTINCT device_mac) FROM queries WHERE timestamp >= ?`, cutoff,
+	).Scan(&stats.DeviceCount)
+	if err != nil {
+		return stats, err
+	}
+
+	rows, err := d.sql.Query(`
+        SELECT q.device_mac,
+               COALESCE(dev.hostname, ''),
+               COALESCE(dev.vendor, ''),
+               COALESCE(dev.label, ''),
+               COUNT(*) as cnt,
+               COALESCE(SUM(CASE WHEN q.category != '' THEN 1 ELSE 0 END), 0) as tracker_cnt
+        FROM queries q
+        LEFT JOIN devices dev ON dev.mac = q.device_mac
+        WHERE q.timestamp >= ?
+        GROUP BY q.device_mac
+        ORDER BY cnt DESC
+        LIMIT 5`, cutoff)
+	if err != nil {
+		return stats, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var ds DeviceSummary
+		var trackerCnt int
+		if err := rows.Scan(&ds.MAC, &ds.Hostname, &ds.Vendor, &ds.Label, &ds.QueryCount, &trackerCnt); err != nil {
+			return stats, err
+		}
+		if ds.QueryCount > 0 {
+			ds.TrackerPercent = float64(trackerCnt) / float64(ds.QueryCount) * 100
+		}
+		stats.TopDevices = append(stats.TopDevices, ds)
+	}
+	return stats, rows.Err()
+}
+
+// DomainSummary holds aggregate data for the domains page.
+type DomainSummary struct {
+	Domain      string
+	Category    string
+	QueryCount  int
+	DeviceCount int
+}
+
+// TopDomains returns the most-queried domains in the last 24 hours.
+func (d *DB) TopDomains(limit int) ([]DomainSummary, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+        SELECT domain, COALESCE(category, ''), COUNT(*) as cnt, COUNT(DISTINCT device_mac) as dev_cnt
+        FROM queries
+        WHERE timestamp >= ?
+        GROUP BY domain
+        ORDER BY cnt DESC
+        LIMIT ?`, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DomainSummary
+	for rows.Next() {
+		var ds DomainSummary
+		if err := rows.Scan(&ds.Domain, &ds.Category, &ds.QueryCount, &ds.DeviceCount); err != nil {
+			return nil, err
+		}
+		out = append(out, ds)
+	}
+	return out, rows.Err()
+}
+
+// DeviceDomainSummary holds per-domain stats for a device detail page.
+type DeviceDomainSummary struct {
+	Domain   string
+	Category string
+	Count    int
+}
+
+// DeviceTopDomains returns the most-queried domains for a specific device (last 24 hours).
+func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+        SELECT domain, COALESCE(category, ''), COUNT(*) as cnt
+        FROM queries
+        WHERE device_mac = ? AND timestamp >= ?
+        GROUP BY domain
+        ORDER BY cnt DESC
+        LIMIT ?`, mac, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DeviceDomainSummary
+	for rows.Next() {
+		var ds DeviceDomainSummary
+		if err := rows.Scan(&ds.Domain, &ds.Category, &ds.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, ds)
+	}
+	return out, rows.Err()
+}
+
+// DeviceStatsResult holds aggregate stats for a single device.
+type DeviceStatsResult struct {
+	QueryCount     int
+	TrackerPercent float64
+}
+
+// DeviceStats returns aggregate stats for a specific device (last 24 hours).
+func (d *DB) DeviceStats(mac string) (DeviceStatsResult, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	var stats DeviceStatsResult
+	var trackerCount int
+
+	err := d.sql.QueryRow(`
+        SELECT COUNT(*), COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0)
+        FROM queries WHERE device_mac = ? AND timestamp >= ?`, mac, cutoff,
+	).Scan(&stats.QueryCount, &trackerCount)
+	if err != nil {
+		return stats, err
+	}
+	if stats.QueryCount > 0 {
+		stats.TrackerPercent = float64(trackerCount) / float64(stats.QueryCount) * 100
+	}
+	return stats, nil
+}

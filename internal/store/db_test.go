@@ -228,3 +228,112 @@ func TestDomainOverrides(t *testing.T) {
 		t.Errorf("got %d overrides after delete, want 0", len(overrides))
 	}
 }
+
+func TestDashboardSummary(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", Hostname: "roku-tv", Vendor: "Roku", FirstSeen: now, LastSeen: now})
+	db.UpsertDevice(Device{MAC: "11:22:33:44:55:66", IP: "192.168.1.11", Hostname: "laptop", Vendor: "Dell", FirstSeen: now, LastSeen: now})
+
+	db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "api.example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
+	})
+
+	summary, err := db.DashboardSummary()
+	if err != nil {
+		t.Fatalf("DashboardSummary: %v", err)
+	}
+	if summary.TotalQueries != 4 {
+		t.Errorf("TotalQueries = %d, want 4", summary.TotalQueries)
+	}
+	if summary.TrackerPercent != 50.0 {
+		t.Errorf("TrackerPercent = %f, want 50.0", summary.TrackerPercent)
+	}
+	if summary.DeviceCount != 2 {
+		t.Errorf("DeviceCount = %d, want 2", summary.DeviceCount)
+	}
+	if len(summary.TopDevices) != 2 {
+		t.Fatalf("TopDevices count = %d, want 2", len(summary.TopDevices))
+	}
+	if summary.TopDevices[0].QueryCount != 3 {
+		t.Errorf("top device query count = %d, want 3", summary.TopDevices[0].QueryCount)
+	}
+}
+
+func TestTopDomains(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
+	db.UpsertDevice(Device{MAC: "11:22:33:44:55:66", IP: "192.168.1.11", FirstSeen: now, LastSeen: now})
+
+	db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "popular.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "popular.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
+	})
+
+	domains, err := db.TopDomains(10)
+	if err != nil {
+		t.Fatalf("TopDomains: %v", err)
+	}
+	if len(domains) != 2 {
+		t.Fatalf("got %d domains, want 2", len(domains))
+	}
+	if domains[0].Domain != "popular.com" {
+		t.Errorf("top domain = %q, want popular.com", domains[0].Domain)
+	}
+	if domains[0].QueryCount != 2 {
+		t.Errorf("query count = %d, want 2", domains[0].QueryCount)
+	}
+	if domains[0].DeviceCount != 2 {
+		t.Errorf("device count = %d, want 2", domains[0].DeviceCount)
+	}
+}
+
+func TestDeviceTopDomains(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
+
+	db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
+	})
+
+	domains, err := db.DeviceTopDomains("aa:bb:cc:dd:ee:ff", 10)
+	if err != nil {
+		t.Fatalf("DeviceTopDomains: %v", err)
+	}
+	if len(domains) != 2 {
+		t.Fatalf("got %d domains, want 2", len(domains))
+	}
+	if domains[0].Domain != "example.com" || domains[0].Count != 2 {
+		t.Errorf("top domain = %q count = %d, want example.com/2", domains[0].Domain, domains[0].Count)
+	}
+}
+
+func TestDeviceStats(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
+
+	db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
+	})
+
+	stats, err := db.DeviceStats("aa:bb:cc:dd:ee:ff")
+	if err != nil {
+		t.Fatalf("DeviceStats: %v", err)
+	}
+	if stats.QueryCount != 2 {
+		t.Errorf("QueryCount = %d, want 2", stats.QueryCount)
+	}
+	if stats.TrackerPercent != 50.0 {
+		t.Errorf("TrackerPercent = %f, want 50.0", stats.TrackerPercent)
+	}
+}
