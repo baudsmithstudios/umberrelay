@@ -53,7 +53,7 @@ func main() {
 	}()
 
 	// Device tracker
-	oui := device.NewOUIDB(nil) // OUI database populated by Task 13
+	oui := device.DefaultOUIDB()
 	tracker := device.NewTracker(db, oui)
 	go tracker.Run(ctx)
 
