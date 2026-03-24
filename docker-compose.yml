@@ -1,0 +1,11 @@
+services:
+  scrye:
+    build: .
+    network_mode: host
+    volumes:
+      - ./config.toml:/etc/scrye/config.toml:ro
+      - scrye-data:/data
+    restart: unless-stopped
+
+volumes:
+  scrye-data:
