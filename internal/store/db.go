@@ -499,6 +499,58 @@ func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, err
 	return out, rows.Err()
 }
 
+// DeviceWithStats holds a device record with its query stats for the last 24 hours.
+type DeviceWithStats struct {
+	Device
+	QueryCount     int
+	TrackerPercent float64
+}
+
+// ListDevicesWithStats returns all devices with their 24-hour query stats in a single query.
+func (d *DB) ListDevicesWithStats() ([]DeviceWithStats, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+		SELECT d.mac, d.ip, d.hostname, d.vendor, COALESCE(d.label, ''),
+		       d.first_seen, d.last_seen,
+		       COALESCE(q.cnt, 0),
+		       COALESCE(q.tracker_cnt, 0)
+		FROM devices d
+		LEFT JOIN (
+		    SELECT device_mac,
+		           COUNT(*) as cnt,
+		           SUM(CASE WHEN category != '' THEN 1 ELSE 0 END) as tracker_cnt
+		    FROM queries
+		    WHERE timestamp >= ?
+		    GROUP BY device_mac
+		) q ON q.device_mac = d.mac
+		ORDER BY q.cnt DESC, d.last_seen DESC`, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DeviceWithStats
+	for rows.Next() {
+		var dws DeviceWithStats
+		var firstSeen, lastSeen int64
+		var trackerCount int
+		if err := rows.Scan(
+			&dws.MAC, &dws.IP, &dws.Hostname, &dws.Vendor, &dws.Label,
+			&firstSeen, &lastSeen,
+			&dws.QueryCount, &trackerCount,
+		); err != nil {
+			return nil, err
+		}
+		dws.FirstSeen = time.Unix(0, firstSeen)
+		dws.LastSeen = time.Unix(0, lastSeen)
+		if dws.QueryCount > 0 {
+			dws.TrackerPercent = float64(trackerCount) / float64(dws.QueryCount) * 100
+		}
+		out = append(out, dws)
+	}
+	return out, rows.Err()
+}
+
 // DeviceStatsResult holds aggregate stats for a single device.
 type DeviceStatsResult struct {
 	QueryCount     int

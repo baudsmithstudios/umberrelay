@@ -1,13 +1,13 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
 
 	"scrye/internal/classify"
-	"scrye/internal/store"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +18,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAPISummary(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.db.DashboardSummary()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -26,27 +26,13 @@ func (s *Server) handleAPISummary(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := s.db.ListDevices()
+	devices, err := s.db.ListDevicesWithStats()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	type deviceWithStats struct {
-		store.Device
-		QueryCount     int     `json:"query_count"`
-		TrackerPercent float64 `json:"tracker_percent"`
-	}
-	var result []deviceWithStats
-	for _, dev := range devices {
-		stats, _ := s.db.DeviceStats(dev.MAC)
-		result = append(result, deviceWithStats{
-			Device:         dev,
-			QueryCount:     stats.QueryCount,
-			TrackerPercent: stats.TrackerPercent,
-		})
-	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(devices)
 }
 
 func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +56,7 @@ func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.db.UpdateDeviceLabel(mac, body.Label); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -109,7 +95,7 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 
 	queries, err := s.db.QueryLog(deviceMAC, domain, from, to, limit, offset)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -125,7 +111,7 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 	}
 	domains, err := s.db.TopDomains(limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -148,15 +134,26 @@ func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+var validConfigKeys = map[string]bool{
+	"retention_days":     true,
+	"list_refresh_hours": true,
+}
+
 func (s *Server) handleAPIUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form data", http.StatusBadRequest)
 		return
 	}
+	for key := range r.PostForm {
+		if !validConfigKeys[key] {
+			http.Error(w, "unknown setting: "+key, http.StatusBadRequest)
+			return
+		}
+	}
 	for key, values := range r.PostForm {
 		if len(values) > 0 {
 			if err := s.db.SetConfig(key, values[0]); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -167,7 +164,7 @@ func (s *Server) handleAPIUpdateSettings(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleAPIListLists(w http.ResponseWriter, r *http.Request) {
 	lists, err := s.db.ListLists()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -188,7 +185,7 @@ func (s *Server) handleAPIAddList(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := s.db.AddList(url, name, category)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -204,7 +201,7 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.db.DeleteList(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -217,7 +214,7 @@ func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 	}
 	lists, err := s.db.ListLists()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	var sources []classify.ListSource
@@ -231,7 +228,7 @@ func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	go s.classify.Refresh(sources)
+	go s.classify.Refresh(context.Background(), sources)
 	w.WriteHeader(http.StatusAccepted)
 }
 

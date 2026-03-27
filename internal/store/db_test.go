@@ -316,6 +316,37 @@ func TestDeviceTopDomains(t *testing.T) {
 	}
 }
 
+func TestListDevicesWithStats(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", Hostname: "roku-tv", Vendor: "Roku", FirstSeen: now, LastSeen: now})
+	db.UpsertDevice(Device{MAC: "11:22:33:44:55:66", IP: "192.168.1.11", Hostname: "laptop", Vendor: "Dell", FirstSeen: now, LastSeen: now})
+
+	db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
+	})
+
+	results, err := db.ListDevicesWithStats()
+	if err != nil {
+		t.Fatalf("ListDevicesWithStats: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("got %d devices, want 2", len(results))
+	}
+	// Ordered by query count desc — roku-tv has 2 queries
+	if results[0].MAC != "aa:bb:cc:dd:ee:ff" {
+		t.Errorf("first device MAC = %q, want aa:bb:cc:dd:ee:ff", results[0].MAC)
+	}
+	if results[0].QueryCount != 2 {
+		t.Errorf("first device QueryCount = %d, want 2", results[0].QueryCount)
+	}
+	if results[0].TrackerPercent != 50.0 {
+		t.Errorf("first device TrackerPercent = %f, want 50.0", results[0].TrackerPercent)
+	}
+}
+
 func TestDeviceStats(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

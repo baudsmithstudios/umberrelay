@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
+	"scrye/internal/store"
 )
 
 type pageData struct {
@@ -25,7 +27,7 @@ func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.db.DashboardSummary()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	data := struct {
@@ -39,42 +41,17 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := s.db.ListDevices()
+	devices, err := s.db.ListDevicesWithStats()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
-	type deviceRow struct {
-		MAC            string
-		IP             string
-		Hostname       string
-		Vendor         string
-		Label          string
-		QueryCount     int
-		TrackerPercent float64
-	}
-
-	var rows []deviceRow
-	for _, dev := range devices {
-		stats, _ := s.db.DeviceStats(dev.MAC)
-		rows = append(rows, deviceRow{
-			MAC:            dev.MAC,
-			IP:             dev.IP,
-			Hostname:       dev.Hostname,
-			Vendor:         dev.Vendor,
-			Label:          dev.Label,
-			QueryCount:     stats.QueryCount,
-			TrackerPercent: stats.TrackerPercent,
-		})
-	}
-
 	data := struct {
 		pageData
-		Devices []deviceRow
+		Devices []store.DeviceWithStats
 	}{
 		pageData: pageData{Title: "Devices", Active: "devices"},
-		Devices:  rows,
+		Devices:  devices,
 	}
 	s.renderPage(w, "devices", data)
 }
@@ -103,7 +80,7 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDomains(w http.ResponseWriter, r *http.Request) {
 	domains, err := s.db.TopDomains(100)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	data := struct {

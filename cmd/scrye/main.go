@@ -72,7 +72,7 @@ func main() {
 	sources := defaultListSources(db)
 	if cached == 0 {
 		log.Println("no list cache found, fetching lists immediately")
-		mgr.Refresh(sources)
+		mgr.Refresh(ctx, sources)
 	} else {
 		log.Printf("loaded %d domains from list cache", cached)
 	}

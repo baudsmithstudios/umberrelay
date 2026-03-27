@@ -115,10 +115,12 @@ type ListSource struct {
 }
 
 // Refresh fetches all enabled lists, rebuilds the in-memory lookup, and updates the cache.
-func (m *Manager) Refresh(sources []ListSource) error {
+func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 	combined := make(map[string]string)
 	for _, src := range sources {
-		domains, err := fetchList(src.URL)
+		fetchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		domains, err := fetchList(fetchCtx, src.URL)
+		cancel()
 		if err != nil {
 			log.Printf("fetch list %s: %v", src.Name, err)
 			continue
@@ -151,7 +153,7 @@ func (m *Manager) Refresh(sources []ListSource) error {
 // take effect without a restart. The initial sources are used for the
 // first refresh only.
 func (m *Manager) Run(ctx context.Context, initialSources []ListSource, interval time.Duration) {
-	m.Refresh(initialSources)
+	m.Refresh(ctx, initialSources)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -163,7 +165,7 @@ func (m *Manager) Run(ctx context.Context, initialSources []ListSource, interval
 			if len(sources) == 0 {
 				sources = initialSources
 			}
-			m.Refresh(sources)
+			m.Refresh(ctx, sources)
 		}
 	}
 }
@@ -191,8 +193,12 @@ func (m *Manager) loadSourcesFromDB() []ListSource {
 	return sources
 }
 
-func fetchList(url string) ([]string, error) {
-	resp, err := http.Get(url)
+func fetchList(ctx context.Context, url string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request for %s: %w", url, err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", url, err)
 	}

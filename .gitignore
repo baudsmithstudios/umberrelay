@@ -31,3 +31,6 @@ coverage.out
 
 # Docker
 .env
+
+# Claude Code
+.claude/

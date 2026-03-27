@@ -1,7 +1,11 @@
 package classify
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestParseHostsFile(t *testing.T) {
@@ -64,6 +68,21 @@ func TestManagerUncategorized(t *testing.T) {
 	got := m.Classify("mystery.example.com.")
 	if got != "uncategorized" {
 		t.Errorf("Classify uncategorized domain = %q, want uncategorized", got)
+	}
+}
+
+func TestFetchListRespectsContext(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err := fetchList(ctx, srv.URL)
+	if err == nil {
+		t.Fatal("expected error from cancelled context, got nil")
 	}
 }
 
