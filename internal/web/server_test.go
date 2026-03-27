@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"scrye/internal/classify"
 	"scrye/internal/store"
 )
 
@@ -18,6 +19,17 @@ func testServer(t *testing.T) *Server {
 	}
 	t.Cleanup(func() { db.Close() })
 	return NewServer(db, nil)
+}
+
+func testServerWithClassify(t *testing.T) *Server {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return NewServer(db, classify.NewManager(db))
 }
 
 func TestHealthEndpoint(t *testing.T) {

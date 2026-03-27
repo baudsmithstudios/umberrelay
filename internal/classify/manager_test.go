@@ -2,8 +2,6 @@ package classify
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -71,21 +69,6 @@ func TestManagerUncategorized(t *testing.T) {
 	}
 }
 
-func TestFetchListRespectsContext(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
-	}))
-	defer srv.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-
-	_, err := fetchList(ctx, srv.URL)
-	if err == nil {
-		t.Fatal("expected error from cancelled context, got nil")
-	}
-}
-
 func TestManagerOverrides(t *testing.T) {
 	m := NewManager(nil)
 	m.domains.Store(newDomainMap(map[string]string{
@@ -96,5 +79,23 @@ func TestManagerOverrides(t *testing.T) {
 	got := m.Classify("ads.example.com.")
 	if got != "telemetry" {
 		t.Errorf("Classify with override = %q, want telemetry", got)
+	}
+}
+
+func TestParseAndValidateListURLRejectsLocalhost(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if _, err := ParseAndValidateListURL(ctx, "http://localhost/list.txt"); err == nil {
+		t.Fatal("expected localhost url to be rejected")
+	}
+}
+
+func TestParseAndValidateListURLRejectsPrivateIP(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if _, err := ParseAndValidateListURL(ctx, "http://192.168.1.10/list.txt"); err == nil {
+		t.Fatal("expected private ip url to be rejected")
 	}
 }

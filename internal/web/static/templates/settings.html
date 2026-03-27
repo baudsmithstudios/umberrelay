@@ -26,7 +26,12 @@
             <tr>
                 <td>{{.Name}}</td>
                 <td>{{.Category}}</td>
-                <td>{{if .Enabled}}Yes{{else}}No{{end}}</td>
+                <td>
+                    <form hx-put="/api/lists/{{.ID}}" hx-swap="none">
+                        <input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}">
+                        <button type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+                    </form>
+                </td>
                 <td><button hx-delete="/api/lists/{{.ID}}" hx-swap="none" hx-confirm="Remove this list?">Remove</button></td>
             </tr>
             {{end}}

@@ -25,7 +25,7 @@ Scrye is a forwarding DNS server that logs every query, identifies which device 
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
 - **Web dashboard** — query volume, tracker percentage, per-device breakdown, domain rankings, all in the browser
-- **REST API** — full read/write API for devices, queries, domains, lists, settings, and overrides
+- **REST API** — JSON API for devices, queries, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
 - **Configurable via UI** — retention, list refresh interval, blocklist management all from the settings page
@@ -97,7 +97,7 @@ Scrye ships with three default blocklists:
 | [EasyPrivacy](https://v.firebog.net/hosts/Easyprivacy.txt) | analytics |
 | [Disconnect.me Tracking](https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt) | tracking |
 
-Lists are fetched on first run, cached to SQLite, and refreshed on a configurable interval. Add, remove, or disable lists from the settings page. Override individual domain classifications when you disagree with a list.
+Lists are fetched on first run, cached to SQLite, and refreshed on a configurable interval. Add, remove, or disable lists from the settings page. Custom list URLs must be public `http` or `https` endpoints. Override individual domain classifications when you disagree with a list.
 
 ## API
 
@@ -144,7 +144,7 @@ docker compose logs -f      # logs
 docker compose down          # stop
 ```
 
-The Dockerfile uses a two-stage build: compile in `golang:1.22-alpine`, run in `alpine:3.19` with just the binary and CA certificates.
+The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `alpine:3.19` with just the binary and CA certificates.
 
 ## Architecture
 

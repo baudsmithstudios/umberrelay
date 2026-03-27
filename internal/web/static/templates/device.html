@@ -8,6 +8,11 @@
     <dt>MAC</dt><dd><code>{{.Device.MAC}}</code></dd>
     <dt>First Seen</dt><dd>{{.Device.FirstSeen.Format "2006-01-02 15:04"}}</dd>
 </dl>
+<form hx-put="/api/devices/{{.Device.MAC}}" hx-swap="none">
+    <label for="device_label">Label</label>
+    <input type="text" id="device_label" name="label" value="{{.Device.Label}}" maxlength="128">
+    <button type="submit">Save Label</button>
+</form>
 <h2>Top Domains</h2>
 <table role="grid">
     <thead>

@@ -267,6 +267,12 @@ func (d *DB) DeleteList(id int64) error {
 	return err
 }
 
+// UpdateListEnabled toggles whether a classification list participates in lookups.
+func (d *DB) UpdateListEnabled(id int64, enabled bool) error {
+	_, err := d.sql.Exec(`UPDATE lists SET enabled = ? WHERE id = ?`, enabled, id)
+	return err
+}
+
 // UpdateListFetchTime marks a list as recently fetched.
 func (d *DB) UpdateListFetchTime(id int64) error {
 	_, err := d.sql.Exec(`UPDATE lists SET last_fetch = ? WHERE id = ?`, time.Now().UnixNano(), id)

@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"time"
 
 	"scrye/internal/classify"
 	"scrye/internal/store"
@@ -60,6 +61,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/settings", s.handleAPIUpdateSettings)
 	s.mux.HandleFunc("GET /api/lists", s.handleAPIListLists)
 	s.mux.HandleFunc("POST /api/lists", s.handleAPIAddList)
+	s.mux.HandleFunc("PUT /api/lists/{id}", s.handleAPIUpdateList)
 	s.mux.HandleFunc("DELETE /api/lists/{id}", s.handleAPIDeleteList)
 	s.mux.HandleFunc("POST /api/lists/refresh", s.handleAPIRefreshLists)
 	s.mux.HandleFunc("PUT /api/overrides/{domain}", s.handleAPISetOverride)
@@ -80,7 +82,14 @@ func (s *Server) Handler() http.Handler {
 
 // ListenAndServe starts the HTTP server, blocking until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
-	srv := &http.Server{Addr: addr, Handler: s.mux}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           s.mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	go func() {
 		<-ctx.Done()
 		srv.Close()
