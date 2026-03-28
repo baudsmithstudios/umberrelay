@@ -332,20 +332,18 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "category is required")
 		return
 	}
-	if s.classify != nil {
-		s.classify.SetOverride(domain, body.Category)
-	} else {
-		s.db.SetDomainOverride(domain, body.Category)
+	if err := app.SetDomainOverride(s.db, s.classify, domain, body.Category); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleAPIDeleteOverride(w http.ResponseWriter, r *http.Request) {
 	domain := r.PathValue("domain")
-	if s.classify != nil {
-		s.classify.RemoveOverride(domain)
-	} else {
-		s.db.DeleteDomainOverride(domain)
+	if err := app.DeleteDomainOverride(s.db, s.classify, domain); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
