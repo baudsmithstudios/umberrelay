@@ -13,6 +13,48 @@
     <input type="text" id="device_label" name="label" value="{{.Device.Label}}" maxlength="128">
     <button type="submit">Save Label</button>
 </form>
+<h2>Privacy Summary</h2>
+<div class="grid">
+    <article>
+        <header>Total Queries</header>
+        <strong>{{.PrivacySummary.QueryCount}}</strong>
+        <footer>Last 24 hours</footer>
+    </article>
+    <article>
+        <header>Tracker %</header>
+        <strong>{{printf "%.1f%%" .PrivacySummary.TrackerPercent}}</strong>
+        <footer>Last 24 hours</footer>
+    </article>
+    <article>
+        <header>Unique Domains</header>
+        <strong>{{.PrivacySummary.UniqueDomains}}</strong>
+        <footer>Last 24 hours</footer>
+    </article>
+    <article>
+        <header>Unique Tracker Domains</header>
+        <strong>{{.PrivacySummary.UniqueTrackerDomains}}</strong>
+        <footer>Last 24 hours</footer>
+    </article>
+</div>
+<h2>Category Breakdown</h2>
+<table role="grid">
+    <thead>
+        <tr>
+            <th scope="col">Category</th>
+            <th scope="col">Queries</th>
+            <th scope="col">% of Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .CategoryBreakdown}}
+        <tr>
+            <td>{{if .Category}}{{.Category}}{{else}}<em>none</em>{{end}}</td>
+            <td>{{.Count}}</td>
+            <td>{{printf "%.1f%%" .Percent}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
 <h2>Top Domains</h2>
 <table role="grid">
     <thead>

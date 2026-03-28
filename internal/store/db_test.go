@@ -300,7 +300,7 @@ func TestDeviceTopDomains(t *testing.T) {
 
 	db.WriteQueries([]Query{
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "AAAA", Category: "tracking", Timestamp: now.Add(time.Second)},
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
 	})
 
@@ -313,6 +313,9 @@ func TestDeviceTopDomains(t *testing.T) {
 	}
 	if domains[0].Domain != "example.com" || domains[0].Count != 2 {
 		t.Errorf("top domain = %q count = %d, want example.com/2", domains[0].Domain, domains[0].Count)
+	}
+	if domains[0].Category != "tracking" {
+		t.Errorf("top domain category = %q, want tracking", domains[0].Category)
 	}
 }
 
@@ -347,24 +350,159 @@ func TestListDevicesWithStats(t *testing.T) {
 	}
 }
 
-func TestDeviceStats(t *testing.T) {
+func TestDeviceCategoryBreakdown(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
+	mac := "aa:bb:cc:dd:ee:ff"
 
-	db.WriteQueries([]Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
+	err := db.UpsertDevice(Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  "roku-tv",
+		Vendor:    "Roku",
+		FirstSeen: now,
+		LastSeen:  now,
 	})
-
-	stats, err := db.DeviceStats("aa:bb:cc:dd:ee:ff")
 	if err != nil {
-		t.Fatalf("DeviceStats: %v", err)
+		t.Fatalf("UpsertDevice: %v", err)
 	}
-	if stats.QueryCount != 2 {
-		t.Errorf("QueryCount = %d, want 2", stats.QueryCount)
+
+	err = db.WriteQueries([]Query{
+		{DeviceMAC: mac, Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
+		{DeviceMAC: mac, Domain: "pixel.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(time.Second)},
+		{DeviceMAC: mac, Domain: "stats.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(2 * time.Second)},
+		{DeviceMAC: mac, Domain: "app.example.com", QueryType: "A", Category: "", Timestamp: now.Add(3 * time.Second)},
+		{DeviceMAC: mac, Domain: "old.example.com", QueryType: "A", Category: "advertising", Timestamp: now.Add(-25 * time.Hour)},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "other.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
 	}
-	if stats.TrackerPercent != 50.0 {
-		t.Errorf("TrackerPercent = %f, want 50.0", stats.TrackerPercent)
+
+	breakdown, err := db.DeviceCategoryBreakdown(mac)
+	if err != nil {
+		t.Fatalf("DeviceCategoryBreakdown: %v", err)
+	}
+
+	want := []CategoryCount{
+		{Category: "tracking", Count: 2},
+		{Category: "", Count: 1},
+		{Category: "analytics", Count: 1},
+	}
+	if len(breakdown) != len(want) {
+		t.Fatalf("got %d rows, want %d", len(breakdown), len(want))
+	}
+	for i := range want {
+		if breakdown[i] != want[i] {
+			t.Fatalf("row %d = %#v, want %#v", i, breakdown[i], want[i])
+		}
+	}
+}
+
+func TestDeviceCategoryBreakdownEmpty(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	mac := "aa:bb:cc:dd:ee:ff"
+
+	err := db.UpsertDevice(Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  "roku-tv",
+		Vendor:    "Roku",
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+	if err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	breakdown, err := db.DeviceCategoryBreakdown(mac)
+	if err != nil {
+		t.Fatalf("DeviceCategoryBreakdown: %v", err)
+	}
+	if len(breakdown) != 0 {
+		t.Fatalf("got %d rows, want 0", len(breakdown))
+	}
+}
+
+func TestDevicePrivacySummary(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	mac := "aa:bb:cc:dd:ee:ff"
+
+	err := db.UpsertDevice(Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  "roku-tv",
+		Vendor:    "Roku",
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+	if err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	err = db.WriteQueries([]Query{
+		{DeviceMAC: mac, Domain: "shared.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
+		{DeviceMAC: mac, Domain: "shared.example.com", QueryType: "AAAA", Category: "", Timestamp: now.Add(time.Second)},
+		{DeviceMAC: mac, Domain: "stats.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(2 * time.Second)},
+		{DeviceMAC: mac, Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(3 * time.Second)},
+		{DeviceMAC: mac, Domain: "old.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-25 * time.Hour)},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "other.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	summary, err := db.DevicePrivacySummary(mac)
+	if err != nil {
+		t.Fatalf("DevicePrivacySummary: %v", err)
+	}
+	if summary.QueryCount != 4 {
+		t.Errorf("QueryCount = %d, want 4", summary.QueryCount)
+	}
+	if summary.TrackerPercent != 50.0 {
+		t.Errorf("TrackerPercent = %f, want 50.0", summary.TrackerPercent)
+	}
+	if summary.UniqueDomains != 3 {
+		t.Errorf("UniqueDomains = %d, want 3", summary.UniqueDomains)
+	}
+	if summary.UniqueTrackerDomains != 2 {
+		t.Errorf("UniqueTrackerDomains = %d, want 2", summary.UniqueTrackerDomains)
+	}
+}
+
+func TestDevicePrivacySummaryEmpty(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	mac := "aa:bb:cc:dd:ee:ff"
+
+	err := db.UpsertDevice(Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  "roku-tv",
+		Vendor:    "Roku",
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+	if err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	summary, err := db.DevicePrivacySummary(mac)
+	if err != nil {
+		t.Fatalf("DevicePrivacySummary: %v", err)
+	}
+	if summary.QueryCount != 0 {
+		t.Errorf("QueryCount = %d, want 0", summary.QueryCount)
+	}
+	if summary.TrackerPercent != 0 {
+		t.Errorf("TrackerPercent = %f, want 0", summary.TrackerPercent)
+	}
+	if summary.UniqueDomains != 0 {
+		t.Errorf("UniqueDomains = %d, want 0", summary.UniqueDomains)
+	}
+	if summary.UniqueTrackerDomains != 0 {
+		t.Errorf("UniqueTrackerDomains = %d, want 0", summary.UniqueTrackerDomains)
 	}
 }

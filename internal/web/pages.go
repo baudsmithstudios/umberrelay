@@ -13,6 +13,12 @@ type pageData struct {
 	Active string
 }
 
+type categoryRow struct {
+	Category string
+	Count    int
+	Percent  float64
+}
+
 func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}) {
 	t, ok := s.pages[name]
 	if !ok {
@@ -63,16 +69,46 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "device not found", http.StatusNotFound)
 		return
 	}
-	topDomains, _ := s.db.DeviceTopDomains(mac, 20)
+	privacySummary, err := s.db.DevicePrivacySummary(mac)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	categoryCounts, err := s.db.DeviceCategoryBreakdown(mac)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	topDomains, err := s.db.DeviceTopDomains(mac, 20)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	categoryBreakdown := make([]categoryRow, 0, len(categoryCounts))
+	for _, count := range categoryCounts {
+		row := categoryRow{
+			Category: count.Category,
+			Count:    count.Count,
+		}
+		if privacySummary.QueryCount > 0 {
+			row.Percent = float64(count.Count) / float64(privacySummary.QueryCount) * 100
+		}
+		categoryBreakdown = append(categoryBreakdown, row)
+	}
 
 	data := struct {
 		pageData
-		Device     interface{}
-		TopDomains interface{}
+		Device            store.Device
+		PrivacySummary    store.DevicePrivacySummary
+		CategoryBreakdown []categoryRow
+		TopDomains        []store.DeviceDomainSummary
 	}{
-		pageData:   pageData{Title: dev.Hostname, Active: "devices"},
-		Device:     dev,
-		TopDomains: topDomains,
+		pageData:          pageData{Title: dev.Hostname, Active: "devices"},
+		Device:            dev,
+		PrivacySummary:    privacySummary,
+		CategoryBreakdown: categoryBreakdown,
+		TopDomains:        topDomains,
 	}
 	s.renderPage(w, "device", data)
 }
