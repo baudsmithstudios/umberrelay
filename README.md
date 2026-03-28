@@ -139,6 +139,15 @@ Mutation endpoints expect JSON request bodies:
 | `PUT /api/lists/{id}` | `{ "enabled": true }` |
 | `PUT /api/overrides/{domain}` | `{ "category": "tracking" }` |
 
+### Response Shapes
+
+Selected read endpoints return these JSON shapes:
+
+| Endpoint | JSON Response |
+|---|---|
+| `GET /api/health` | `{ "status": "ok" }` |
+| `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
+
 ### Query Parameters
 
 `GET /api/queries` supports:

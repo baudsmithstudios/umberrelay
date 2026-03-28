@@ -97,6 +97,37 @@ func TestUpdateSettingsReturnsJSONErrors(t *testing.T) {
 	}
 }
 
+func TestAPIGetSettingsReturnsNumericValues(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.SetConfig("retention_days", "7"); err != nil {
+		t.Fatalf("SetConfig(retention_days): %v", err)
+	}
+	if err := s.db.SetConfig("list_refresh_hours", "12"); err != nil {
+		t.Fatalf("SetConfig(list_refresh_hours): %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/settings", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response struct {
+		RetentionDays    int `json:"retention_days"`
+		ListRefreshHours int `json:"list_refresh_hours"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response.RetentionDays != 7 {
+		t.Fatalf("retention_days = %d, want %d", response.RetentionDays, 7)
+	}
+	if response.ListRefreshHours != 12 {
+		t.Fatalf("list_refresh_hours = %d, want %d", response.ListRefreshHours, 12)
+	}
+}
+
 func TestAPIDevices(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest("GET", "/api/devices", nil)

@@ -158,16 +158,22 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
 	retention, _ := s.db.GetConfig("retention_days")
-	if retention == "" {
-		retention = "30"
+	retentionDays := 30
+	if retention != "" {
+		if n, err := strconv.Atoi(retention); err == nil {
+			retentionDays = n
+		}
 	}
 	refreshHours, _ := s.db.GetConfig("list_refresh_hours")
-	if refreshHours == "" {
-		refreshHours = "24"
+	listRefreshHours := 24
+	if refreshHours != "" {
+		if n, err := strconv.Atoi(refreshHours); err == nil {
+			listRefreshHours = n
+		}
 	}
-	writeJSON(w, http.StatusOK, map[string]string{
-		"retention_days":     retention,
-		"list_refresh_hours": refreshHours,
+	writeJSON(w, http.StatusOK, map[string]int{
+		"retention_days":     retentionDays,
+		"list_refresh_hours": listRefreshHours,
 	})
 }
 
