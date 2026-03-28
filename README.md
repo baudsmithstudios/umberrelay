@@ -37,12 +37,9 @@ git clone https://github.com/baudsmithstudios/scrye.git && cd scrye
 
 # Build and run with Docker
 docker compose up -d
-
-# Open the dashboard
-open http://localhost:8080
 ```
 
-Then point your router's DNS to the host running Scrye.
+Then open `http://localhost:8080` in a browser and point your router's DNS to the host running Scrye.
 
 ## Configuration
 
@@ -223,7 +220,7 @@ Web Server
 - **No outbound data** — the only outbound connections are DNS forwarding and blocklist fetches
 - **Passive discovery** — device identification uses only broadcast/multicast traffic and the local ARP table
 - **Parameterized queries** — all SQL uses parameterized statements
-- **Input validation** — API endpoints validate and whitelist config keys
+- **Input validation** — API and UI mutation handlers validate JSON bodies, form inputs, list URLs, and allowed categories
 
 ## Tech Stack
 
