@@ -489,7 +489,7 @@ type CategoryCount struct {
 func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, error) {
 	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
 	rows, err := d.sql.Query(`
-        SELECT domain, COALESCE(category, ''), COUNT(*) as cnt
+        SELECT domain, MAX(COALESCE(category, '')), COUNT(*) as cnt
         FROM queries
         WHERE device_mac = ? AND timestamp >= ?
         GROUP BY domain
@@ -622,29 +622,4 @@ func (d *DB) DevicePrivacySummary(mac string) (DevicePrivacySummary, error) {
 		summary.TrackerPercent = float64(trackerCount) / float64(summary.QueryCount) * 100
 	}
 	return summary, nil
-}
-
-// DeviceStatsResult holds aggregate stats for a single device.
-type DeviceStatsResult struct {
-	QueryCount     int
-	TrackerPercent float64
-}
-
-// DeviceStats returns aggregate stats for a specific device (last 24 hours).
-func (d *DB) DeviceStats(mac string) (DeviceStatsResult, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
-	var stats DeviceStatsResult
-	var trackerCount int
-
-	err := d.sql.QueryRow(`
-        SELECT COUNT(*), COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0)
-        FROM queries WHERE device_mac = ? AND timestamp >= ?`, mac, cutoff,
-	).Scan(&stats.QueryCount, &trackerCount)
-	if err != nil {
-		return stats, err
-	}
-	if stats.QueryCount > 0 {
-		stats.TrackerPercent = float64(trackerCount) / float64(stats.QueryCount) * 100
-	}
-	return stats, nil
 }

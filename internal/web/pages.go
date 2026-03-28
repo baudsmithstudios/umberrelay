@@ -79,7 +79,11 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	topDomains, _ := s.db.DeviceTopDomains(mac, 20)
+	topDomains, err := s.db.DeviceTopDomains(mac, 20)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	categoryBreakdown := make([]categoryRow, 0, len(categoryCounts))
 	for _, count := range categoryCounts {

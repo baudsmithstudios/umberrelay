@@ -300,7 +300,7 @@ func TestDeviceTopDomains(t *testing.T) {
 
 	db.WriteQueries([]Query{
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "AAAA", Category: "tracking", Timestamp: now.Add(time.Second)},
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
 	})
 
@@ -313,6 +313,9 @@ func TestDeviceTopDomains(t *testing.T) {
 	}
 	if domains[0].Domain != "example.com" || domains[0].Count != 2 {
 		t.Errorf("top domain = %q count = %d, want example.com/2", domains[0].Domain, domains[0].Count)
+	}
+	if domains[0].Category != "tracking" {
+		t.Errorf("top domain category = %q, want tracking", domains[0].Category)
 	}
 }
 
@@ -344,28 +347,6 @@ func TestListDevicesWithStats(t *testing.T) {
 	}
 	if results[0].TrackerPercent != 50.0 {
 		t.Errorf("first device TrackerPercent = %f, want 50.0", results[0].TrackerPercent)
-	}
-}
-
-func TestDeviceStats(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-
-	db.WriteQueries([]Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
-	})
-
-	stats, err := db.DeviceStats("aa:bb:cc:dd:ee:ff")
-	if err != nil {
-		t.Fatalf("DeviceStats: %v", err)
-	}
-	if stats.QueryCount != 2 {
-		t.Errorf("QueryCount = %d, want 2", stats.QueryCount)
-	}
-	if stats.TrackerPercent != 50.0 {
-		t.Errorf("TrackerPercent = %f, want 50.0", stats.TrackerPercent)
 	}
 }
 
