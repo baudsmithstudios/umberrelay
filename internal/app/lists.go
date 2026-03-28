@@ -44,6 +44,28 @@ func DeleteList(db *store.DB, id int64) error {
 	return db.DeleteList(id)
 }
 
+// EnabledListSources returns the currently enabled classification lists.
+func EnabledListSources(db *store.DB) ([]classify.ListSource, error) {
+	lists, err := db.ListLists()
+	if err != nil {
+		return nil, err
+	}
+
+	var sources []classify.ListSource
+	for _, list := range lists {
+		if list.Enabled {
+			sources = append(sources, classify.ListSource{
+				ID:       list.ID,
+				URL:      list.URL,
+				Name:     list.Name,
+				Category: list.Category,
+			})
+		}
+	}
+
+	return sources, nil
+}
+
 func validCategory(category string) bool {
 	switch category {
 	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":

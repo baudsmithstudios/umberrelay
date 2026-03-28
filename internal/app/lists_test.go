@@ -65,3 +65,30 @@ func TestAddListRejectsMissingFields(t *testing.T) {
 		t.Fatalf("error = %q, want %q", err.Error(), "url, name, and category are required")
 	}
 }
+
+func TestEnabledListSourcesReturnsOnlyEnabledLists(t *testing.T) {
+	db := testDB(t)
+
+	firstID, err := db.AddList("https://93.184.216.34/one.txt", "One", "tracking")
+	if err != nil {
+		t.Fatalf("AddList(One): %v", err)
+	}
+	secondID, err := db.AddList("https://93.184.216.34/two.txt", "Two", "analytics")
+	if err != nil {
+		t.Fatalf("AddList(Two): %v", err)
+	}
+	if err := db.UpdateListEnabled(secondID, false); err != nil {
+		t.Fatalf("UpdateListEnabled: %v", err)
+	}
+
+	sources, err := EnabledListSources(db)
+	if err != nil {
+		t.Fatalf("EnabledListSources: %v", err)
+	}
+	if len(sources) != 1 {
+		t.Fatalf("len(sources) = %d, want 1", len(sources))
+	}
+	if sources[0].ID != firstID {
+		t.Fatalf("source ID = %d, want %d", sources[0].ID, firstID)
+	}
+}

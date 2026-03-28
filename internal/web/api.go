@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"scrye/internal/app"
-	"scrye/internal/classify"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -294,21 +293,10 @@ func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
 		return
 	}
-	lists, err := s.db.ListLists()
+	sources, err := app.EnabledListSources(s.db)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
-	}
-	var sources []classify.ListSource
-	for _, l := range lists {
-		if l.Enabled {
-			sources = append(sources, classify.ListSource{
-				ID:       l.ID,
-				URL:      l.URL,
-				Name:     l.Name,
-				Category: l.Category,
-			})
-		}
 	}
 	go s.classify.Refresh(context.Background(), sources)
 	w.WriteHeader(http.StatusAccepted)
@@ -371,20 +359,9 @@ func (s *Server) refreshClassificationAsync() {
 	if s.classify == nil {
 		return
 	}
-	lists, err := s.db.ListLists()
+	sources, err := app.EnabledListSources(s.db)
 	if err != nil {
 		return
-	}
-	var sources []classify.ListSource
-	for _, l := range lists {
-		if l.Enabled {
-			sources = append(sources, classify.ListSource{
-				ID:       l.ID,
-				URL:      l.URL,
-				Name:     l.Name,
-				Category: l.Category,
-			})
-		}
 	}
 	go s.classify.Refresh(context.Background(), sources)
 }
