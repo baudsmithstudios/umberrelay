@@ -30,6 +30,13 @@ type Query struct {
 	Timestamp time.Time
 }
 
+// HourlyBucket holds aggregate activity for a calendar-hour bucket.
+type HourlyBucket struct {
+	Timestamp    time.Time
+	TotalCount   int
+	TrackerCount int
+}
+
 // DB wraps the SQLite connection.
 type DB struct {
 	sql *sql.DB
@@ -188,6 +195,58 @@ func (d *DB) QueryLog(deviceMAC, domain string, from, to time.Time, limit, offse
 		out = append(out, q)
 	}
 	return out, rows.Err()
+}
+
+// HourlyActivity returns 24 UTC calendar-hour buckets, oldest first.
+func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
+	const bucketCount = 24
+
+	currentHour := time.Now().UTC().Truncate(time.Hour)
+	oldestHour := currentHour.Add(-(bucketCount - 1) * time.Hour)
+	hourNS := int64(time.Hour)
+
+	query := `
+		SELECT timestamp / ? AS hour_key,
+		       COUNT(*),
+		       COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0)
+		FROM queries
+		WHERE timestamp >= ?`
+	args := []any{hourNS, oldestHour.UnixNano()}
+	if mac != "" {
+		query += ` AND device_mac = ?`
+		args = append(args, mac)
+	}
+	query += ` GROUP BY hour_key ORDER BY hour_key`
+
+	rows, err := d.sql.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	countsByHour := make(map[int64]HourlyBucket, bucketCount)
+	for rows.Next() {
+		var hourKey int64
+		var bucket HourlyBucket
+		if err := rows.Scan(&hourKey, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
+			return nil, err
+		}
+		countsByHour[hourKey] = bucket
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	buckets := make([]HourlyBucket, 0, bucketCount)
+	for i := 0; i < bucketCount; i++ {
+		ts := oldestHour.Add(time.Duration(i) * time.Hour)
+		hourKey := ts.UnixNano() / hourNS
+		bucket := countsByHour[hourKey]
+		bucket.Timestamp = ts
+		buckets = append(buckets, bucket)
+	}
+
+	return buckets, nil
 }
 
 // PurgeQueriesOlderThan deletes query records older than cutoff.

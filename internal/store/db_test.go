@@ -2,6 +2,7 @@ package store
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -504,5 +505,146 @@ func TestDevicePrivacySummaryEmpty(t *testing.T) {
 	}
 	if summary.UniqueTrackerDomains != 0 {
 		t.Errorf("UniqueTrackerDomains = %d, want 0", summary.UniqueTrackerDomains)
+	}
+}
+
+func TestHourlyActivity(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+	currentHour := now.Truncate(time.Hour)
+	oldestHour := currentHour.Add(-23 * time.Hour)
+
+	deviceA := "aa:bb:cc:dd:ee:ff"
+	deviceB := "11:22:33:44:55:66"
+	for _, mac := range []string{deviceA, deviceB} {
+		if err := db.UpsertDevice(Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
+			t.Fatalf("UpsertDevice(%s): %v", mac, err)
+		}
+	}
+
+	queries := []Query{
+		{DeviceMAC: deviceA, Domain: "oldest.example.com", QueryType: "A", Category: "", Timestamp: oldestHour},
+		{DeviceMAC: deviceA, Domain: "mid-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: currentHour.Add(-5 * time.Hour).Add(15 * time.Minute)},
+		{DeviceMAC: deviceA, Domain: "mid-clean.example.com", QueryType: "A", Category: "", Timestamp: currentHour.Add(-5 * time.Hour).Add(45 * time.Minute)},
+		{DeviceMAC: deviceA, Domain: "current-tracker.example.com", QueryType: "A", Category: "analytics", Timestamp: currentHour},
+		{DeviceMAC: deviceB, Domain: "other-device.example.com", QueryType: "A", Category: "tracking", Timestamp: currentHour.Add(-5 * time.Hour).Add(5 * time.Minute)},
+		{DeviceMAC: deviceA, Domain: "outside-window.example.com", QueryType: "A", Category: "tracking", Timestamp: oldestHour.Add(-time.Nanosecond)},
+	}
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	buckets, err := db.HourlyActivity("")
+	if err != nil {
+		t.Fatalf("HourlyActivity: %v", err)
+	}
+	if len(buckets) != 24 {
+		t.Fatalf("got %d buckets, want 24", len(buckets))
+	}
+
+	for i, bucket := range buckets {
+		want := oldestHour.Add(time.Duration(i) * time.Hour)
+		if !bucket.Timestamp.Equal(want) {
+			t.Fatalf("bucket %d timestamp = %v, want %v", i, bucket.Timestamp, want)
+		}
+	}
+
+	if buckets[0].TotalCount != 1 || buckets[0].TrackerCount != 0 {
+		t.Fatalf("oldest bucket = %+v, want total=1 tracker=0", buckets[0])
+	}
+
+	midIndex := 18
+	if !buckets[midIndex].Timestamp.Equal(currentHour.Add(-5 * time.Hour)) {
+		t.Fatalf("mid bucket timestamp = %v, want %v", buckets[midIndex].Timestamp, currentHour.Add(-5*time.Hour))
+	}
+	if buckets[midIndex].TotalCount != 3 || buckets[midIndex].TrackerCount != 2 {
+		t.Fatalf("mid bucket = %+v, want total=3 tracker=2", buckets[midIndex])
+	}
+
+	if buckets[len(buckets)-1].TotalCount != 1 || buckets[len(buckets)-1].TrackerCount != 1 {
+		t.Fatalf("current bucket = %+v, want total=1 tracker=1", buckets[len(buckets)-1])
+	}
+
+	if buckets[1].TotalCount != 0 || buckets[1].TrackerCount != 0 {
+		t.Fatalf("empty bucket = %+v, want zero-filled counts", buckets[1])
+	}
+
+	total := 0
+	for _, bucket := range buckets {
+		total += bucket.TotalCount
+	}
+	if total != 5 {
+		t.Fatalf("sum of bucket totals = %d, want 5", total)
+	}
+
+	filtered, err := db.HourlyActivity(deviceA)
+	if err != nil {
+		t.Fatalf("HourlyActivity(device): %v", err)
+	}
+	if len(filtered) != 24 {
+		t.Fatalf("filtered bucket count = %d, want 24", len(filtered))
+	}
+	if filtered[midIndex].TotalCount != 2 || filtered[midIndex].TrackerCount != 1 {
+		t.Fatalf("filtered mid bucket = %+v, want total=2 tracker=1", filtered[midIndex])
+	}
+
+	filteredTotal := 0
+	for _, bucket := range filtered {
+		filteredTotal += bucket.TotalCount
+	}
+	if filteredTotal != 4 {
+		t.Fatalf("filtered sum of bucket totals = %d, want 4", filteredTotal)
+	}
+}
+
+func TestHourlyActivityUsesExpectedIndex(t *testing.T) {
+	db := testDB(t)
+
+	tests := []struct {
+		name     string
+		query    string
+		args     []any
+		wantPlan string
+	}{
+		{
+			name:     "global activity",
+			query:    "EXPLAIN QUERY PLAN SELECT timestamp / ? AS hour_key, COUNT(*), COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0) FROM queries WHERE timestamp >= ? GROUP BY hour_key ORDER BY hour_key",
+			args:     []any{int64(time.Hour), time.Now().Add(-24 * time.Hour).UnixNano()},
+			wantPlan: "idx_queries_ts",
+		},
+		{
+			name:     "device activity",
+			query:    "EXPLAIN QUERY PLAN SELECT timestamp / ? AS hour_key, COUNT(*), COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0) FROM queries WHERE timestamp >= ? AND device_mac = ? GROUP BY hour_key ORDER BY hour_key",
+			args:     []any{int64(time.Hour), time.Now().Add(-24 * time.Hour).UnixNano(), "aa:bb:cc:dd:ee:ff"},
+			wantPlan: "idx_queries_device",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rows, err := db.sql.Query(tt.query, tt.args...)
+			if err != nil {
+				t.Fatalf("EXPLAIN QUERY PLAN: %v", err)
+			}
+			defer rows.Close()
+
+			var details []string
+			for rows.Next() {
+				var id, parent, notUsed int
+				var detail string
+				if err := rows.Scan(&id, &parent, &notUsed, &detail); err != nil {
+					t.Fatalf("rows.Scan: %v", err)
+				}
+				details = append(details, detail)
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatalf("rows.Err: %v", err)
+			}
+
+			plan := strings.Join(details, "\n")
+			if !strings.Contains(plan, tt.wantPlan) {
+				t.Fatalf("query plan %q does not mention %q", plan, tt.wantPlan)
+			}
+		})
 	}
 }

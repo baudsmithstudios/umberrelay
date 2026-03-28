@@ -14,6 +14,10 @@
         <div class="value">{{.Stats.DeviceCount}}</div>
     </article>
 </div>
+<section aria-labelledby="activity-heading">
+    <h2 id="activity-heading">Activity (24h)</h2>
+    <div id="activity-chart" style="min-height: 320px;"></div>
+</section>
 <h2>Noisiest Devices</h2>
 <table role="grid">
     <thead>
@@ -33,4 +37,47 @@
         {{end}}
     </tbody>
 </table>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('activity-chart');
+    if (!container) {
+        return;
+    }
+
+    fetch('/api/activity')
+        .then(function (response) {
+            if (!response.ok) {
+                throw new Error('request failed');
+            }
+            return response.json();
+        })
+        .then(function (buckets) {
+            const data = [
+                buckets.map(function (bucket) { return bucket.timestamp; }),
+                buckets.map(function (bucket) { return bucket.total; }),
+                buckets.map(function (bucket) { return bucket.tracker; }),
+            ];
+
+            new uPlot({
+                width: container.clientWidth || 960,
+                height: 320,
+                scales: {
+                    x: { time: true },
+                },
+                axes: [
+                    {},
+                    { label: 'Queries' },
+                ],
+                series: [
+                    {},
+                    { label: 'Total', stroke: '#1d4ed8', width: 2 },
+                    { label: 'Tracker', stroke: '#b91c1c', width: 2 },
+                ],
+            }, data, container);
+        })
+        .catch(function () {
+            container.textContent = 'Failed to load activity chart';
+        });
+});
+</script>
 {{end}}

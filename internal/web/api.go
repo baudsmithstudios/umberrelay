@@ -115,6 +115,34 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(queries)
 }
 
+func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
+	deviceMAC := r.URL.Query().Get("device")
+
+	buckets, err := s.db.HourlyActivity(deviceMAC)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	type activityBucket struct {
+		Timestamp int64 `json:"timestamp"`
+		Total     int   `json:"total"`
+		Tracker   int   `json:"tracker"`
+	}
+
+	response := make([]activityBucket, 0, len(buckets))
+	for _, bucket := range buckets {
+		response = append(response, activityBucket{
+			Timestamp: bucket.Timestamp.Unix(),
+			Total:     bucket.TotalCount,
+			Tracker:   bucket.TrackerCount,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 	limit := 100
 	if v := r.URL.Query().Get("limit"); v != "" {
