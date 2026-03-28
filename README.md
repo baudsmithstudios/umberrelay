@@ -103,6 +103,8 @@ The API is unauthenticated — bind to localhost or a trusted network.
 - Read endpoints return JSON.
 - Mutation endpoints accept `application/json`.
 - Mutation endpoints return either JSON or an empty success status (`204 No Content` / `202 Accepted`).
+- Errors return JSON in the form `{ "error": "message" }`.
+- `/ui/...` routes are internal SSR form handlers, not part of the public API contract.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -144,6 +146,14 @@ Selected read endpoints return these JSON shapes:
 |---|---|
 | `GET /api/health` | `{ "status": "ok" }` |
 | `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
+
+Selected error responses use this JSON shape:
+
+| Condition | JSON Response |
+|---|---|
+| Validation or request error | `{ "error": "message" }` |
+| Not found | `{ "error": "message" }` |
+| Internal or dependency error | `{ "error": "message" }` |
 
 ### Query Parameters
 
