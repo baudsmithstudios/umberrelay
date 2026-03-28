@@ -66,6 +66,14 @@ func EnabledListSources(db *store.DB) ([]classify.ListSource, error) {
 	return sources, nil
 }
 
+// RefreshListSources reloads the provided classification lists into the manager.
+func RefreshListSources(ctx context.Context, mgr *classify.Manager, sources []classify.ListSource) error {
+	if mgr == nil {
+		return fmt.Errorf("classify manager not available")
+	}
+	return mgr.Refresh(ctx, sources)
+}
+
 func validCategory(category string) bool {
 	switch category {
 	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":

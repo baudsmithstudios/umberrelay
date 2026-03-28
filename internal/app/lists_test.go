@@ -92,3 +92,13 @@ func TestEnabledListSourcesReturnsOnlyEnabledLists(t *testing.T) {
 		t.Fatalf("source ID = %d, want %d", sources[0].ID, firstID)
 	}
 }
+
+func TestRefreshListSourcesRejectsMissingManager(t *testing.T) {
+	err := RefreshListSources(context.Background(), nil, nil)
+	if err == nil {
+		t.Fatal("RefreshListSources succeeded, want error")
+	}
+	if err.Error() != "classify manager not available" {
+		t.Fatalf("error = %q, want %q", err.Error(), "classify manager not available")
+	}
+}

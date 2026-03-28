@@ -351,6 +351,22 @@ func (s *Server) handleUIDeleteList(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
+func (s *Server) handleUIRefreshLists(w http.ResponseWriter, r *http.Request) {
+	if s.classify == nil {
+		http.Error(w, "classify manager not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	sources, err := app.EnabledListSources(s.db)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	go app.RefreshListSources(context.Background(), s.classify, sources)
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
 func settingsInputFromForm(r *http.Request) (app.SettingsInput, error) {
 	retentionDays, err := parseBoundedInt(r.FormValue("retention_days"), 1, 365)
 	if err != nil {

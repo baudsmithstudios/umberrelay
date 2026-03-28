@@ -81,6 +81,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /ui/lists", s.handleUIAddList)
 	s.mux.HandleFunc("POST /ui/lists/{id}/enabled", s.handleUIUpdateList)
 	s.mux.HandleFunc("POST /ui/lists/{id}/delete", s.handleUIDeleteList)
+	s.mux.HandleFunc("POST /ui/lists/refresh", s.handleUIRefreshLists)
 }
 
 // Handler returns the HTTP handler with all routes.

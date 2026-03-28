@@ -274,12 +274,14 @@ func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
 		return
 	}
+
 	sources, err := app.EnabledListSources(s.db)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	go s.classify.Refresh(context.Background(), sources)
+
+	go app.RefreshListSources(context.Background(), s.classify, sources)
 	w.WriteHeader(http.StatusAccepted)
 }
 

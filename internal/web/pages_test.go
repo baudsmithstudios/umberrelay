@@ -275,6 +275,7 @@ func TestSettingsPagePostsListActionsToUIRoutes(t *testing.T) {
 		`hx-post="/ui/lists/1/enabled"`,
 		`hx-post="/ui/lists/1/delete"`,
 		`hx-post="/ui/lists"`,
+		`hx-post="/ui/lists/refresh"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("settings page missing %q", want)
@@ -285,6 +286,7 @@ func TestSettingsPagePostsListActionsToUIRoutes(t *testing.T) {
 		`hx-put="/api/lists/1"`,
 		`hx-delete="/api/lists/1"`,
 		`hx-post="/api/lists"`,
+		`hx-post="/api/lists/refresh"`,
 	} {
 		if strings.Contains(body, avoid) {
 			t.Fatalf("settings page should not use %q", avoid)
@@ -404,6 +406,19 @@ func TestUIDeleteListRedirectsBackToSettings(t *testing.T) {
 	}
 	if len(lists) != 0 {
 		t.Fatalf("lists = %#v, want empty", lists)
+	}
+}
+
+func TestUIRefreshListsRedirectsBackToSettings(t *testing.T) {
+	s := testServerWithClassify(t)
+	req := httptest.NewRequest("POST", "/ui/lists/refresh", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/settings" {
+		t.Fatalf("Location = %q, want %q", location, "/settings")
 	}
 }
 
