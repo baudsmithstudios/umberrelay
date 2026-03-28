@@ -1,5 +1,6 @@
 DEV_NOTES/
 docs/superpowers/
+.superpowers/
 
 # Build output
 /scrye
