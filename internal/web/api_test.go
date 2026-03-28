@@ -199,6 +199,26 @@ func TestAPIUpdateDeviceRejectsNonJSONRequests(t *testing.T) {
 	}
 }
 
+func TestAPIUpdateDeviceReturnsNotFoundForMissingDevice(t *testing.T) {
+	s := testServer(t)
+	body := bytes.NewBufferString(`{"label":"Living Room TV"}`)
+	req := httptest.NewRequest("PUT", "/api/devices/aa:bb:cc:dd:ee:ff", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "device not found" {
+		t.Fatalf("error = %q, want %q", response["error"], "device not found")
+	}
+}
+
 func TestAPIAddListRejectsLocalURL(t *testing.T) {
 	s := testServerWithClassify(t)
 	body := bytes.NewBufferString(`{"url":"http://localhost/list.txt","name":"Local","category":"tracking"}`)
@@ -253,6 +273,44 @@ func TestAPIUpdateListRejectsNonJSONRequests(t *testing.T) {
 	}
 }
 
+func TestAPIUpdateListReturnsNotFoundForMissingList(t *testing.T) {
+	s := testServer(t)
+	body := bytes.NewBufferString(`{"enabled":false}`)
+	req := httptest.NewRequest("PUT", "/api/lists/999", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "list not found" {
+		t.Fatalf("error = %q, want %q", response["error"], "list not found")
+	}
+}
+
+func TestAPIDeleteListReturnsNotFoundForMissingList(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("DELETE", "/api/lists/999", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "list not found" {
+		t.Fatalf("error = %q, want %q", response["error"], "list not found")
+	}
+}
+
 func TestAPISetOverrideAcceptsJSON(t *testing.T) {
 	s := testServerWithClassify(t)
 	body := bytes.NewBufferString(`{"category":"tracking"}`)
@@ -298,6 +356,27 @@ func TestAPIQueriesRejectInvalidFromAsJSONError(t *testing.T) {
 	}
 	if response["error"] != "from must be RFC3339" {
 		t.Fatalf("error = %q, want %q", response["error"], "from must be RFC3339")
+	}
+}
+
+func TestAPIQueriesRejectInvalidOffsetAsJSONError(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/api/queries?offset=-1", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "offset must be a non-negative integer" {
+		t.Fatalf("error = %q, want %q", response["error"], "offset must be a non-negative integer")
 	}
 }
 

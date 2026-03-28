@@ -102,3 +102,25 @@ func TestRefreshListSourcesRejectsMissingManager(t *testing.T) {
 		t.Fatalf("error = %q, want %q", err.Error(), "classify manager not available")
 	}
 }
+
+func TestUpdateListEnabledReturnsNotFoundForMissingList(t *testing.T) {
+	db := testDB(t)
+	err := UpdateListEnabled(db, 999, false)
+	if err == nil {
+		t.Fatal("UpdateListEnabled succeeded, want error")
+	}
+	if err.Error() != "list not found" {
+		t.Fatalf("error = %q, want %q", err.Error(), "list not found")
+	}
+}
+
+func TestDeleteListReturnsNotFoundForMissingList(t *testing.T) {
+	db := testDB(t)
+	err := DeleteList(db, 999)
+	if err == nil {
+		t.Fatal("DeleteList succeeded, want error")
+	}
+	if err.Error() != "list not found" {
+		t.Fatalf("error = %q, want %q", err.Error(), "list not found")
+	}
+}

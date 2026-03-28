@@ -20,3 +20,14 @@ func TestUpdateDeviceLabelPersistsLabel(t *testing.T) {
 		t.Fatalf("label = %q, want %q", device.Label, "Living Room TV")
 	}
 }
+
+func TestUpdateDeviceLabelReturnsNotFoundForMissingDevice(t *testing.T) {
+	db := testDB(t)
+	err := UpdateDeviceLabel(db, "aa:bb:cc:dd:ee:ff", "Living Room TV")
+	if err == nil {
+		t.Fatal("UpdateDeviceLabel succeeded, want error")
+	}
+	if err.Error() != "device not found" {
+		t.Fatalf("error = %q, want %q", err.Error(), "device not found")
+	}
+}

@@ -2,12 +2,15 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"scrye/internal/classify"
 	"scrye/internal/store"
 )
+
+var ErrListNotFound = errors.New("list not found")
 
 // AddListInput holds user input for adding a classification list.
 type AddListInput struct {
@@ -36,12 +39,20 @@ func AddList(ctx context.Context, db *store.DB, input AddListInput) (int64, erro
 
 // UpdateListEnabled toggles whether a list participates in classification.
 func UpdateListEnabled(db *store.DB, id int64, enabled bool) error {
-	return db.UpdateListEnabled(id, enabled)
+	err := db.UpdateListEnabled(id, enabled)
+	if errors.Is(err, store.ErrNotFound) {
+		return ErrListNotFound
+	}
+	return err
 }
 
 // DeleteList removes a classification list.
 func DeleteList(db *store.DB, id int64) error {
-	return db.DeleteList(id)
+	err := db.DeleteList(id)
+	if errors.Is(err, store.ErrNotFound) {
+		return ErrListNotFound
+	}
+	return err
 }
 
 // EnabledListSources returns the currently enabled classification lists.

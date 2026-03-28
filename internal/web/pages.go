@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -287,6 +288,10 @@ func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Reques
 
 	mac := r.PathValue("mac")
 	if err := app.UpdateDeviceLabel(s.db, mac, r.FormValue("label")); err != nil {
+		if errors.Is(err, app.ErrDeviceNotFound) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -330,6 +335,10 @@ func (s *Server) handleUIUpdateList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := app.UpdateListEnabled(s.db, id, enabled); err != nil {
+		if errors.Is(err, app.ErrListNotFound) {
+			http.Error(w, "list not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -344,6 +353,10 @@ func (s *Server) handleUIDeleteList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := app.DeleteList(s.db, id); err != nil {
+		if errors.Is(err, app.ErrListNotFound) {
+			http.Error(w, "list not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

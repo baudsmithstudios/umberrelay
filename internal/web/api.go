@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -53,6 +54,10 @@ func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := app.UpdateDeviceLabel(s.db, mac, body.Label); err != nil {
+		if errors.Is(err, app.ErrDeviceNotFound) {
+			writeJSONError(w, http.StatusNotFound, "device not found")
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -74,9 +79,12 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 		limit = n
 	}
 	if v := q.Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeJSONError(w, http.StatusBadRequest, "offset must be a non-negative integer")
+			return
 		}
+		offset = n
 	}
 	var from, to time.Time
 	if v := q.Get("from"); v != "" {
@@ -247,6 +255,10 @@ func (s *Server) handleAPIUpdateList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := app.UpdateListEnabled(s.db, id, *body.Enabled); err != nil {
+		if errors.Is(err, app.ErrListNotFound) {
+			writeJSONError(w, http.StatusNotFound, "list not found")
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -262,6 +274,10 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := app.DeleteList(s.db, id); err != nil {
+		if errors.Is(err, app.ErrListNotFound) {
+			writeJSONError(w, http.StatusNotFound, "list not found")
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}

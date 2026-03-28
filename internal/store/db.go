@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -50,6 +51,9 @@ type DB struct {
 	sql *sql.DB
 }
 
+// ErrNotFound indicates the requested row does not exist.
+var ErrNotFound = errors.New("not found")
+
 // Open opens (or creates) the SQLite database and applies the schema.
 func Open(path string) (*DB, error) {
 	conn, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_synchronous=NORMAL")
@@ -87,8 +91,18 @@ func (d *DB) UpsertDevice(dev Device) error {
 
 // UpdateDeviceLabel sets the user-assigned label for a device.
 func (d *DB) UpdateDeviceLabel(mac, label string) error {
-	_, err := d.sql.Exec(`UPDATE devices SET label = ? WHERE mac = ?`, label, mac)
-	return err
+	result, err := d.sql.Exec(`UPDATE devices SET label = ? WHERE mac = ?`, label, mac)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // ListDevices returns all known devices.
@@ -330,14 +344,34 @@ func (d *DB) ListLists() ([]ListEntry, error) {
 
 // DeleteList removes a classification list and its cached domains.
 func (d *DB) DeleteList(id int64) error {
-	_, err := d.sql.Exec(`DELETE FROM lists WHERE id = ?`, id)
-	return err
+	result, err := d.sql.Exec(`DELETE FROM lists WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // UpdateListEnabled toggles whether a classification list participates in lookups.
 func (d *DB) UpdateListEnabled(id int64, enabled bool) error {
-	_, err := d.sql.Exec(`UPDATE lists SET enabled = ? WHERE id = ?`, enabled, id)
-	return err
+	result, err := d.sql.Exec(`UPDATE lists SET enabled = ? WHERE id = ?`, enabled, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // UpdateListFetchTime marks a list as recently fetched.
