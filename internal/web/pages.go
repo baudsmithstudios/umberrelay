@@ -1,12 +1,14 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
 	"strconv"
 
+	"scrye/internal/app"
 	"scrye/internal/store"
 )
 
@@ -255,4 +257,121 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Lists:            lists,
 	}
 	s.renderPage(w, "settings", data)
+}
+
+func (s *Server) handleUIUpdateSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	input, err := settingsInputFromForm(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := app.UpdateSettings(s.db, s.classify, input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	mac := r.PathValue("mac")
+	if err := app.UpdateDeviceLabel(s.db, mac, r.FormValue("label")); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+}
+
+func (s *Server) handleUIAddList(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	_, err := app.AddList(context.Background(), s.db, app.AddListInput{
+		URL:      r.FormValue("url"),
+		Name:     r.FormValue("name"),
+		Category: r.FormValue("category"),
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.refreshClassificationAsync()
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+func (s *Server) handleUIUpdateList(w http.ResponseWriter, r *http.Request) {
+	id, err := parseListID(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+	enabled, err := parseBoolFormValue(r.FormValue("enabled"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := app.UpdateListEnabled(s.db, id, enabled); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	s.refreshClassificationAsync()
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+func (s *Server) handleUIDeleteList(w http.ResponseWriter, r *http.Request) {
+	id, err := parseListID(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := app.DeleteList(s.db, id); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	s.refreshClassificationAsync()
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+func settingsInputFromForm(r *http.Request) (app.SettingsInput, error) {
+	retentionDays, err := parseBoundedInt(r.FormValue("retention_days"), 1, 365)
+	if err != nil {
+		return app.SettingsInput{}, fmt.Errorf("retention_days must be between 1 and 365")
+	}
+
+	listRefreshHours, err := parseBoundedInt(r.FormValue("list_refresh_hours"), 1, 168)
+	if err != nil {
+		return app.SettingsInput{}, fmt.Errorf("list_refresh_hours must be between 1 and 168")
+	}
+
+	return app.SettingsInput{
+		RetentionDays:    &retentionDays,
+		ListRefreshHours: &listRefreshHours,
+	}, nil
+}
+
+func parseListID(idStr string) (int64, error) {
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid list id")
+	}
+	return id, nil
 }

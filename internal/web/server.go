@@ -76,6 +76,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /devices/{mac}", s.handleDeviceDetail)
 	s.mux.HandleFunc("GET /domains", s.handleDomains)
 	s.mux.HandleFunc("GET /settings", s.handleSettings)
+	s.mux.HandleFunc("POST /ui/settings", s.handleUIUpdateSettings)
+	s.mux.HandleFunc("POST /ui/devices/{mac}/label", s.handleUIUpdateDeviceLabel)
+	s.mux.HandleFunc("POST /ui/lists", s.handleUIAddList)
+	s.mux.HandleFunc("POST /ui/lists/{id}/enabled", s.handleUIUpdateList)
+	s.mux.HandleFunc("POST /ui/lists/{id}/delete", s.handleUIDeleteList)
 }
 
 // Handler returns the HTTP handler with all routes.

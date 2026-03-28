@@ -1,6 +1,8 @@
 package web
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -26,9 +28,9 @@ func TestAPISummary(t *testing.T) {
 
 func TestUpdateSettingsAllowsValidKeys(t *testing.T) {
 	s := testServer(t)
-	body := strings.NewReader("retention_days=7&list_refresh_hours=12")
+	body := bytes.NewBufferString(`{"retention_days":7,"list_refresh_hours":12}`)
 	req := httptest.NewRequest("PUT", "/api/settings", body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusNoContent {
@@ -38,9 +40,9 @@ func TestUpdateSettingsAllowsValidKeys(t *testing.T) {
 
 func TestUpdateSettingsRejectsUnknownKeys(t *testing.T) {
 	s := testServer(t)
-	body := strings.NewReader("malicious_key=evil")
+	body := bytes.NewBufferString(`{"malicious_key":"evil"}`)
 	req := httptest.NewRequest("PUT", "/api/settings", body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
@@ -50,13 +52,48 @@ func TestUpdateSettingsRejectsUnknownKeys(t *testing.T) {
 
 func TestUpdateSettingsRejectsInvalidValues(t *testing.T) {
 	s := testServer(t)
-	body := strings.NewReader("retention_days=0&list_refresh_hours=999")
+	body := bytes.NewBufferString(`{"retention_days":0,"list_refresh_hours":999}`)
 	req := httptest.NewRequest("PUT", "/api/settings", body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUpdateSettingsRejectsNonJSONRequests(t *testing.T) {
+	s := testServer(t)
+	body := strings.NewReader("retention_days=7&list_refresh_hours=12")
+	req := httptest.NewRequest("PUT", "/api/settings", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
+	}
+}
+
+func TestUpdateSettingsReturnsJSONErrors(t *testing.T) {
+	s := testServer(t)
+	body := bytes.NewBufferString(`{"retention_days":0}`)
+	req := httptest.NewRequest("PUT", "/api/settings", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] == "" {
+		t.Fatalf("error response missing message: %#v", response)
 	}
 }
 
@@ -70,15 +107,15 @@ func TestAPIDevices(t *testing.T) {
 	}
 }
 
-func TestAPIUpdateDeviceAcceptsForm(t *testing.T) {
+func TestAPIUpdateDeviceAcceptsJSON(t *testing.T) {
 	s := testServer(t)
 	if err := s.db.UpsertDevice(deviceFixture()); err != nil {
 		t.Fatal(err)
 	}
 
-	body := strings.NewReader("label=Living+Room+TV")
+	body := bytes.NewBufferString(`{"label":"Living Room TV"}`)
 	req := httptest.NewRequest("PUT", "/api/devices/aa:bb:cc:dd:ee:ff", body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusNoContent {
@@ -94,11 +131,27 @@ func TestAPIUpdateDeviceAcceptsForm(t *testing.T) {
 	}
 }
 
+func TestAPIUpdateDeviceRejectsNonJSONRequests(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.UpsertDevice(deviceFixture()); err != nil {
+		t.Fatal(err)
+	}
+
+	body := strings.NewReader("label=Living+Room+TV")
+	req := httptest.NewRequest("PUT", "/api/devices/aa:bb:cc:dd:ee:ff", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
+	}
+}
+
 func TestAPIAddListRejectsLocalURL(t *testing.T) {
 	s := testServerWithClassify(t)
-	body := strings.NewReader("url=http://localhost/list.txt&name=Local&category=tracking")
+	body := bytes.NewBufferString(`{"url":"http://localhost/list.txt","name":"Local","category":"tracking"}`)
 	req := httptest.NewRequest("POST", "/api/lists", body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
@@ -113,9 +166,9 @@ func TestAPIUpdateListEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body := strings.NewReader("enabled=false")
+	body := bytes.NewBufferString(`{"enabled":false}`)
 	req := httptest.NewRequest("PUT", "/api/lists/"+itoa(id), body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusNoContent {
@@ -128,6 +181,50 @@ func TestAPIUpdateListEnabled(t *testing.T) {
 	}
 	if len(lists) != 1 || lists[0].Enabled {
 		t.Fatalf("enabled = %v, want false", lists[0].Enabled)
+	}
+}
+
+func TestAPIUpdateListRejectsNonJSONRequests(t *testing.T) {
+	s := testServer(t)
+	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := strings.NewReader("enabled=false")
+	req := httptest.NewRequest("PUT", "/api/lists/"+itoa(id), body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
+	}
+}
+
+func TestAPISetOverrideAcceptsJSON(t *testing.T) {
+	s := testServerWithClassify(t)
+	body := bytes.NewBufferString(`{"category":"tracking"}`)
+	req := httptest.NewRequest("PUT", "/api/overrides/example.com", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusNoContent)
+	}
+	if got := s.classify.Classify("example.com."); got != "tracking" {
+		t.Fatalf("override category = %q, want %q", got, "tracking")
+	}
+}
+
+func TestAPISetOverrideRejectsNonJSONRequests(t *testing.T) {
+	s := testServerWithClassify(t)
+	body := strings.NewReader("category=tracking")
+	req := httptest.NewRequest("PUT", "/api/overrides/example.com", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
 	}
 }
 
