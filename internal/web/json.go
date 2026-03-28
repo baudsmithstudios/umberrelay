@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -31,6 +32,19 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func decodeAPIJSON(w http.ResponseWriter, r *http.Request, dst interface{}) bool {
+	if err := decodeJSON(r, dst); err != nil {
+		var mediaErr unsupportedMediaTypeError
+		if errors.As(err, &mediaErr) {
+			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
+			return false
+		}
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return false
+	}
+	return true
 }
 
 type unsupportedMediaTypeError struct {

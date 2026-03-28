@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -49,13 +48,7 @@ func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Label string `json:"label"`
 	}
-	if err := decodeJSON(r, &body); err != nil {
-		var mediaErr unsupportedMediaTypeError
-		if errors.As(err, &mediaErr) {
-			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
-			return
-		}
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
 
@@ -183,13 +176,7 @@ func (s *Server) handleAPIUpdateSettings(w http.ResponseWriter, r *http.Request)
 		RetentionDays    *int `json:"retention_days"`
 		ListRefreshHours *int `json:"list_refresh_hours"`
 	}
-	if err := decodeJSON(r, &body); err != nil {
-		var mediaErr unsupportedMediaTypeError
-		if errors.As(err, &mediaErr) {
-			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
-			return
-		}
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
 
@@ -220,13 +207,7 @@ func (s *Server) handleAPIAddList(w http.ResponseWriter, r *http.Request) {
 		Name     string `json:"name"`
 		Category string `json:"category"`
 	}
-	if err := decodeJSON(r, &body); err != nil {
-		var mediaErr unsupportedMediaTypeError
-		if errors.As(err, &mediaErr) {
-			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
-			return
-		}
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
 	id, err := app.AddList(r.Context(), s.db, app.AddListInput{
@@ -252,13 +233,7 @@ func (s *Server) handleAPIUpdateList(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Enabled *bool `json:"enabled"`
 	}
-	if err := decodeJSON(r, &body); err != nil {
-		var mediaErr unsupportedMediaTypeError
-		if errors.As(err, &mediaErr) {
-			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
-			return
-		}
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
 	if body.Enabled == nil {
@@ -307,13 +282,7 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Category string `json:"category"`
 	}
-	if err := decodeJSON(r, &body); err != nil {
-		var mediaErr unsupportedMediaTypeError
-		if errors.As(err, &mediaErr) {
-			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
-			return
-		}
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
 	if body.Category == "" {
