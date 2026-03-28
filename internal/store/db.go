@@ -479,6 +479,12 @@ type DeviceDomainSummary struct {
 	Count    int
 }
 
+// CategoryCount holds per-category query counts for a device detail page.
+type CategoryCount struct {
+	Category string
+	Count    int
+}
+
 // DeviceTopDomains returns the most-queried domains for a specific device (last 24 hours).
 func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, error) {
 	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
@@ -505,11 +511,44 @@ func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, err
 	return out, rows.Err()
 }
 
+// DeviceCategoryBreakdown returns per-category query counts for a specific device (last 24 hours).
+func (d *DB) DeviceCategoryBreakdown(mac string) ([]CategoryCount, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+        SELECT COALESCE(category, ''), COUNT(*) as cnt
+        FROM queries
+        WHERE device_mac = ? AND timestamp >= ?
+        GROUP BY category
+        ORDER BY cnt DESC, category ASC`, mac, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []CategoryCount
+	for rows.Next() {
+		var cc CategoryCount
+		if err := rows.Scan(&cc.Category, &cc.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, cc)
+	}
+	return out, rows.Err()
+}
+
 // DeviceWithStats holds a device record with its query stats for the last 24 hours.
 type DeviceWithStats struct {
 	Device
 	QueryCount     int
 	TrackerPercent float64
+}
+
+// DevicePrivacySummary holds privacy summary data for a device detail page.
+type DevicePrivacySummary struct {
+	QueryCount           int
+	TrackerPercent       float64
+	UniqueDomains        int
+	UniqueTrackerDomains int
 }
 
 // ListDevicesWithStats returns all devices with their 24-hour query stats in a single query.
@@ -555,6 +594,34 @@ func (d *DB) ListDevicesWithStats() ([]DeviceWithStats, error) {
 		out = append(out, dws)
 	}
 	return out, rows.Err()
+}
+
+// DevicePrivacySummary returns privacy summary stats for a specific device (last 24 hours).
+func (d *DB) DevicePrivacySummary(mac string) (DevicePrivacySummary, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	var summary DevicePrivacySummary
+	var trackerCount int
+
+	err := d.sql.QueryRow(`
+        SELECT COUNT(*),
+               COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0),
+               COUNT(DISTINCT domain),
+               COUNT(DISTINCT CASE WHEN category != '' THEN domain END)
+        FROM queries
+        WHERE device_mac = ? AND timestamp >= ?`, mac, cutoff,
+	).Scan(
+		&summary.QueryCount,
+		&trackerCount,
+		&summary.UniqueDomains,
+		&summary.UniqueTrackerDomains,
+	)
+	if err != nil {
+		return summary, err
+	}
+	if summary.QueryCount > 0 {
+		summary.TrackerPercent = float64(trackerCount) / float64(summary.QueryCount) * 100
+	}
+	return summary, nil
 }
 
 // DeviceStatsResult holds aggregate stats for a single device.
