@@ -8,12 +8,12 @@
         font-style: normal;
       }
       /* dark mode (default) */
-      .title-text { fill: #e08a3e; }
-      .decoration { stroke: #8b4513; }
+      .title-text { fill: #8678F0; }
+      .decoration { stroke: #6B58C5; }
       /* light mode */
       @media (prefers-color-scheme: light) {
-        .title-text { fill: #b35900; }
-        .decoration { stroke: #d4760a; }
+        .title-text { fill: #5B4CB0; }
+        .decoration { stroke: #7e7895; }
       }
     </style>
   </defs>

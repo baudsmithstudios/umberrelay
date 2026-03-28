@@ -1,0 +1,234 @@
+/*
+ * Steel Violet -- Scrye color theme
+ *
+ * Dark mode is the default. Light mode activates via data-theme="light".
+ * All foreground colors meet WCAG AA contrast against every background
+ * they appear on. See docs/superpowers/specs/2026-03-28-steel-violet-palette-design.md.
+ */
+
+/* === Dark mode (default) === */
+[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Backgrounds */
+    --pico-background-color: #0d0d12;
+    --pico-card-background-color: #16161e;
+    --pico-card-sectioning-background-color: #1e1e28;
+    --pico-dropdown-background-color: #1e1e28;
+    --pico-code-background-color: #1e1e28;
+    --pico-form-element-background-color: #16161e;
+    --pico-form-element-active-background-color: #1e1e28;
+    --pico-form-element-selected-background-color: #3D3270;
+    --pico-modal-overlay-background-color: rgba(13, 13, 18, 0.75);
+    --pico-progress-background-color: #1e1e28;
+
+    /* Text */
+    --pico-color: #d4d0e0;
+    --pico-h1-color: #d4d0e0;
+    --pico-h2-color: #d4d0e0;
+    --pico-h3-color: #d4d0e0;
+    --pico-h4-color: #8a879a;
+    --pico-h5-color: #8a879a;
+    --pico-h6-color: #8a879a;
+    --pico-muted-color: #8a879a;
+    --pico-code-color: #8a879a;
+
+    /* Primary (Accent) */
+    --pico-primary: #8678F0;
+    --pico-primary-background: #6B58C5;
+    --pico-primary-border: var(--pico-primary-background);
+    --pico-primary-underline: rgba(134, 120, 240, 0.5);
+    --pico-primary-hover: #9a8ef4;
+    --pico-primary-hover-background: #7B68EE;
+    --pico-primary-hover-border: var(--pico-primary-hover-background);
+    --pico-primary-hover-underline: var(--pico-primary-hover);
+    --pico-primary-focus: rgba(134, 120, 240, 0.375);
+    --pico-primary-inverse: #0d0d12;
+
+    /* Secondary */
+    --pico-secondary: #8a879a;
+    --pico-secondary-background: #3D3270;
+    --pico-secondary-border: var(--pico-secondary-background);
+    --pico-secondary-hover: #d4d0e0;
+    --pico-secondary-hover-background: #4A3D90;
+    --pico-secondary-hover-border: var(--pico-secondary-hover-background);
+    --pico-secondary-focus: rgba(61, 50, 112, 0.25);
+    --pico-secondary-inverse: #d4d0e0;
+
+    /* Contrast */
+    --pico-contrast: #d4d0e0;
+    --pico-contrast-background: #d4d0e0;
+    --pico-contrast-border: var(--pico-contrast-background);
+    --pico-contrast-hover: #ffffff;
+    --pico-contrast-hover-background: #ffffff;
+    --pico-contrast-hover-border: var(--pico-contrast-hover-background);
+    --pico-contrast-focus: rgba(212, 208, 224, 0.25);
+    --pico-contrast-inverse: #0d0d12;
+
+    /* Borders */
+    --pico-muted-border-color: #6a6888;
+    --pico-card-border-color: #6a6888;
+    --pico-table-border-color: #6a6888;
+    --pico-form-element-border-color: #6a6888;
+    --pico-form-element-active-border-color: var(--pico-primary);
+    --pico-form-element-focus-color: var(--pico-primary);
+    --pico-dropdown-border-color: #6a6888;
+    --pico-dropdown-hover-background-color: #1e1e28;
+    --pico-blockquote-border-color: #6a6888;
+    --pico-accordion-border-color: #6a6888;
+
+    /* Form validation */
+    --pico-form-element-invalid-border-color: #ec5252;
+    --pico-form-element-invalid-active-border-color: #ec5252;
+    --pico-form-element-invalid-focus-color: #ec5252;
+    --pico-form-element-valid-border-color: #8678F0;
+    --pico-form-element-valid-active-border-color: #8678F0;
+    --pico-form-element-valid-focus-color: #8678F0;
+
+    /* Misc */
+    --pico-form-element-color: #d4d0e0;
+    --pico-form-element-placeholder-color: #8a879a;
+    --pico-form-element-disabled-opacity: 0.5;
+    --pico-text-selection-color: rgba(134, 120, 240, 0.25);
+    --pico-mark-background-color: #3D3270;
+    --pico-mark-color: #d4d0e0;
+    --pico-ins-color: #d4a017;
+    --pico-del-color: #ec5252;
+    --pico-switch-background-color: #6a6888;
+    --pico-switch-checked-background-color: var(--pico-primary-background);
+    --pico-switch-color: #d4d0e0;
+    --pico-range-border-color: #6a6888;
+    --pico-range-active-border-color: #8678F0;
+    --pico-range-thumb-color: var(--pico-primary-background);
+    --pico-range-thumb-active-color: var(--pico-primary-background);
+    --pico-accordion-active-summary-color: var(--pico-primary-hover);
+    --pico-accordion-close-summary-color: var(--pico-color);
+    --pico-accordion-open-summary-color: var(--pico-muted-color);
+    --pico-loading-spinner-opacity: 0.5;
+    --pico-tooltip-background-color: #1e1e28;
+    --pico-tooltip-color: #d4d0e0;
+    --pico-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+
+    /* Scrye semantic tokens (not Pico, used by our custom styles) */
+    --scrye-warn: #d4a017;
+    --scrye-critical: #ec5252;
+    --scrye-accent: #8678F0;
+    --scrye-chart-total: #8678F0;
+    --scrye-chart-tracker: #ec5252;
+}
+
+/* === Light mode === */
+[data-theme="light"] {
+    color-scheme: light;
+
+    /* Backgrounds */
+    --pico-background-color: #f0eef5;
+    --pico-card-background-color: #ffffff;
+    --pico-card-sectioning-background-color: #e4e0f0;
+    --pico-dropdown-background-color: #ffffff;
+    --pico-code-background-color: #e4e0f0;
+    --pico-form-element-background-color: #ffffff;
+    --pico-form-element-active-background-color: #ffffff;
+    --pico-form-element-selected-background-color: #e8e4f5;
+    --pico-modal-overlay-background-color: rgba(240, 238, 245, 0.75);
+    --pico-progress-background-color: #e4e0f0;
+
+    /* Text */
+    --pico-color: #1a1828;
+    --pico-h1-color: #1a1828;
+    --pico-h2-color: #1a1828;
+    --pico-h3-color: #1a1828;
+    --pico-h4-color: #605c75;
+    --pico-h5-color: #605c75;
+    --pico-h6-color: #605c75;
+    --pico-muted-color: #605c75;
+    --pico-code-color: #605c75;
+
+    /* Primary (Accent) */
+    --pico-primary: #5B4CB0;
+    --pico-primary-background: #5B4CB0;
+    --pico-primary-border: var(--pico-primary-background);
+    --pico-primary-underline: rgba(91, 76, 176, 0.5);
+    --pico-primary-hover: #4A3D90;
+    --pico-primary-hover-background: #4A3D90;
+    --pico-primary-hover-border: var(--pico-primary-hover-background);
+    --pico-primary-hover-underline: var(--pico-primary-hover);
+    --pico-primary-focus: rgba(91, 76, 176, 0.375);
+    --pico-primary-inverse: #ffffff;
+
+    /* Secondary */
+    --pico-secondary: #605c75;
+    --pico-secondary-background: #7e7895;
+    --pico-secondary-border: var(--pico-secondary-background);
+    --pico-secondary-hover: #1a1828;
+    --pico-secondary-hover-background: #605c75;
+    --pico-secondary-hover-border: var(--pico-secondary-hover-background);
+    --pico-secondary-focus: rgba(126, 120, 149, 0.25);
+    --pico-secondary-inverse: #ffffff;
+
+    /* Contrast */
+    --pico-contrast: #1a1828;
+    --pico-contrast-background: #1a1828;
+    --pico-contrast-border: var(--pico-contrast-background);
+    --pico-contrast-hover: #000000;
+    --pico-contrast-hover-background: #000000;
+    --pico-contrast-hover-border: var(--pico-contrast-hover-background);
+    --pico-contrast-focus: rgba(26, 24, 40, 0.25);
+    --pico-contrast-inverse: #ffffff;
+
+    /* Borders */
+    --pico-muted-border-color: #7e7895;
+    --pico-card-border-color: #7e7895;
+    --pico-table-border-color: #7e7895;
+    --pico-form-element-border-color: #7e7895;
+    --pico-form-element-active-border-color: var(--pico-primary);
+    --pico-form-element-focus-color: var(--pico-primary);
+    --pico-dropdown-border-color: #7e7895;
+    --pico-dropdown-hover-background-color: #e4e0f0;
+    --pico-blockquote-border-color: #7e7895;
+    --pico-accordion-border-color: #7e7895;
+
+    /* Form validation */
+    --pico-form-element-invalid-border-color: #a82020;
+    --pico-form-element-invalid-active-border-color: #a82020;
+    --pico-form-element-invalid-focus-color: #a82020;
+    --pico-form-element-valid-border-color: #5B4CB0;
+    --pico-form-element-valid-active-border-color: #5B4CB0;
+    --pico-form-element-valid-focus-color: #5B4CB0;
+
+    /* Misc */
+    --pico-form-element-color: #1a1828;
+    --pico-form-element-placeholder-color: #605c75;
+    --pico-form-element-disabled-opacity: 0.5;
+    --pico-text-selection-color: rgba(91, 76, 176, 0.25);
+    --pico-mark-background-color: #e8e4f5;
+    --pico-mark-color: #1a1828;
+    --pico-ins-color: #756000;
+    --pico-del-color: #a82020;
+    --pico-switch-background-color: #7e7895;
+    --pico-switch-checked-background-color: var(--pico-primary-background);
+    --pico-switch-color: #ffffff;
+    --pico-range-border-color: #7e7895;
+    --pico-range-active-border-color: #5B4CB0;
+    --pico-range-thumb-color: var(--pico-primary-background);
+    --pico-range-thumb-active-color: var(--pico-primary-background);
+    --pico-accordion-active-summary-color: var(--pico-primary-hover);
+    --pico-accordion-close-summary-color: var(--pico-color);
+    --pico-accordion-open-summary-color: var(--pico-muted-color);
+    --pico-loading-spinner-opacity: 0.5;
+    --pico-tooltip-background-color: #1a1828;
+    --pico-tooltip-color: #ffffff;
+    --pico-box-shadow: 0.0145rem 0.029rem 0.174rem rgba(26, 24, 40, 0.017),
+        0.0335rem 0.067rem 0.402rem rgba(26, 24, 40, 0.024),
+        0.0625rem 0.125rem 0.75rem rgba(26, 24, 40, 0.03),
+        0.1125rem 0.225rem 1.35rem rgba(26, 24, 40, 0.036),
+        0.2085rem 0.417rem 2.502rem rgba(26, 24, 40, 0.043),
+        0.5rem 1rem 6rem rgba(26, 24, 40, 0.06);
+
+    /* Scrye semantic tokens */
+    --scrye-warn: #756000;
+    --scrye-critical: #a82020;
+    --scrye-accent: #5B4CB0;
+    --scrye-chart-total: #5B4CB0;
+    --scrye-chart-tracker: #a82020;
+}

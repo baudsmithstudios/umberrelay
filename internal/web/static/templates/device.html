@@ -114,8 +114,8 @@ window.addEventListener('DOMContentLoaded', function () {
                 ],
                 series: [
                     {},
-                    { label: 'Total', stroke: '#1d4ed8', width: 2 },
-                    { label: 'Tracker', stroke: '#b91c1c', width: 2 },
+                    { label: 'Total', stroke: getComputedStyle(document.documentElement).getPropertyValue('--scrye-chart-total').trim(), width: 2 },
+                    { label: 'Tracker', stroke: getComputedStyle(document.documentElement).getPropertyValue('--scrye-chart-tracker').trim(), width: 2 },
                 ],
             }, data, container);
         })
