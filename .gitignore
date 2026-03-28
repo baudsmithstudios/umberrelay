@@ -9,6 +9,7 @@ docs/superpowers/
 *.db
 *.db-wal
 *.db-shm
+.demo/
 
 # Go
 vendor/

@@ -14,6 +14,7 @@ import (
 
 	"scrye/internal/classify"
 	"scrye/internal/config"
+	"scrye/internal/demo"
 	"scrye/internal/device"
 	"scrye/internal/dns"
 	"scrye/internal/pipeline"
@@ -23,6 +24,7 @@ import (
 
 func main() {
 	configPath := flag.String("config", "/etc/scrye/config.toml", "path to config file")
+	demoData := flag.Bool("demo-data", false, "seed demo data into an empty database for local UI review")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
@@ -41,6 +43,13 @@ func main() {
 	}
 	defer db.Close()
 
+	if *demoData {
+		if err := demo.Seed(db, time.Now()); err != nil {
+			log.Fatalf("seed demo data: %v", err)
+		}
+		log.Printf("demo data ready in %s", dbPath)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -55,7 +64,9 @@ func main() {
 	// Device tracker
 	oui := device.DefaultOUIDB()
 	tracker := device.NewTracker(db, oui)
-	go tracker.Run(ctx)
+	if !*demoData {
+		go tracker.Run(ctx)
+	}
 
 	// Classification manager
 	mgr := classify.NewManager(db)
@@ -70,7 +81,7 @@ func main() {
 	}
 
 	sources := defaultListSources(db)
-	if cached == 0 {
+	if cached == 0 && !*demoData {
 		log.Println("no list cache found, fetching lists immediately")
 		mgr.Refresh(ctx, sources)
 	} else {
@@ -82,28 +93,36 @@ func main() {
 			refreshHours = n
 		}
 	}
-	go mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour)
+	if !*demoData {
+		go mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour)
+	}
 
 	// DNS listener + async writer
 	records := make(chan dns.QueryRecord, 4096)
-	listener, err := dns.NewListener(cfg.Listen, cfg.Upstream, records)
-	if err != nil {
-		log.Fatalf("create dns listener: %v", err)
-	}
-	go func() {
-		if err := listener.Run(ctx); err != nil && ctx.Err() == nil {
-			log.Fatalf("dns listener: %v", err)
+	if !*demoData {
+		listener, err := dns.NewListener(cfg.Listen, cfg.Upstream, records)
+		if err != nil {
+			log.Fatalf("create dns listener: %v", err)
 		}
-	}()
+		go func() {
+			if err := listener.Run(ctx); err != nil && ctx.Err() == nil {
+				log.Fatalf("dns listener: %v", err)
+			}
+		}()
+	}
 
 	writer := pipeline.NewWriter(records, db, tracker, mgr, pipeline.Config{
 		BatchSize:     100,
 		FlushInterval: 1 * time.Second,
 	})
-	go writer.Run(ctx)
+	if !*demoData {
+		go writer.Run(ctx)
+	}
 
 	// Purge goroutine
-	go runPurge(ctx, db)
+	if !*demoData {
+		go runPurge(ctx, db)
+	}
 
 	// Web server
 	srv := web.NewServer(db, mgr)
@@ -115,7 +134,11 @@ func main() {
 		}
 	}()
 
-	log.Printf("scrye started (dns=%s, upstream=%v)", cfg.Listen, cfg.Upstream)
+	if *demoData {
+		log.Printf("scrye demo mode started (http=:%d)", cfg.HTTPPort)
+	} else {
+		log.Printf("scrye started (dns=%s, upstream=%v)", cfg.Listen, cfg.Upstream)
+	}
 	<-ctx.Done()
 	log.Println("shutdown complete")
 }
