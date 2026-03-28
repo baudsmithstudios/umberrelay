@@ -25,7 +25,7 @@ Scrye is a forwarding DNS server that logs every query, identifies which device 
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
 - **Web dashboard** — query volume, tracker percentage, per-device breakdown, domain rankings, all in the browser
-- **REST API** — JSON API for devices, queries, domains, lists, settings, and overrides
+- **REST API** — JSON API for devices, queries, activity, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
 - **Configurable via UI** — retention, list refresh interval, blocklist management all from the settings page
@@ -37,12 +37,9 @@ git clone https://github.com/baudsmithstudios/scrye.git && cd scrye
 
 # Build and run with Docker
 docker compose up -d
-
-# Open the dashboard
-open http://localhost:8080
 ```
 
-Then point your router's DNS to the host running Scrye.
+Then open `http://localhost:8080` in a browser and point your router's DNS to the host running Scrye.
 
 ## Configuration
 
@@ -101,7 +98,13 @@ Lists are fetched on first run, cached to SQLite, and refreshed on a configurabl
 
 ## API
 
-All endpoints return JSON. The API is unauthenticated — bind to localhost or a trusted network.
+The API is unauthenticated — bind to localhost or a trusted network.
+
+- Read endpoints return JSON.
+- Mutation endpoints accept `application/json`.
+- Mutation endpoints return either JSON or an empty success status (`204 No Content` / `202 Accepted`).
+- Errors return JSON in the form `{ "error": "message" }`.
+- `/ui/...` routes are internal SSR form handlers, not part of the public API contract.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -111,15 +114,46 @@ All endpoints return JSON. The API is unauthenticated — bind to localhost or a
 | `GET` | `/api/devices/{mac}` | Single device |
 | `PUT` | `/api/devices/{mac}` | Update device label |
 | `GET` | `/api/queries` | Query log (filterable by device, domain, time range) |
+| `GET` | `/api/activity` | Hourly activity buckets (optionally filter by device) |
 | `GET` | `/api/domains` | Top domains (last 24h) |
 | `GET` | `/api/settings` | Current settings |
 | `PUT` | `/api/settings` | Update settings |
 | `GET` | `/api/lists` | All classification lists |
 | `POST` | `/api/lists` | Add a list |
+| `PUT` | `/api/lists/{id}` | Enable or disable a list |
 | `DELETE` | `/api/lists/{id}` | Remove a list |
 | `POST` | `/api/lists/refresh` | Trigger immediate list refresh |
 | `PUT` | `/api/overrides/{domain}` | Set domain classification override |
 | `DELETE` | `/api/overrides/{domain}` | Remove domain override |
+
+### Request Bodies
+
+Mutation endpoints expect JSON request bodies:
+
+| Endpoint | JSON Body |
+|---|---|
+| `PUT /api/devices/{mac}` | `{ "label": "Living Room TV" }` |
+| `PUT /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
+| `POST /api/lists` | `{ "url": "https://example.com/list.txt", "name": "Example", "category": "tracking" }` |
+| `PUT /api/lists/{id}` | `{ "enabled": true }` |
+| `PUT /api/overrides/{domain}` | `{ "category": "tracking" }` |
+
+### Response Shapes
+
+Selected read endpoints return these JSON shapes:
+
+| Endpoint | JSON Response |
+|---|---|
+| `GET /api/health` | `{ "status": "ok" }` |
+| `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
+
+Selected error responses use this JSON shape:
+
+| Condition | JSON Response |
+|---|---|
+| Validation or request error | `{ "error": "message" }` |
+| Not found | `{ "error": "message" }` |
+| Internal or dependency error | `{ "error": "message" }` |
 
 ### Query Parameters
 
@@ -196,7 +230,7 @@ Web Server
 - **No outbound data** — the only outbound connections are DNS forwarding and blocklist fetches
 - **Passive discovery** — device identification uses only broadcast/multicast traffic and the local ARP table
 - **Parameterized queries** — all SQL uses parameterized statements
-- **Input validation** — API endpoints validate and whitelist config keys
+- **Input validation** — API and UI mutation handlers validate JSON bodies, form inputs, list URLs, and allowed categories
 
 ## Tech Stack
 

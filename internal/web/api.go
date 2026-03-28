@@ -2,61 +2,63 @@ package web
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"scrye/internal/classify"
+	"scrye/internal/app"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleAPISummary(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.db.DashboardSummary()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	writeJSON(w, http.StatusOK, stats)
 }
 
 func (s *Server) handleAPIDevices(w http.ResponseWriter, r *http.Request) {
 	devices, err := s.db.ListDevicesWithStats()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(devices)
+	writeJSON(w, http.StatusOK, devices)
 }
 
 func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
-		http.Error(w, "device not found", http.StatusNotFound)
+		writeJSONError(w, http.StatusNotFound, "device not found")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dev)
+	writeJSON(w, http.StatusOK, dev)
 }
 
 func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
-	label, err := readDeviceLabel(r)
-	if err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	var body struct {
+		Label string `json:"label"`
+	}
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
-	if err := s.db.UpdateDeviceLabel(mac, label); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+
+	if err := app.UpdateDeviceLabel(s.db, mac, body.Label); err != nil {
+		if errors.Is(err, app.ErrDeviceNotFound) {
+			writeJSONError(w, http.StatusNotFound, "device not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -71,21 +73,24 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("limit"); v != "" {
 		n, err := parseBoundedInt(v, 1, 1000)
 		if err != nil {
-			http.Error(w, "limit must be between 1 and 1000", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "limit must be between 1 and 1000")
 			return
 		}
 		limit = n
 	}
 	if v := q.Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeJSONError(w, http.StatusBadRequest, "offset must be a non-negative integer")
+			return
 		}
+		offset = n
 	}
 	var from, to time.Time
 	if v := q.Get("from"); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			http.Error(w, "from must be RFC3339", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "from must be RFC3339")
 			return
 		}
 		from = t
@@ -93,7 +98,7 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("to"); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			http.Error(w, "to must be RFC3339", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "to must be RFC3339")
 			return
 		}
 		to = t
@@ -102,17 +107,16 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 		to = time.Now()
 	}
 	if !from.IsZero() && to.Before(from) {
-		http.Error(w, "to must be after from", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "to must be after from")
 		return
 	}
 
 	queries, err := s.db.QueryLog(deviceMAC, domain, from, to, limit, offset)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(queries)
+	writeJSON(w, http.StatusOK, queries)
 }
 
 func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +124,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 
 	buckets, err := s.db.HourlyActivity(deviceMAC)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -139,8 +143,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
@@ -148,129 +151,115 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("limit"); v != "" {
 		n, err := parseBoundedInt(v, 1, 1000)
 		if err != nil {
-			http.Error(w, "limit must be between 1 and 1000", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "limit must be between 1 and 1000")
 			return
 		}
 		limit = n
 	}
 	domains, err := s.db.TopDomains(limit)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(domains)
+	writeJSON(w, http.StatusOK, domains)
 }
 
 func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
 	retention, _ := s.db.GetConfig("retention_days")
-	if retention == "" {
-		retention = "30"
+	retentionDays := 30
+	if retention != "" {
+		if n, err := strconv.Atoi(retention); err == nil {
+			retentionDays = n
+		}
 	}
 	refreshHours, _ := s.db.GetConfig("list_refresh_hours")
-	if refreshHours == "" {
-		refreshHours = "24"
+	listRefreshHours := 24
+	if refreshHours != "" {
+		if n, err := strconv.Atoi(refreshHours); err == nil {
+			listRefreshHours = n
+		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"retention_days":     retention,
-		"list_refresh_hours": refreshHours,
+	writeJSON(w, http.StatusOK, map[string]int{
+		"retention_days":     retentionDays,
+		"list_refresh_hours": listRefreshHours,
 	})
 }
 
-var validConfigKeys = map[string]bool{
-	"retention_days":     true,
-	"list_refresh_hours": true,
-}
-
 func (s *Server) handleAPIUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form data", http.StatusBadRequest)
+	var body struct {
+		RetentionDays    *int `json:"retention_days"`
+		ListRefreshHours *int `json:"list_refresh_hours"`
+	}
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
-	for key := range r.PostForm {
-		if !validConfigKeys[key] {
-			http.Error(w, "unknown setting: "+key, http.StatusBadRequest)
-			return
-		}
+
+	err := app.UpdateSettings(s.db, s.classify, app.SettingsInput{
+		RetentionDays:    body.RetentionDays,
+		ListRefreshHours: body.ListRefreshHours,
+	})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	for key, values := range r.PostForm {
-		if len(values) > 0 {
-			if err := validateSettingValue(key, values[0]); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			if err := s.db.SetConfig(key, values[0]); err != nil {
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-		}
-	}
-	if s.classify != nil {
-		s.classify.NotifyConfigChanged()
-	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleAPIListLists(w http.ResponseWriter, r *http.Request) {
 	lists, err := s.db.ListLists()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(lists)
+	writeJSON(w, http.StatusOK, lists)
 }
 
 func (s *Server) handleAPIAddList(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form data", http.StatusBadRequest)
+	var body struct {
+		URL      string `json:"url"`
+		Name     string `json:"name"`
+		Category string `json:"category"`
+	}
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
-	url := r.FormValue("url")
-	name := r.FormValue("name")
-	category := r.FormValue("category")
-	if url == "" || name == "" || category == "" {
-		http.Error(w, "url, name, and category are required", http.StatusBadRequest)
-		return
-	}
-	if !isValidCategory(category) {
-		http.Error(w, "invalid category", http.StatusBadRequest)
-		return
-	}
-	if _, err := classify.ParseAndValidateListURL(r.Context(), url); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	id, err := s.db.AddList(url, name, category)
+	id, err := app.AddList(r.Context(), s.db, app.AddListInput{
+		URL:      body.URL,
+		Name:     body.Name,
+		Category: body.Category,
+	})
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	s.refreshClassificationAsync()
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int64{"id": id})
+	writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
 }
 
 func (s *Server) handleAPIUpdateList(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "invalid list id", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "invalid list id")
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form data", http.StatusBadRequest)
+	var body struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
-	enabled, err := parseBoolFormValue(r.FormValue("enabled"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if body.Enabled == nil {
+		writeJSONError(w, http.StatusBadRequest, "enabled is required")
 		return
 	}
-	if err := s.db.UpdateListEnabled(id, enabled); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if err := app.UpdateListEnabled(s.db, id, *body.Enabled); err != nil {
+		if errors.Is(err, app.ErrListNotFound) {
+			writeJSONError(w, http.StatusNotFound, "list not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	s.refreshClassificationAsync()
@@ -281,11 +270,15 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "invalid list id", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "invalid list id")
 		return
 	}
-	if err := s.db.DeleteList(id); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if err := app.DeleteList(s.db, id); err != nil {
+		if errors.Is(err, app.ErrListNotFound) {
+			writeJSONError(w, http.StatusNotFound, "list not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	s.refreshClassificationAsync()
@@ -294,26 +287,17 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 	if s.classify == nil {
-		http.Error(w, "classify manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
 		return
 	}
-	lists, err := s.db.ListLists()
+
+	sources, err := app.EnabledListSources(s.db)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	var sources []classify.ListSource
-	for _, l := range lists {
-		if l.Enabled {
-			sources = append(sources, classify.ListSource{
-				ID:       l.ID,
-				URL:      l.URL,
-				Name:     l.Name,
-				Category: l.Category,
-			})
-		}
-	}
-	go s.classify.Refresh(context.Background(), sources)
+
+	go app.RefreshListSources(context.Background(), s.classify, sources)
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -322,46 +306,27 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Category string `json:"category"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if !decodeAPIJSON(w, r, &body) {
 		return
 	}
 	if body.Category == "" {
-		http.Error(w, "category is required", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "category is required")
 		return
 	}
-	if s.classify != nil {
-		s.classify.SetOverride(domain, body.Category)
-	} else {
-		s.db.SetDomainOverride(domain, body.Category)
+	if err := app.SetDomainOverride(s.db, s.classify, domain, body.Category); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleAPIDeleteOverride(w http.ResponseWriter, r *http.Request) {
 	domain := r.PathValue("domain")
-	if s.classify != nil {
-		s.classify.RemoveOverride(domain)
-	} else {
-		s.db.DeleteDomainOverride(domain)
+	if err := app.DeleteDomainOverride(s.db, s.classify, domain); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func readDeviceLabel(r *http.Request) (string, error) {
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		var body struct {
-			Label string `json:"label"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return "", err
-		}
-		return body.Label, nil
-	}
-	if err := r.ParseForm(); err != nil {
-		return "", err
-	}
-	return r.FormValue("label"), nil
 }
 
 func parseBoundedInt(value string, min, max int) (int, error) {
@@ -370,20 +335,6 @@ func parseBoundedInt(value string, min, max int) (int, error) {
 		return 0, fmt.Errorf("value must be between %d and %d", min, max)
 	}
 	return n, nil
-}
-
-func validateSettingValue(key, value string) error {
-	switch key {
-	case "retention_days":
-		if _, err := parseBoundedInt(value, 1, 365); err != nil {
-			return fmt.Errorf("retention_days must be between 1 and 365")
-		}
-	case "list_refresh_hours":
-		if _, err := parseBoundedInt(value, 1, 168); err != nil {
-			return fmt.Errorf("list_refresh_hours must be between 1 and 168")
-		}
-	}
-	return nil
 }
 
 func parseBoolFormValue(value string) (bool, error) {
@@ -397,33 +348,13 @@ func parseBoolFormValue(value string) (bool, error) {
 	}
 }
 
-func isValidCategory(category string) bool {
-	switch category {
-	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":
-		return true
-	default:
-		return false
-	}
-}
-
 func (s *Server) refreshClassificationAsync() {
 	if s.classify == nil {
 		return
 	}
-	lists, err := s.db.ListLists()
+	sources, err := app.EnabledListSources(s.db)
 	if err != nil {
 		return
-	}
-	var sources []classify.ListSource
-	for _, l := range lists {
-		if l.Enabled {
-			sources = append(sources, classify.ListSource{
-				ID:       l.ID,
-				URL:      l.URL,
-				Name:     l.Name,
-				Category: l.Category,
-			})
-		}
 	}
 	go s.classify.Refresh(context.Background(), sources)
 }

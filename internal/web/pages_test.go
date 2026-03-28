@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -239,6 +240,188 @@ func TestSettingsPage(t *testing.T) {
 	}
 }
 
+func TestSettingsPagePostsToUIAction(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/settings", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), `hx-post="/ui/settings"`) {
+		t.Fatalf("settings page should post to UI action route")
+	}
+	if strings.Contains(w.Body.String(), `hx-put="/api/settings"`) {
+		t.Fatalf("settings page should not post forms directly to /api/settings")
+	}
+}
+
+func TestSettingsPagePostsListActionsToUIRoutes(t *testing.T) {
+	s := testServer(t)
+	_, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/settings", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		`hx-post="/ui/lists/1/enabled"`,
+		`hx-post="/ui/lists/1/delete"`,
+		`hx-post="/ui/lists"`,
+		`hx-post="/ui/lists/refresh"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("settings page missing %q", want)
+		}
+	}
+
+	for _, avoid := range []string{
+		`hx-put="/api/lists/1"`,
+		`hx-delete="/api/lists/1"`,
+		`hx-post="/api/lists"`,
+		`hx-post="/api/lists/refresh"`,
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("settings page should not use %q", avoid)
+		}
+	}
+}
+
+func TestUIUpdateSettingsRedirectsBackToSettings(t *testing.T) {
+	s := testServer(t)
+	form := url.Values{
+		"retention_days":     {"7"},
+		"list_refresh_hours": {"12"},
+	}
+	req := httptest.NewRequest("POST", "/ui/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/settings" {
+		t.Fatalf("Location = %q, want %q", location, "/settings")
+	}
+
+	retention, err := s.db.GetConfig("retention_days")
+	if err != nil {
+		t.Fatalf("GetConfig(retention_days): %v", err)
+	}
+	if retention != "7" {
+		t.Fatalf("retention_days = %q, want %q", retention, "7")
+	}
+
+	refreshHours, err := s.db.GetConfig("list_refresh_hours")
+	if err != nil {
+		t.Fatalf("GetConfig(list_refresh_hours): %v", err)
+	}
+	if refreshHours != "12" {
+		t.Fatalf("list_refresh_hours = %q, want %q", refreshHours, "12")
+	}
+}
+
+func TestUIAddListRedirectsBackToSettings(t *testing.T) {
+	s := testServer(t)
+	form := url.Values{
+		"url":      {"https://93.184.216.34/list.txt"},
+		"name":     {"Example"},
+		"category": {"tracking"},
+	}
+	req := httptest.NewRequest("POST", "/ui/lists", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/settings" {
+		t.Fatalf("Location = %q, want %q", location, "/settings")
+	}
+
+	lists, err := s.db.ListLists()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lists) != 1 || lists[0].Name != "Example" {
+		t.Fatalf("lists = %#v, want added list", lists)
+	}
+}
+
+func TestUIToggleListRedirectsBackToSettings(t *testing.T) {
+	s := testServer(t)
+	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	form := url.Values{"enabled": {"false"}}
+	req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/enabled", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/settings" {
+		t.Fatalf("Location = %q, want %q", location, "/settings")
+	}
+
+	lists, err := s.db.ListLists()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lists) != 1 || lists[0].Enabled {
+		t.Fatalf("enabled = %v, want false", lists[0].Enabled)
+	}
+}
+
+func TestUIDeleteListRedirectsBackToSettings(t *testing.T) {
+	s := testServer(t)
+	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/delete", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/settings" {
+		t.Fatalf("Location = %q, want %q", location, "/settings")
+	}
+
+	lists, err := s.db.ListLists()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lists) != 0 {
+		t.Fatalf("lists = %#v, want empty", lists)
+	}
+}
+
+func TestUIRefreshListsRedirectsBackToSettings(t *testing.T) {
+	s := testServerWithClassify(t)
+	req := httptest.NewRequest("POST", "/ui/lists/refresh", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/settings" {
+		t.Fatalf("Location = %q, want %q", location, "/settings")
+	}
+}
+
 func TestDeviceDetailPage(t *testing.T) {
 	s := testServer(t)
 	now := time.Now()
@@ -291,6 +474,65 @@ func TestDeviceDetailPage(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
 		}
+	}
+}
+
+func TestDeviceDetailPagePostsLabelToUIAction(t *testing.T) {
+	s := testServer(t)
+	now := time.Now()
+	mac := "aa:bb:cc:dd:ee:ff"
+
+	err := s.db.UpsertDevice(store.Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  "roku-tv",
+		Vendor:    "Roku",
+		Label:     "Living Room TV",
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+	if err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/devices/"+mac, nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), `hx-post="/ui/devices/aa:bb:cc:dd:ee:ff/label"`) {
+		t.Fatalf("device page should post label form to UI action route")
+	}
+	if strings.Contains(w.Body.String(), `hx-put="/api/devices/aa:bb:cc:dd:ee:ff"`) {
+		t.Fatalf("device page should not submit label form directly to the API")
+	}
+}
+
+func TestUIUpdateDeviceLabelRedirectsBackToDevicePage(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.UpsertDevice(deviceFixture()); err != nil {
+		t.Fatal(err)
+	}
+
+	form := url.Values{"label": {"Living Room TV"}}
+	req := httptest.NewRequest("POST", "/ui/devices/aa:bb:cc:dd:ee:ff/label", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/devices/aa:bb:cc:dd:ee:ff" {
+		t.Fatalf("Location = %q, want %q", location, "/devices/aa:bb:cc:dd:ee:ff")
+	}
+
+	dev, err := s.db.GetDevice("aa:bb:cc:dd:ee:ff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Label != "Living Room TV" {
+		t.Fatalf("label = %q, want %q", dev.Label, "Living Room TV")
 	}
 }
 

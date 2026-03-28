@@ -2,7 +2,7 @@
 <h1>Settings</h1>
 <section>
     <h2>Retention</h2>
-    <form hx-put="/api/settings" hx-swap="none">
+    <form hx-post="/ui/settings" hx-swap="none">
         <label for="retention_days">Days to retain query data</label>
         <input type="number" id="retention_days" name="retention_days" value="{{.RetentionDays}}" min="1" max="365">
         <label for="list_refresh_hours">Hours between list refreshes</label>
@@ -12,6 +12,9 @@
 </section>
 <section>
     <h2>Classification Lists</h2>
+    <form hx-post="/ui/lists/refresh" hx-swap="none">
+        <button type="submit">Refresh Lists Now</button>
+    </form>
     <table role="grid">
         <thead>
             <tr>
@@ -27,19 +30,23 @@
                 <td>{{.Name}}</td>
                 <td>{{.Category}}</td>
                 <td>
-                    <form hx-put="/api/lists/{{.ID}}" hx-swap="none">
+                    <form hx-post="/ui/lists/{{.ID}}/enabled" hx-swap="none">
                         <input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}">
                         <button type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
                     </form>
                 </td>
-                <td><button hx-delete="/api/lists/{{.ID}}" hx-swap="none" hx-confirm="Remove this list?">Remove</button></td>
+                <td>
+                    <form hx-post="/ui/lists/{{.ID}}/delete" hx-swap="none">
+                        <button type="submit" hx-confirm="Remove this list?">Remove</button>
+                    </form>
+                </td>
             </tr>
             {{end}}
         </tbody>
     </table>
     <details>
         <summary>Add List</summary>
-        <form hx-post="/api/lists" hx-swap="none">
+        <form hx-post="/ui/lists" hx-swap="none">
             <label for="list_url">URL</label>
             <input type="url" id="list_url" name="url" required>
             <label for="list_name">Name</label>
