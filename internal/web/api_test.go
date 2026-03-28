@@ -107,6 +107,27 @@ func TestAPIDevices(t *testing.T) {
 	}
 }
 
+func TestAPIDeviceNotFoundReturnsJSONError(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/api/devices/aa:bb:cc:dd:ee:ff", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "device not found" {
+		t.Fatalf("error = %q, want %q", response["error"], "device not found")
+	}
+}
+
 func TestAPIUpdateDeviceAcceptsJSON(t *testing.T) {
 	s := testServer(t)
 	if err := s.db.UpsertDevice(deviceFixture()); err != nil {
@@ -225,6 +246,48 @@ func TestAPISetOverrideRejectsNonJSONRequests(t *testing.T) {
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
+	}
+}
+
+func TestAPIQueriesRejectInvalidFromAsJSONError(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/api/queries?from=not-a-time", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "from must be RFC3339" {
+		t.Fatalf("error = %q, want %q", response["error"], "from must be RFC3339")
+	}
+}
+
+func TestAPIRefreshListsWithoutManagerReturnsJSONError(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("POST", "/api/lists/refresh", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "classify manager not available" {
+		t.Fatalf("error = %q, want %q", response["error"], "classify manager not available")
 	}
 }
 

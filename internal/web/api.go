@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,39 +14,35 @@ import (
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleAPISummary(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.db.DashboardSummary()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	writeJSON(w, http.StatusOK, stats)
 }
 
 func (s *Server) handleAPIDevices(w http.ResponseWriter, r *http.Request) {
 	devices, err := s.db.ListDevicesWithStats()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(devices)
+	writeJSON(w, http.StatusOK, devices)
 }
 
 func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
-		http.Error(w, "device not found", http.StatusNotFound)
+		writeJSONError(w, http.StatusNotFound, "device not found")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dev)
+	writeJSON(w, http.StatusOK, dev)
 }
 
 func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +61,7 @@ func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := app.UpdateDeviceLabel(s.db, mac, body.Label); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -81,7 +76,7 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("limit"); v != "" {
 		n, err := parseBoundedInt(v, 1, 1000)
 		if err != nil {
-			http.Error(w, "limit must be between 1 and 1000", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "limit must be between 1 and 1000")
 			return
 		}
 		limit = n
@@ -95,7 +90,7 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("from"); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			http.Error(w, "from must be RFC3339", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "from must be RFC3339")
 			return
 		}
 		from = t
@@ -103,7 +98,7 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("to"); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			http.Error(w, "to must be RFC3339", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "to must be RFC3339")
 			return
 		}
 		to = t
@@ -112,17 +107,16 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 		to = time.Now()
 	}
 	if !from.IsZero() && to.Before(from) {
-		http.Error(w, "to must be after from", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "to must be after from")
 		return
 	}
 
 	queries, err := s.db.QueryLog(deviceMAC, domain, from, to, limit, offset)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(queries)
+	writeJSON(w, http.StatusOK, queries)
 }
 
 func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +124,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 
 	buckets, err := s.db.HourlyActivity(deviceMAC)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -149,8 +143,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
@@ -158,18 +151,17 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("limit"); v != "" {
 		n, err := parseBoundedInt(v, 1, 1000)
 		if err != nil {
-			http.Error(w, "limit must be between 1 and 1000", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "limit must be between 1 and 1000")
 			return
 		}
 		limit = n
 	}
 	domains, err := s.db.TopDomains(limit)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(domains)
+	writeJSON(w, http.StatusOK, domains)
 }
 
 func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -181,8 +173,7 @@ func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
 	if refreshHours == "" {
 		refreshHours = "24"
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, http.StatusOK, map[string]string{
 		"retention_days":     retention,
 		"list_refresh_hours": refreshHours,
 	})
@@ -218,11 +209,10 @@ func (s *Server) handleAPIUpdateSettings(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleAPIListLists(w http.ResponseWriter, r *http.Request) {
 	lists, err := s.db.ListLists()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(lists)
+	writeJSON(w, http.StatusOK, lists)
 }
 
 func (s *Server) handleAPIAddList(w http.ResponseWriter, r *http.Request) {
@@ -277,7 +267,7 @@ func (s *Server) handleAPIUpdateList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := app.UpdateListEnabled(s.db, id, *body.Enabled); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	s.refreshClassificationAsync()
@@ -288,11 +278,11 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "invalid list id", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "invalid list id")
 		return
 	}
 	if err := app.DeleteList(s.db, id); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	s.refreshClassificationAsync()
@@ -301,12 +291,12 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 	if s.classify == nil {
-		http.Error(w, "classify manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
 		return
 	}
 	lists, err := s.db.ListLists()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	var sources []classify.ListSource
