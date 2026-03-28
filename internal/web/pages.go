@@ -1,7 +1,9 @@
 package web
 
 import (
+	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -19,6 +21,67 @@ type categoryRow struct {
 	Percent  float64
 }
 
+type TrendDisplay struct {
+	Text  string
+	Class string
+}
+
+type deviceTrendRow struct {
+	MAC            string
+	Hostname       string
+	Vendor         string
+	Label          string
+	IP             string
+	QueryCount     int
+	TrackerPercent float64
+	QueryTrend     TrendDisplay
+	TrackerTrend   TrendDisplay
+}
+
+func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
+	if !t.HasPrior {
+		return TrendDisplay{}
+	}
+
+	display := TrendDisplay{}
+	switch {
+	case math.Abs(t.Change) < 0.5:
+		display.Class = "trend-flat"
+	case t.Change > 0:
+		display.Class = "trend-up"
+	default:
+		display.Class = "trend-down"
+	}
+
+	suffix := "%"
+	if isTrackerPct {
+		suffix = "pp"
+	}
+	display.Text = fmt.Sprintf("%+d%s", int(math.Round(t.Change)), suffix)
+	if display.Class == "trend-flat" {
+		display.Text = fmt.Sprintf("%d%s", int(math.Round(t.Change)), suffix)
+	}
+	return display
+}
+
+func makeDeviceTrendRows(devices []store.DeviceWithTrends) []deviceTrendRow {
+	rows := make([]deviceTrendRow, 0, len(devices))
+	for _, device := range devices {
+		rows = append(rows, deviceTrendRow{
+			MAC:            device.MAC,
+			Hostname:       device.Hostname,
+			Vendor:         device.Vendor,
+			Label:          device.Label,
+			IP:             device.IP,
+			QueryCount:     device.QueryCount,
+			TrackerPercent: device.TrackerPercent,
+			QueryTrend:     formatTrend(device.QueryTrend, false),
+			TrackerTrend:   formatTrend(device.TrackerTrend, true),
+		})
+	}
+	return rows
+}
+
 func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}) {
 	t, ok := s.pages[name]
 	if !ok {
@@ -31,45 +94,73 @@ func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	stats, err := s.db.DashboardSummary()
+	now := s.now()
+
+	stats, err := s.db.DashboardSummaryAt(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	queryTrend, trackerTrend, err := s.db.LoadTrendsAt(now, "")
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	topDevices := makeDeviceTrendRows(devices)
+	if len(topDevices) > 5 {
+		topDevices = topDevices[:5]
+	}
 	data := struct {
 		pageData
-		Stats interface{}
+		Stats        store.DashboardStats
+		QueryTrend   TrendDisplay
+		TrackerTrend TrendDisplay
+		TopDevices   []deviceTrendRow
 	}{
-		pageData: pageData{Title: "Dashboard", Active: "dashboard"},
-		Stats:    stats,
+		pageData:     pageData{Title: "Dashboard", Active: "dashboard"},
+		Stats:        stats,
+		QueryTrend:   formatTrend(queryTrend, false),
+		TrackerTrend: formatTrend(trackerTrend, true),
+		TopDevices:   topDevices,
 	}
 	s.renderPage(w, "dashboard", data)
 }
 
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := s.db.ListDevicesWithStats()
+	devices, err := s.db.ListDevicesWithTrends()
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	data := struct {
 		pageData
-		Devices []store.DeviceWithStats
+		Devices []deviceTrendRow
 	}{
 		pageData: pageData{Title: "Devices", Active: "devices"},
-		Devices:  devices,
+		Devices:  makeDeviceTrendRows(devices),
 	}
 	s.renderPage(w, "devices", data)
 }
 
 func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
+	now := s.now()
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
 		http.Error(w, "device not found", http.StatusNotFound)
 		return
 	}
-	privacySummary, err := s.db.DevicePrivacySummary(mac)
+	privacySummary, err := s.db.DevicePrivacySummaryAt(mac, now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	queryTrend, trackerTrend, err := s.db.LoadTrendsAt(now, "device_mac = ?", mac)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -101,12 +192,16 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		pageData
 		Device            store.Device
 		PrivacySummary    store.DevicePrivacySummary
+		QueryTrend        TrendDisplay
+		TrackerTrend      TrendDisplay
 		CategoryBreakdown []categoryRow
 		TopDomains        []store.DeviceDomainSummary
 	}{
 		pageData:          pageData{Title: dev.Hostname, Active: "devices"},
 		Device:            dev,
 		PrivacySummary:    privacySummary,
+		QueryTrend:        formatTrend(queryTrend, false),
+		TrackerTrend:      formatTrend(trackerTrend, true),
 		CategoryBreakdown: categoryBreakdown,
 		TopDomains:        topDomains,
 	}

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"math"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -348,6 +349,240 @@ func TestListDevicesWithStats(t *testing.T) {
 	}
 	if results[0].TrackerPercent != 50.0 {
 		t.Errorf("first device TrackerPercent = %f, want 50.0", results[0].TrackerPercent)
+	}
+}
+
+func seedTrendTestDevice(t *testing.T, db *DB, mac, hostname string, now time.Time) {
+	t.Helper()
+
+	err := db.UpsertDevice(Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  hostname,
+		Vendor:    "Vendor",
+		FirstSeen: now.Add(-8 * 24 * time.Hour),
+		LastSeen:  now,
+	})
+	if err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+}
+
+func almostEqualFloat64(got, want float64) bool {
+	return math.Abs(got-want) < 0.000001
+}
+
+func TestDashboardTrends(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	seedTrendTestDevice(t, db, "aa:bb:cc:dd:ee:ff", "roku-tv", now)
+
+	var queries []Query
+	for i := 0; i < 7; i++ {
+		ts := now.Add(-48 * time.Hour).Add(time.Duration(i) * time.Minute)
+		queries = append(queries,
+			Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-clean.example.com", QueryType: "A", Category: "", Timestamp: ts},
+			Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: ts.Add(time.Second)},
+		)
+	}
+	queries = append(queries,
+		Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-2 * time.Hour)},
+		Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-clean-2.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-90 * time.Minute)},
+		Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-tracker.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(-time.Hour)},
+	)
+
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	queryTrend, trackerTrend, err := db.DashboardTrends()
+	if err != nil {
+		t.Fatalf("DashboardTrends: %v", err)
+	}
+
+	if queryTrend.Current != 3 {
+		t.Fatalf("query current = %v, want 3", queryTrend.Current)
+	}
+	if queryTrend.Previous != 2 {
+		t.Fatalf("query previous = %v, want 2", queryTrend.Previous)
+	}
+	if queryTrend.Change != 50 {
+		t.Fatalf("query change = %v, want 50", queryTrend.Change)
+	}
+	if !queryTrend.HasPrior {
+		t.Fatalf("query HasPrior = false, want true")
+	}
+
+	if !almostEqualFloat64(trackerTrend.Current, 1.0/3.0*100) {
+		t.Fatalf("tracker current = %v, want %v", trackerTrend.Current, 1.0/3.0*100)
+	}
+	if trackerTrend.Previous != 50 {
+		t.Fatalf("tracker previous = %v, want 50", trackerTrend.Previous)
+	}
+	if !almostEqualFloat64(trackerTrend.Change, (1.0/3.0*100)-50) {
+		t.Fatalf("tracker change = %v, want %v", trackerTrend.Change, (1.0/3.0*100)-50)
+	}
+	if !trackerTrend.HasPrior {
+		t.Fatalf("tracker HasPrior = false, want true")
+	}
+}
+
+func TestDashboardTrendsNoPriorData(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	seedTrendTestDevice(t, db, "aa:bb:cc:dd:ee:ff", "roku-tv", now)
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	queryTrend, trackerTrend, err := db.DashboardTrends()
+	if err != nil {
+		t.Fatalf("DashboardTrends: %v", err)
+	}
+
+	if queryTrend.Current != 2 || queryTrend.Previous != 0 || queryTrend.Change != 0 || queryTrend.HasPrior {
+		t.Fatalf("query trend = %#v, want current=2 previous=0 change=0 HasPrior=false", queryTrend)
+	}
+	if trackerTrend.Current != 50 || trackerTrend.Previous != 0 || trackerTrend.Change != 0 || trackerTrend.HasPrior {
+		t.Fatalf("tracker trend = %#v, want current=50 previous=0 change=0 HasPrior=false", trackerTrend)
+	}
+}
+
+func TestDashboardTrendsNoCurrentData(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	seedTrendTestDevice(t, db, "aa:bb:cc:dd:ee:ff", "roku-tv", now)
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-48 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-47 * time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	queryTrend, trackerTrend, err := db.DashboardTrends()
+	if err != nil {
+		t.Fatalf("DashboardTrends: %v", err)
+	}
+
+	if queryTrend.Current != 0 || queryTrend.Previous != (2.0/7.0) || !queryTrend.HasPrior {
+		t.Fatalf("query trend = %#v, want current=0 previous=2/7 HasPrior=true", queryTrend)
+	}
+	if trackerTrend.Current != 0 || trackerTrend.Previous != 50 || trackerTrend.Change != 0 || trackerTrend.HasPrior {
+		t.Fatalf("tracker trend = %#v, want current=0 previous=50 change=0 HasPrior=false", trackerTrend)
+	}
+}
+
+func TestDashboardTrendsEmpty(t *testing.T) {
+	db := testDB(t)
+
+	queryTrend, trackerTrend, err := db.DashboardTrends()
+	if err != nil {
+		t.Fatalf("DashboardTrends: %v", err)
+	}
+
+	if queryTrend != (Trend{}) {
+		t.Fatalf("query trend = %#v, want zero value", queryTrend)
+	}
+	if trackerTrend != (Trend{}) {
+		t.Fatalf("tracker trend = %#v, want zero value", trackerTrend)
+	}
+}
+
+func TestDeviceTrends(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	seedTrendTestDevice(t, db, "aa:bb:cc:dd:ee:ff", "roku-tv", now)
+	seedTrendTestDevice(t, db, "11:22:33:44:55:66", "laptop", now)
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-48 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-47 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "other-device.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	queryTrend, trackerTrend, err := db.DeviceTrends("aa:bb:cc:dd:ee:ff")
+	if err != nil {
+		t.Fatalf("DeviceTrends: %v", err)
+	}
+
+	if queryTrend.Current != 1 || queryTrend.Previous != (2.0/7.0) || !queryTrend.HasPrior {
+		t.Fatalf("query trend = %#v, want current=1 previous=2/7 HasPrior=true", queryTrend)
+	}
+	if trackerTrend.Current != 100 || trackerTrend.Previous != 50 || !trackerTrend.HasPrior {
+		t.Fatalf("tracker trend = %#v, want current=100 previous=50 HasPrior=true", trackerTrend)
+	}
+}
+
+func TestListDevicesWithTrends(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	seedTrendTestDevice(t, db, "aa:bb:cc:dd:ee:ff", "roku-tv", now)
+	seedTrendTestDevice(t, db, "11:22:33:44:55:66", "laptop", now)
+	seedTrendTestDevice(t, db, "22:33:44:55:66:77", "tablet", now)
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-48 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-47 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "current-clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-time.Hour)},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "current-clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-3 * time.Hour)},
+		{DeviceMAC: "22:33:44:55:66:77", Domain: "stale.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-9 * 24 * time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	results, err := db.ListDevicesWithTrends()
+	if err != nil {
+		t.Fatalf("ListDevicesWithTrends: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("got %d devices, want 3", len(results))
+	}
+
+	if results[0].MAC != "aa:bb:cc:dd:ee:ff" {
+		t.Fatalf("first device MAC = %q, want aa:bb:cc:dd:ee:ff", results[0].MAC)
+	}
+	if results[0].QueryCount != 2 || results[0].TrackerPercent != 50 {
+		t.Fatalf("first device stats = %#v, want QueryCount=2 TrackerPercent=50", results[0])
+	}
+	if !results[0].QueryTrend.HasPrior || results[0].QueryTrend.Previous != (2.0/7.0) {
+		t.Fatalf("first device query trend = %#v, want HasPrior=true Previous=2/7", results[0].QueryTrend)
+	}
+	if !results[0].TrackerTrend.HasPrior || results[0].TrackerTrend.Previous != 50 {
+		t.Fatalf("first device tracker trend = %#v, want HasPrior=true Previous=50", results[0].TrackerTrend)
+	}
+
+	if results[1].MAC != "11:22:33:44:55:66" {
+		t.Fatalf("second device MAC = %q, want 11:22:33:44:55:66", results[1].MAC)
+	}
+	if results[1].QueryCount != 1 || results[1].TrackerPercent != 0 {
+		t.Fatalf("second device stats = %#v, want QueryCount=1 TrackerPercent=0", results[1])
+	}
+	if results[1].QueryTrend.HasPrior || results[1].TrackerTrend.HasPrior {
+		t.Fatalf("second device trends = %#v / %#v, want no prior data", results[1].QueryTrend, results[1].TrackerTrend)
+	}
+
+	if results[2].MAC != "22:33:44:55:66:77" {
+		t.Fatalf("third device MAC = %q, want 22:33:44:55:66:77", results[2].MAC)
+	}
+	if results[2].QueryCount != 0 || results[2].TrackerPercent != 0 {
+		t.Fatalf("third device stats = %#v, want current counts zero", results[2])
+	}
+	if results[2].QueryTrend.HasPrior || results[2].TrackerTrend.HasPrior {
+		t.Fatalf("third device trends = %#v / %#v, want zeroed 8-day window", results[2].QueryTrend, results[2].TrackerTrend)
 	}
 }
 

@@ -37,6 +37,14 @@ type HourlyBucket struct {
 	TrackerCount int
 }
 
+// Trend holds current and prior-period comparison data.
+type Trend struct {
+	Current  float64
+	Previous float64
+	Change   float64
+	HasPrior bool
+}
+
 // DB wraps the SQLite connection.
 type DB struct {
 	sql *sql.DB
@@ -443,7 +451,11 @@ type DeviceSummary struct {
 
 // DashboardSummary returns aggregate stats for the dashboard (last 24 hours).
 func (d *DB) DashboardSummary() (DashboardStats, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	return d.DashboardSummaryAt(time.Now())
+}
+
+func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
+	cutoff := now.Add(-24 * time.Hour).UnixNano()
 	var stats DashboardStats
 
 	var trackerCount int
@@ -602,6 +614,15 @@ type DeviceWithStats struct {
 	TrackerPercent float64
 }
 
+// DeviceWithTrends holds a device record with current stats and trend data.
+type DeviceWithTrends struct {
+	Device
+	QueryCount     int
+	TrackerPercent float64
+	QueryTrend     Trend
+	TrackerTrend   Trend
+}
+
 // DevicePrivacySummary holds privacy summary data for a device detail page.
 type DevicePrivacySummary struct {
 	QueryCount           int
@@ -655,9 +676,168 @@ func (d *DB) ListDevicesWithStats() ([]DeviceWithStats, error) {
 	return out, rows.Err()
 }
 
+func trendWindowUTC() (time.Time, time.Time, time.Time) {
+	return trendWindowAt(time.Now())
+}
+
+func trendWindowAt(now time.Time) (time.Time, time.Time, time.Time) {
+	now = now.UTC()
+	currentStart := now.Add(-24 * time.Hour)
+	priorStart := now.Add(-8 * 24 * time.Hour)
+	return priorStart, currentStart, now
+}
+
+func queryCountTrend(currentCount, priorCount int) Trend {
+	trend := Trend{Current: float64(currentCount)}
+	if priorCount == 0 {
+		return trend
+	}
+
+	trend.Previous = float64(priorCount) / 7
+	trend.HasPrior = true
+	trend.Change = (trend.Current - trend.Previous) / trend.Previous * 100
+	return trend
+}
+
+func trackerPercentTrend(currentCount, currentTrackerCount, priorCount, priorTrackerCount int) Trend {
+	trend := Trend{}
+	if currentCount > 0 {
+		trend.Current = float64(currentTrackerCount) / float64(currentCount) * 100
+	}
+	if priorCount == 0 {
+		return trend
+	}
+
+	trend.Previous = float64(priorTrackerCount) / float64(priorCount) * 100
+	if currentCount == 0 {
+		return trend
+	}
+
+	trend.Change = trend.Current - trend.Previous
+	trend.HasPrior = true
+	return trend
+}
+
+func (d *DB) loadTrends(whereClause string, args ...any) (Trend, Trend, error) {
+	return d.LoadTrendsAt(time.Now(), whereClause, args...)
+}
+
+func (d *DB) LoadTrendsAt(now time.Time, whereClause string, args ...any) (Trend, Trend, error) {
+	priorStart, currentStart, now := trendWindowAt(now)
+
+	query := `
+		SELECT
+			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category != '' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category != '' THEN 1 ELSE 0 END), 0)
+		FROM queries
+		WHERE timestamp >= ? AND timestamp < ?`
+	params := []any{
+		currentStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		priorStart.UnixNano(), now.UnixNano(),
+	}
+	if whereClause != "" {
+		query += " AND " + whereClause
+		params = append(params, args...)
+	}
+
+	var currentCount, currentTrackerCount, priorCount, priorTrackerCount int
+	err := d.sql.QueryRow(query, params...).Scan(
+		&currentCount,
+		&currentTrackerCount,
+		&priorCount,
+		&priorTrackerCount,
+	)
+	if err != nil {
+		return Trend{}, Trend{}, err
+	}
+
+	return queryCountTrend(currentCount, priorCount), trackerPercentTrend(currentCount, currentTrackerCount, priorCount, priorTrackerCount), nil
+}
+
+// DashboardTrends returns period-over-period trend data for the dashboard.
+func (d *DB) DashboardTrends() (Trend, Trend, error) {
+	return d.loadTrends("")
+}
+
+// DeviceTrends returns period-over-period trend data for a device.
+func (d *DB) DeviceTrends(mac string) (Trend, Trend, error) {
+	return d.loadTrends("device_mac = ?", mac)
+}
+
+// ListDevicesWithTrends returns all devices with their 24-hour query stats and trend data.
+func (d *DB) ListDevicesWithTrends() ([]DeviceWithTrends, error) {
+	return d.ListDevicesWithTrendsAt(time.Now())
+}
+
+func (d *DB) ListDevicesWithTrendsAt(now time.Time) ([]DeviceWithTrends, error) {
+	priorStart, currentStart, now := trendWindowAt(now)
+
+	rows, err := d.sql.Query(`
+		SELECT d.mac, d.ip, d.hostname, d.vendor, COALESCE(d.label, ''),
+		       d.first_seen, d.last_seen,
+		       COALESCE(q.cur_cnt, 0),
+		       COALESCE(q.cur_tracker, 0),
+		       COALESCE(q.prev_cnt, 0),
+		       COALESCE(q.prev_tracker, 0)
+		FROM devices d
+		LEFT JOIN (
+		    SELECT device_mac,
+		           SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END) as cur_cnt,
+		           SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category != '' THEN 1 ELSE 0 END) as cur_tracker,
+		           SUM(CASE WHEN timestamp < ? THEN 1 ELSE 0 END) as prev_cnt,
+		           SUM(CASE WHEN timestamp < ? AND category != '' THEN 1 ELSE 0 END) as prev_tracker
+		    FROM queries
+		    WHERE timestamp >= ? AND timestamp < ?
+		    GROUP BY device_mac
+		) q ON q.device_mac = d.mac
+		ORDER BY q.cur_cnt DESC, d.last_seen DESC`,
+		currentStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(),
+		currentStart.UnixNano(),
+		priorStart.UnixNano(), now.UnixNano(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DeviceWithTrends
+	for rows.Next() {
+		var dwt DeviceWithTrends
+		var firstSeen, lastSeen int64
+		var currentTrackerCount, priorCount, priorTrackerCount int
+		if err := rows.Scan(
+			&dwt.MAC, &dwt.IP, &dwt.Hostname, &dwt.Vendor, &dwt.Label,
+			&firstSeen, &lastSeen,
+			&dwt.QueryCount, &currentTrackerCount, &priorCount, &priorTrackerCount,
+		); err != nil {
+			return nil, err
+		}
+		dwt.FirstSeen = time.Unix(0, firstSeen)
+		dwt.LastSeen = time.Unix(0, lastSeen)
+		if dwt.QueryCount > 0 {
+			dwt.TrackerPercent = float64(currentTrackerCount) / float64(dwt.QueryCount) * 100
+		}
+		dwt.QueryTrend = queryCountTrend(dwt.QueryCount, priorCount)
+		dwt.TrackerTrend = trackerPercentTrend(dwt.QueryCount, currentTrackerCount, priorCount, priorTrackerCount)
+		out = append(out, dwt)
+	}
+	return out, rows.Err()
+}
+
 // DevicePrivacySummary returns privacy summary stats for a specific device (last 24 hours).
 func (d *DB) DevicePrivacySummary(mac string) (DevicePrivacySummary, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	return d.DevicePrivacySummaryAt(mac, time.Now())
+}
+
+func (d *DB) DevicePrivacySummaryAt(mac string, now time.Time) (DevicePrivacySummary, error) {
+	cutoff := now.Add(-24 * time.Hour).UnixNano()
 	var summary DevicePrivacySummary
 	var trackerCount int
 

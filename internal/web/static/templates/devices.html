@@ -18,8 +18,8 @@
             <td>{{.Vendor}}</td>
             <td>{{.IP}}</td>
             <td><code>{{.MAC}}</code></td>
-            <td>{{.QueryCount}}</td>
-            <td class="tracker-pct">{{printf "%.0f" .TrackerPercent}}%</td>
+            <td>{{.QueryCount}}<small class="{{.QueryTrend.Class}}">{{.QueryTrend.Text}}</small></td>
+            <td class="tracker-pct">{{printf "%.0f" .TrackerPercent}}%<small class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</small></td>
         </tr>
         {{end}}
     </tbody>

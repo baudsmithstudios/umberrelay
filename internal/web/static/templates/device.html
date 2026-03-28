@@ -18,11 +18,12 @@
     <article>
         <header>Total Queries</header>
         <strong>{{.PrivacySummary.QueryCount}}</strong>
+        <small class="{{.QueryTrend.Class}}">{{.QueryTrend.Text}}</small>
         <footer>Last 24 hours</footer>
     </article>
     <article>
         <header>Tracker %</header>
-        <strong>{{printf "%.1f%%" .PrivacySummary.TrackerPercent}}</strong>
+        <strong class="tracker-pct">{{printf "%.1f%%" .PrivacySummary.TrackerPercent}}<small class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</small></strong>
         <footer>Last 24 hours</footer>
     </article>
     <article>

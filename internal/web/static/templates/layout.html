@@ -18,6 +18,16 @@
         .stat-card h3 { margin-bottom: 0.25rem; }
         .stat-card .value { font-size: 2rem; font-weight: bold; }
         .tracker-pct { color: var(--pico-color-red-500); }
+        small:empty { display: none; }
+        .value small,
+        td small,
+        article small {
+            display: block;
+            color: var(--pico-muted-color);
+        }
+        .trend-flat { color: var(--pico-muted-color); }
+        .tracker-pct .trend-up { color: var(--pico-color-red-500); }
+        .tracker-pct .trend-down { color: var(--pico-ins-color); }
     </style>
 </head>
 <body>

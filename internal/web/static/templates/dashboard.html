@@ -3,11 +3,11 @@
 <div class="stat-grid">
     <article class="stat-card">
         <h3>Queries Today</h3>
-        <div class="value">{{.Stats.TotalQueries}}</div>
+        <div class="value">{{.Stats.TotalQueries}}<small class="{{.QueryTrend.Class}}">{{.QueryTrend.Text}}</small></div>
     </article>
     <article class="stat-card">
         <h3>Tracker Queries</h3>
-        <div class="value tracker-pct">{{printf "%.0f" .Stats.TrackerPercent}}%</div>
+        <div class="value tracker-pct">{{printf "%.0f" .Stats.TrackerPercent}}%<small class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</small></div>
     </article>
     <article class="stat-card">
         <h3>Active Devices</h3>
@@ -28,11 +28,11 @@
         </tr>
     </thead>
     <tbody>
-        {{range .Stats.TopDevices}}
+        {{range .TopDevices}}
         <tr>
             <td><a href="/devices/{{.MAC}}">{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else}}{{.Vendor}}{{end}}</a></td>
-            <td>{{.QueryCount}}</td>
-            <td class="tracker-pct">{{printf "%.0f" .TrackerPercent}}%</td>
+            <td>{{.QueryCount}}<small class="{{.QueryTrend.Class}}">{{.QueryTrend.Text}}</small></td>
+            <td class="tracker-pct">{{printf "%.0f" .TrackerPercent}}%<small class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</small></td>
         </tr>
         {{end}}
     </tbody>

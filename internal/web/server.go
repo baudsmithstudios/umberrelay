@@ -18,6 +18,7 @@ type Server struct {
 	classify *classify.Manager
 	mux      *http.ServeMux
 	pages    map[string]*template.Template
+	now      func() time.Time
 }
 
 // NewServer creates an HTTP server with all routes registered.
@@ -27,6 +28,7 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 		classify: classify,
 		mux:      http.NewServeMux(),
 		pages:    parsePages(),
+		now:      time.Now,
 	}
 	s.registerRoutes()
 	return s
