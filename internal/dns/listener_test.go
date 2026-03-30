@@ -10,6 +10,8 @@ import (
 )
 
 func TestListenerForwardsUDPQuery(t *testing.T) {
+	requirePacketConn(t, "udp", "127.0.0.1:0")
+
 	upstreamAddr := startFakeUpstream(t, "udp")
 
 	records := make(chan QueryRecord, 10)
@@ -55,6 +57,8 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 }
 
 func TestListenerForwardsTCPQuery(t *testing.T) {
+	requireListener(t, "tcp", "127.0.0.1:0")
+
 	upstreamAddr := startFakeUpstream(t, "tcp")
 
 	records := make(chan QueryRecord, 10)
@@ -95,6 +99,8 @@ func TestListenerForwardsTCPQuery(t *testing.T) {
 }
 
 func TestListenerUpstreamFailure(t *testing.T) {
+	requirePacketConn(t, "udp", "127.0.0.1:0")
+
 	records := make(chan QueryRecord, 10)
 	// Point to a non-existent upstream
 	l, err := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
@@ -117,6 +123,26 @@ func TestListenerUpstreamFailure(t *testing.T) {
 	if resp.Rcode != mdns.RcodeServerFailure {
 		t.Errorf("Rcode = %d, want SERVFAIL (%d)", resp.Rcode, mdns.RcodeServerFailure)
 	}
+}
+
+func requirePacketConn(t *testing.T, network, address string) {
+	t.Helper()
+
+	pc, err := net.ListenPacket(network, address)
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+	pc.Close()
+}
+
+func requireListener(t *testing.T, network, address string) {
+	t.Helper()
+
+	ln, err := net.Listen(network, address)
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+	ln.Close()
 }
 
 // startFakeUpstream runs a DNS server on the given network that responds with 127.0.0.1 to any A query.
