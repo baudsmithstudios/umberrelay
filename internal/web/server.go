@@ -37,7 +37,7 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 // parsePages builds a per-page template map: layout + one page template each.
 func parsePages() map[string]*template.Template {
 	layout := template.Must(template.ParseFS(static.FS, "templates/layout.html"))
-	pageFiles := []string{"dashboard", "devices", "device", "domains", "settings"}
+	pageFiles := []string{"privacy", "settings"}
 	pages := make(map[string]*template.Template, len(pageFiles))
 	for _, name := range pageFiles {
 		t := template.Must(template.Must(layout.Clone()).ParseFS(static.FS, "templates/"+name+".html"))
@@ -59,6 +59,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/devices/{mac}", s.handleAPIUpdateDevice)
 	s.mux.HandleFunc("GET /api/queries", s.handleAPIQueries)
 	s.mux.HandleFunc("GET /api/activity", s.handleAPIActivity)
+	s.mux.HandleFunc("GET /api/anomalies", s.handleAPIAnomalies)
 	s.mux.HandleFunc("GET /api/domains", s.handleAPIDomains)
 	s.mux.HandleFunc("GET /api/settings", s.handleAPIGetSettings)
 	s.mux.HandleFunc("PUT /api/settings", s.handleAPIUpdateSettings)
@@ -71,13 +72,16 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("DELETE /api/overrides/{domain}", s.handleAPIDeleteOverride)
 
 	// Page routes
-	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
-	s.mux.HandleFunc("GET /devices", s.handleDevices)
-	s.mux.HandleFunc("GET /devices/{mac}", s.handleDeviceDetail)
-	s.mux.HandleFunc("GET /domains", s.handleDomains)
+	s.mux.HandleFunc("GET /{$}", s.handlePrivacy)
+	s.mux.HandleFunc("GET /devices", s.handlePrivacy)
+	s.mux.HandleFunc("GET /devices/{mac}", s.handlePrivacy)
+	s.mux.HandleFunc("GET /domains", s.handlePrivacy)
 	s.mux.HandleFunc("GET /settings", s.handleSettings)
+	s.mux.HandleFunc("GET /ui/privacy/device/{mac}", s.handlePrivacyDevice)
+	s.mux.HandleFunc("GET /ui/privacy/device-all", s.handlePrivacyDeviceAll)
 	s.mux.HandleFunc("POST /ui/settings", s.handleUIUpdateSettings)
 	s.mux.HandleFunc("POST /ui/devices/{mac}/label", s.handleUIUpdateDeviceLabel)
+	s.mux.HandleFunc("POST /ui/overrides/{domain}", s.handleUISetOverride)
 	s.mux.HandleFunc("POST /ui/lists", s.handleUIAddList)
 	s.mux.HandleFunc("POST /ui/lists/{id}/enabled", s.handleUIUpdateList)
 	s.mux.HandleFunc("POST /ui/lists/{id}/delete", s.handleUIDeleteList)

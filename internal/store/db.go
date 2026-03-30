@@ -10,6 +10,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const trackingCategorySQL = "('tracking', 'advertising', 'malware')"
+
 // Device represents a discovered network device.
 type Device struct {
 	MAC       string
@@ -36,6 +38,28 @@ type HourlyBucket struct {
 	Timestamp    time.Time
 	TotalCount   int
 	TrackerCount int
+}
+
+// DomainWithSource holds aggregate domain data with source attribution.
+type DomainWithSource struct {
+	Domain      string `json:"domain"`
+	Category    string `json:"category"`
+	QueryCount  int    `json:"query_count"`
+	DeviceCount int    `json:"device_count"`
+	SourceList  string `json:"source_list"`
+}
+
+// Anomaly holds a per-device anomaly for the privacy attention feed.
+type Anomaly struct {
+	DeviceMAC           string
+	DeviceName          string
+	Type                string
+	CurrentValue        float64
+	AverageValue        float64
+	Delta               float64
+	TopDomain           string
+	TopDomainCategory   string
+	TopDomainSourceList string
 }
 
 // Trend holds current and prior-period comparison data.
@@ -230,7 +254,7 @@ func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
 	query := `
 		SELECT timestamp / ? AS hour_key,
 		       COUNT(*),
-		       COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0)
+		       COALESCE(SUM(CASE WHEN category IN ` + trackingCategorySQL + ` THEN 1 ELSE 0 END), 0)
 		FROM queries
 		WHERE timestamp >= ?`
 	args := []any{hourNS, oldestHour.UnixNano()}
@@ -467,10 +491,11 @@ func (d *DB) ListDomainOverrides() (map[string]string, error) {
 
 // DashboardStats holds summary data for the dashboard page.
 type DashboardStats struct {
-	TotalQueries   int
-	TrackerPercent float64
-	DeviceCount    int
-	TopDevices     []DeviceSummary
+	TotalQueries      int
+	TrackerPercent    float64
+	DeviceCount       int
+	UniqueDomainCount int
+	TopDevices        []DeviceSummary
 }
 
 // DeviceSummary holds per-device stats for the dashboard.
@@ -494,9 +519,11 @@ func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
 
 	var trackerCount int
 	err := d.sql.QueryRow(`
-        SELECT COUNT(*), COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0)
+        SELECT COUNT(*),
+               COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0),
+               COUNT(DISTINCT domain)
         FROM queries WHERE timestamp >= ?`, cutoff,
-	).Scan(&stats.TotalQueries, &trackerCount)
+	).Scan(&stats.TotalQueries, &trackerCount, &stats.UniqueDomainCount)
 	if err != nil {
 		return stats, err
 	}
@@ -517,7 +544,7 @@ func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
                COALESCE(dev.vendor, ''),
                COALESCE(dev.label, ''),
                COUNT(*) as cnt,
-               COALESCE(SUM(CASE WHEN q.category != '' THEN 1 ELSE 0 END), 0) as tracker_cnt
+               COALESCE(SUM(CASE WHEN q.category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0) as tracker_cnt
         FROM queries q
         LEFT JOIN devices dev ON dev.mac = q.device_mac
         WHERE q.timestamp >= ?
@@ -553,28 +580,21 @@ type DomainSummary struct {
 
 // TopDomains returns the most-queried domains in the last 24 hours.
 func (d *DB) TopDomains(limit int) ([]DomainSummary, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
-	rows, err := d.sql.Query(`
-        SELECT domain, COALESCE(category, ''), COUNT(*) as cnt, COUNT(DISTINCT device_mac) as dev_cnt
-        FROM queries
-        WHERE timestamp >= ?
-        GROUP BY domain
-        ORDER BY cnt DESC
-        LIMIT ?`, cutoff, limit)
+	domains, err := d.TopDomainsWithSource(limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var out []DomainSummary
-	for rows.Next() {
-		var ds DomainSummary
-		if err := rows.Scan(&ds.Domain, &ds.Category, &ds.QueryCount, &ds.DeviceCount); err != nil {
-			return nil, err
-		}
-		out = append(out, ds)
+	out := make([]DomainSummary, 0, len(domains))
+	for _, domain := range domains {
+		out = append(out, DomainSummary{
+			Domain:      domain.Domain,
+			Category:    domain.Category,
+			QueryCount:  domain.QueryCount,
+			DeviceCount: domain.DeviceCount,
+		})
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // DeviceDomainSummary holds per-domain stats for a device detail page.
@@ -592,28 +612,20 @@ type CategoryCount struct {
 
 // DeviceTopDomains returns the most-queried domains for a specific device (last 24 hours).
 func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
-	rows, err := d.sql.Query(`
-        SELECT domain, MAX(COALESCE(category, '')), COUNT(*) as cnt
-        FROM queries
-        WHERE device_mac = ? AND timestamp >= ?
-        GROUP BY domain
-        ORDER BY cnt DESC
-        LIMIT ?`, mac, cutoff, limit)
+	domains, err := d.DeviceTopDomainsWithSource(mac, limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var out []DeviceDomainSummary
-	for rows.Next() {
-		var ds DeviceDomainSummary
-		if err := rows.Scan(&ds.Domain, &ds.Category, &ds.Count); err != nil {
-			return nil, err
-		}
-		out = append(out, ds)
+	out := make([]DeviceDomainSummary, 0, len(domains))
+	for _, domain := range domains {
+		out = append(out, DeviceDomainSummary{
+			Domain:   domain.Domain,
+			Category: domain.Category,
+			Count:    domain.QueryCount,
+		})
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // DeviceCategoryBreakdown returns per-category query counts for a specific device (last 24 hours).
@@ -677,7 +689,7 @@ func (d *DB) ListDevicesWithStats() ([]DeviceWithStats, error) {
 		LEFT JOIN (
 		    SELECT device_mac,
 		           COUNT(*) as cnt,
-		           SUM(CASE WHEN category != '' THEN 1 ELSE 0 END) as tracker_cnt
+		           SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END) as tracker_cnt
 		    FROM queries
 		    WHERE timestamp >= ?
 		    GROUP BY device_mac
@@ -762,9 +774,9 @@ func (d *DB) LoadTrendsAt(now time.Time, whereClause string, args ...any) (Trend
 	query := `
 		SELECT
 			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category != '' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category IN ` + trackingCategorySQL + ` THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category != '' THEN 1 ELSE 0 END), 0)
+			COALESCE(SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category IN ` + trackingCategorySQL + ` THEN 1 ELSE 0 END), 0)
 		FROM queries
 		WHERE timestamp >= ? AND timestamp < ?`
 	params := []any{
@@ -822,9 +834,9 @@ func (d *DB) ListDevicesWithTrendsAt(now time.Time) ([]DeviceWithTrends, error) 
 		LEFT JOIN (
 		    SELECT device_mac,
 		           SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END) as cur_cnt,
-		           SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category != '' THEN 1 ELSE 0 END) as cur_tracker,
+		           SUM(CASE WHEN timestamp >= ? AND timestamp < ? AND category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END) as cur_tracker,
 		           SUM(CASE WHEN timestamp < ? THEN 1 ELSE 0 END) as prev_cnt,
-		           SUM(CASE WHEN timestamp < ? AND category != '' THEN 1 ELSE 0 END) as prev_tracker
+		           SUM(CASE WHEN timestamp < ? AND category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END) as prev_tracker
 		    FROM queries
 		    WHERE timestamp >= ? AND timestamp < ?
 		    GROUP BY device_mac
@@ -877,9 +889,9 @@ func (d *DB) DevicePrivacySummaryAt(mac string, now time.Time) (DevicePrivacySum
 
 	err := d.sql.QueryRow(`
         SELECT COUNT(*),
-               COALESCE(SUM(CASE WHEN category != '' THEN 1 ELSE 0 END), 0),
+               COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0),
                COUNT(DISTINCT domain),
-               COUNT(DISTINCT CASE WHEN category != '' THEN domain END)
+               COUNT(DISTINCT CASE WHEN category IN `+trackingCategorySQL+` THEN domain END)
         FROM queries
         WHERE device_mac = ? AND timestamp >= ?`, mac, cutoff,
 	).Scan(
@@ -895,4 +907,392 @@ func (d *DB) DevicePrivacySummaryAt(mac string, now time.Time) (DevicePrivacySum
 		summary.TrackerPercent = float64(trackerCount) / float64(summary.QueryCount) * 100
 	}
 	return summary, nil
+}
+
+// NetworkCategoryBreakdown returns per-group query counts for the last 24 hours.
+func (d *DB) NetworkCategoryBreakdown() ([]CategoryCount, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+
+	var trackingCount, analyticsCount, unclassifiedCount int
+	err := d.sql.QueryRow(`
+		SELECT
+			COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN category = 'analytics' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN category NOT IN `+trackingCategorySQL+` AND category != 'analytics' THEN 1 ELSE 0 END), 0)
+		FROM queries
+		WHERE timestamp >= ?`, cutoff,
+	).Scan(&trackingCount, &analyticsCount, &unclassifiedCount)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]CategoryCount, 0, 3)
+	if trackingCount > 0 {
+		out = append(out, CategoryCount{Category: "tracking", Count: trackingCount})
+	}
+	if unclassifiedCount > 0 {
+		out = append(out, CategoryCount{Category: "unclassified", Count: unclassifiedCount})
+	}
+	if analyticsCount > 0 {
+		out = append(out, CategoryCount{Category: "analytics", Count: analyticsCount})
+	}
+	return out, nil
+}
+
+// RangedActivity returns activity buckets for the requested range.
+func (d *DB) RangedActivity(deviceMAC string, timeRange string) ([]HourlyBucket, error) {
+	switch timeRange {
+	case "", "24h":
+		return d.HourlyActivity(deviceMAC)
+	case "7d":
+		return d.dailyActivity(deviceMAC, 7)
+	case "30d":
+		return d.dailyActivity(deviceMAC, 30)
+	default:
+		return nil, fmt.Errorf("invalid range %q", timeRange)
+	}
+}
+
+func (d *DB) dailyActivity(deviceMAC string, bucketCount int) ([]HourlyBucket, error) {
+	currentDay := time.Now().UTC().Truncate(24 * time.Hour)
+	oldestDay := currentDay.AddDate(0, 0, -(bucketCount - 1))
+	dayNS := int64(24 * time.Hour)
+
+	query := `
+		SELECT timestamp / ? AS day_key,
+		       COUNT(*),
+		       COALESCE(SUM(CASE WHEN category IN ` + trackingCategorySQL + ` THEN 1 ELSE 0 END), 0)
+		FROM queries
+		WHERE timestamp >= ?`
+	args := []any{dayNS, oldestDay.UnixNano()}
+	if deviceMAC != "" {
+		query += ` AND device_mac = ?`
+		args = append(args, deviceMAC)
+	}
+	query += ` GROUP BY day_key ORDER BY day_key`
+
+	rows, err := d.sql.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	countsByDay := make(map[int64]HourlyBucket, bucketCount)
+	for rows.Next() {
+		var dayKey int64
+		var bucket HourlyBucket
+		if err := rows.Scan(&dayKey, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
+			return nil, err
+		}
+		countsByDay[dayKey] = bucket
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	buckets := make([]HourlyBucket, 0, bucketCount)
+	for i := 0; i < bucketCount; i++ {
+		ts := oldestDay.AddDate(0, 0, i)
+		dayKey := ts.UnixNano() / dayNS
+		bucket := countsByDay[dayKey]
+		bucket.Timestamp = ts
+		buckets = append(buckets, bucket)
+	}
+
+	return buckets, nil
+}
+
+// TopDomainsWithSource returns the most-queried domains in the last 24 hours with source attribution.
+func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+		SELECT summary.domain,
+		       summary.category,
+		       summary.cnt,
+		       summary.dev_cnt,
+		       COALESCE(
+		           (
+		               SELECT l.name
+		               FROM list_domains ld
+		               JOIN lists l ON l.id = ld.list_id
+		               WHERE ld.domain = summary.domain AND ld.category = summary.category AND l.enabled = 1
+		               ORDER BY l.id ASC
+		               LIMIT 1
+		           ),
+		           CASE
+		               WHEN EXISTS (
+		                   SELECT 1
+		                   FROM domain_overrides do
+		                   WHERE do.domain = summary.domain AND do.category = summary.category
+		               ) THEN 'manual'
+		               ELSE 'unknown'
+		           END
+		       ) as source_list
+		FROM (
+		    SELECT domain,
+		           MAX(COALESCE(category, '')) as category,
+		           COUNT(*) as cnt,
+		           COUNT(DISTINCT device_mac) as dev_cnt
+		    FROM queries
+		    WHERE timestamp >= ?
+		    GROUP BY domain
+		) summary
+		ORDER BY (summary.dev_cnt * summary.cnt) DESC, summary.cnt DESC, summary.domain ASC
+		LIMIT ?`, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DomainWithSource
+	for rows.Next() {
+		var domain DomainWithSource
+		if err := rows.Scan(&domain.Domain, &domain.Category, &domain.QueryCount, &domain.DeviceCount, &domain.SourceList); err != nil {
+			return nil, err
+		}
+		out = append(out, domain)
+	}
+	return out, rows.Err()
+}
+
+// DeviceTopDomainsWithSource returns the most-queried domains for a specific device in the last 24 hours with source attribution.
+func (d *DB) DeviceTopDomainsWithSource(mac string, limit int) ([]DomainWithSource, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+		SELECT summary.domain,
+		       summary.category,
+		       summary.cnt,
+		       1 as dev_cnt,
+		       COALESCE(
+		           (
+		               SELECT l.name
+		               FROM list_domains ld
+		               JOIN lists l ON l.id = ld.list_id
+		               WHERE ld.domain = summary.domain AND ld.category = summary.category AND l.enabled = 1
+		               ORDER BY l.id ASC
+		               LIMIT 1
+		           ),
+		           CASE
+		               WHEN EXISTS (
+		                   SELECT 1
+		                   FROM domain_overrides do
+		                   WHERE do.domain = summary.domain AND do.category = summary.category
+		               ) THEN 'manual'
+		               ELSE 'unknown'
+		           END
+		       ) as source_list
+		FROM (
+		    SELECT domain,
+		           MAX(COALESCE(category, '')) as category,
+		           COUNT(*) as cnt
+		    FROM queries
+		    WHERE device_mac = ? AND timestamp >= ?
+		    GROUP BY domain
+		) summary
+		ORDER BY summary.cnt DESC, summary.domain ASC
+		LIMIT ?`, mac, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DomainWithSource
+	for rows.Next() {
+		var domain DomainWithSource
+		if err := rows.Scan(&domain.Domain, &domain.Category, &domain.QueryCount, &domain.DeviceCount, &domain.SourceList); err != nil {
+			return nil, err
+		}
+		out = append(out, domain)
+	}
+	return out, rows.Err()
+}
+
+// DeviceAnomalies returns per-device tracker and volume anomalies for the last 24 hours versus the prior 7 days.
+func (d *DB) DeviceAnomalies() ([]Anomaly, error) {
+	now := time.Now().UTC()
+	currentStart := now.Add(-24 * time.Hour)
+	priorStart := now.Add(-8 * 24 * time.Hour)
+
+	rows, err := d.sql.Query(`
+		SELECT d.mac,
+		       COALESCE(NULLIF(d.label, ''), NULLIF(d.hostname, ''), NULLIF(d.vendor, ''), d.mac),
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as current_count,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0) as current_tracker,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as prior_count,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0) as prior_tracker
+		FROM devices d
+		LEFT JOIN queries q ON q.device_mac = d.mac AND q.timestamp >= ? AND q.timestamp < ?
+		GROUP BY d.mac, d.label, d.hostname, d.vendor
+		HAVING current_count > 0`,
+		currentStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		priorStart.UnixNano(), now.UnixNano(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Anomaly
+	for rows.Next() {
+		var deviceMAC, deviceName string
+		var currentCount, currentTracker, priorCount, priorTracker int
+		if err := rows.Scan(&deviceMAC, &deviceName, &currentCount, &currentTracker, &priorCount, &priorTracker); err != nil {
+			return nil, err
+		}
+
+		currentTrackerPct := 0.0
+		if currentCount > 0 {
+			currentTrackerPct = float64(currentTracker) / float64(currentCount) * 100
+		}
+
+		averageTrackerPct := 0.0
+		if priorCount > 0 {
+			averageTrackerPct = float64(priorTracker) / float64(priorCount) * 100
+		}
+		if currentTrackerPct > averageTrackerPct+5 {
+			topDomain, err := d.deviceTopTrackerDomain(deviceMAC, currentStart, now)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, Anomaly{
+				DeviceMAC:           deviceMAC,
+				DeviceName:          deviceName,
+				Type:                "tracker_spike",
+				CurrentValue:        currentTrackerPct,
+				AverageValue:        averageTrackerPct,
+				Delta:               currentTrackerPct - averageTrackerPct,
+				TopDomain:           topDomain.Domain,
+				TopDomainCategory:   topDomain.Category,
+				TopDomainSourceList: topDomain.SourceList,
+			})
+		}
+
+		if priorCount == 0 {
+			continue
+		}
+		averageQueryCount := float64(priorCount) / 7
+		if averageQueryCount > 0 && float64(currentCount) > averageQueryCount*3 {
+			topDomain, err := d.deviceTopVolumeSpikeDomain(deviceMAC, currentStart, now, priorStart)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, Anomaly{
+				DeviceMAC:           deviceMAC,
+				DeviceName:          deviceName,
+				Type:                "volume_spike",
+				CurrentValue:        float64(currentCount),
+				AverageValue:        averageQueryCount,
+				Delta:               float64(currentCount) - averageQueryCount,
+				TopDomain:           topDomain.Domain,
+				TopDomainCategory:   topDomain.Category,
+				TopDomainSourceList: topDomain.SourceList,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func (d *DB) deviceTopTrackerDomain(mac string, currentStart, now time.Time) (DomainWithSource, error) {
+	rows, err := d.sql.Query(`
+		SELECT q.domain,
+		       q.category,
+		       COUNT(*) as cnt,
+		       1 as dev_cnt,
+		       COALESCE(
+		           (
+		               SELECT l.name
+		               FROM list_domains ld
+		               JOIN lists l ON l.id = ld.list_id
+		               WHERE ld.domain = q.domain AND ld.category = q.category AND l.enabled = 1
+		               ORDER BY l.id ASC
+		               LIMIT 1
+		           ),
+		           CASE
+		               WHEN EXISTS (
+		                   SELECT 1
+		                   FROM domain_overrides do
+		                   WHERE do.domain = q.domain AND do.category = q.category
+		               ) THEN 'manual'
+		               ELSE 'unknown'
+		           END
+		       ) as source_list
+		FROM queries q
+		WHERE q.device_mac = ? AND q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+`
+		GROUP BY q.domain, q.category
+		ORDER BY cnt DESC, q.domain ASC
+		LIMIT 1`, mac, currentStart.UnixNano(), now.UnixNano())
+	if err != nil {
+		return DomainWithSource{}, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var domain DomainWithSource
+		if err := rows.Scan(&domain.Domain, &domain.Category, &domain.QueryCount, &domain.DeviceCount, &domain.SourceList); err != nil {
+			return DomainWithSource{}, err
+		}
+		return domain, rows.Err()
+	}
+	return DomainWithSource{}, nil
+}
+
+func (d *DB) deviceTopVolumeSpikeDomain(mac string, currentStart, now, priorStart time.Time) (DomainWithSource, error) {
+	rows, err := d.sql.Query(`
+		SELECT q.domain,
+		       q.category,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as current_count,
+		       1 as dev_cnt,
+		       COALESCE(
+		           (
+		               SELECT l.name
+		               FROM list_domains ld
+		               JOIN lists l ON l.id = ld.list_id
+		               WHERE ld.domain = q.domain AND ld.category = q.category AND l.enabled = 1
+		               ORDER BY l.id ASC
+		               LIMIT 1
+		           ),
+		           CASE
+		               WHEN EXISTS (
+		                   SELECT 1
+		                   FROM domain_overrides do
+		                   WHERE do.domain = q.domain AND do.category = q.category
+		               ) THEN 'manual'
+		               ELSE 'unknown'
+		           END
+		       ) as source_list,
+		       (
+		           COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) -
+		           (COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) / 7.0)
+		       ) as delta
+		FROM queries q
+		WHERE q.device_mac = ? AND q.timestamp >= ? AND q.timestamp < ?
+		GROUP BY q.domain, q.category
+		ORDER BY delta DESC, current_count DESC, q.domain ASC
+		LIMIT 1`,
+		currentStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		mac, priorStart.UnixNano(), now.UnixNano(),
+	)
+	if err != nil {
+		return DomainWithSource{}, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var domain DomainWithSource
+		var delta float64
+		if err := rows.Scan(&domain.Domain, &domain.Category, &domain.QueryCount, &domain.DeviceCount, &domain.SourceList, &delta); err != nil {
+			return DomainWithSource{}, err
+		}
+		return domain, rows.Err()
+	}
+	return DomainWithSource{}, nil
 }
