@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -39,7 +40,11 @@ func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "device not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSONError(w, http.StatusNotFound, "device not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, dev)

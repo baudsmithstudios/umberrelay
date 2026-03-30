@@ -159,6 +159,28 @@ func TestAPIDeviceNotFoundReturnsJSONError(t *testing.T) {
 	}
 }
 
+func TestAPIDeviceReturnsInternalErrorForStoreFailures(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/devices/aa:bb:cc:dd:ee:ff", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "internal error" {
+		t.Fatalf("error = %q, want %q", response["error"], "internal error")
+	}
+}
+
 func TestAPIUpdateDeviceAcceptsJSON(t *testing.T) {
 	s := testServer(t)
 	if err := s.db.UpsertDevice(deviceFixture()); err != nil {
@@ -196,6 +218,30 @@ func TestAPIUpdateDeviceRejectsNonJSONRequests(t *testing.T) {
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
+	}
+}
+
+func TestAPIUpdateDeviceRejectsMultipleJSONObjects(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.UpsertDevice(deviceFixture()); err != nil {
+		t.Fatal(err)
+	}
+
+	body := bytes.NewBufferString(`{"label":"Living Room TV"}{"label":"Kitchen TV"}`)
+	req := httptest.NewRequest("PUT", "/api/devices/aa:bb:cc:dd:ee:ff", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+
+	dev, err := s.db.GetDevice("aa:bb:cc:dd:ee:ff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Label != "" {
+		t.Fatalf("label = %q, want empty string", dev.Label)
 	}
 }
 
