@@ -1,29 +1,20 @@
 {{define "content"}}
 <section class="privacy-page">
-    <section class="privacy-zone privacy-overview">
-        <div class="privacy-zone-heading">
-            <p class="eyebrow">Overview</p>
-            <h1>Privacy</h1>
-            <p class="privacy-summary">{{printf "%.0f" .TrackerRate}}% of DNS queries hit known trackers across {{.Stats.DeviceCount}} active devices.</p>
-        </div>
-        <div class="overview-grid">
-            <article class="privacy-card tracker-ring-card">
-                <div class="tracker-ring-wrap">
-                    <svg class="tracker-ring" viewBox="0 0 120 120" aria-hidden="true">
-                        <circle class="tracker-ring-track" cx="60" cy="60" r="48"></circle>
-                        <circle class="tracker-ring-value" cx="60" cy="60" r="48" style="stroke-dasharray: {{printf "%.1f" .TrackerRate}} 100;"></circle>
-                    </svg>
-                    <div class="tracker-ring-text">
-                        <span>Tracker Rate</span>
-                        <strong>{{printf "%.0f" .TrackerRate}}%</strong>
-                    </div>
-                </div>
-            </article>
-            <article class="privacy-card overview-breakdown-card">
-                <header>
-                    <h2>Tracker Rate</h2>
-                </header>
-                <div class="breakdown-bar" aria-label="Category breakdown">
+
+    <!-- ══ ZONE 1: OVERVIEW ══ -->
+    <section class="overview-zone" aria-label="Overview">
+        <div class="headline-row">
+            <div class="headline-ring" aria-label="Tracker Rate">
+                <svg class="tracker-ring" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="tracker-ring-track" cx="60" cy="60" r="48"></circle>
+                    <circle class="tracker-ring-value" cx="60" cy="60" r="48" style="stroke-dasharray: {{printf "%.1f" .TrackerRate}} 100;"></circle>
+                </svg>
+                <span class="ring-value">{{printf "%.0f" .TrackerRate}}%</span>
+            </div>
+            <div class="headline-body">
+                <strong class="headline-title">Network Privacy</strong>
+                <p class="headline-subtitle">{{printf "%.0f" .TrackerRate}}% of DNS queries hit known trackers across {{.Stats.DeviceCount}} devices</p>
+                <div class="breakdown-bar headline-bar">
                     {{range .OverviewBreakdown}}
                     <span class="breakdown-segment {{.Class}}" style="width: {{printf "%.2f" .Percent}}%"></span>
                     {{end}}
@@ -33,85 +24,80 @@
                     <span><i class="legend-swatch {{.Class}}"></i>{{.Label}} <strong>{{.Count}}</strong></span>
                     {{end}}
                 </div>
-                <div class="secondary-stats">
-                    <div>
-                        <span>Devices</span>
-                        <strong>{{.Stats.DeviceCount}}</strong>
-                    </div>
-                    <div>
-                        <span>Domains</span>
-                        <strong>{{.Stats.UniqueDomainCount}}</strong>
-                    </div>
+            </div>
+            <div class="headline-stats">
+                <div class="stat-box">
+                    <span class="stat-num">{{.Stats.DeviceCount}}</span>
+                    <span class="stat-lbl">Devices</span>
                 </div>
-            </article>
+                <div class="stat-box">
+                    <span class="stat-num">{{.Stats.UniqueDomainCount}}</span>
+                    <span class="stat-lbl">Domains</span>
+                </div>
+            </div>
         </div>
-        <article class="privacy-card chart-card">
-            <header class="card-header-with-actions">
-                <div>
-                    <h2>Network Trend</h2>
-                    <p>Tracker rate and query volume over time</p>
-                </div>
+
+        <div class="overview-chart">
+            <div class="chart-header">
+                <span class="chart-label">Tracker Rate Over Time</span>
                 <div class="range-controls" data-chart-id="overview-trend-chart">
                     <button type="button" class="outline" data-range="24h">24h</button>
                     <button type="button" data-range="7d">7d</button>
                     <button type="button" class="outline" data-range="30d">30d</button>
                 </div>
-            </header>
-            <div id="overview-trend-chart" class="privacy-chart" data-chart-query="" data-chart-title="Network Trend"></div>
-        </article>
-        <article class="privacy-card attention-card">
-            <header>
-                <h2>Needs Attention</h2>
-                <p>Compared with the previous period</p>
-            </header>
-            {{if .Anomalies}}
-            <div class="attention-feed">
-                {{range .Anomalies}}
-                <article class="attention-item {{.Class}}">
-                    <div>
-                        <div class="attention-heading">
-                            <strong>{{.DeviceName}}</strong>
-                            <span class="attention-badge">{{.Badge}}</span>
-                        </div>
-                        <p>{{.Explanation}}</p>
-                    </div>
-                    <button
-                        type="button"
-                        class="secondary"
-                        hx-get="/ui/privacy/device/{{.DeviceMAC}}"
-                        hx-target="#privacy-detail-panel"
-                        hx-swap="innerHTML"
-                    >
-                        Investigate
-                    </button>
-                </article>
-                {{end}}
             </div>
-            {{else}}
-            <p class="empty-state">No unusual activity.</p>
+            <div id="overview-trend-chart" class="privacy-chart" data-chart-query="" data-chart-title="Network Trend"></div>
+        </div>
+
+        <div class="section-title">
+            <span>Needs Attention</span>
+            <span class="section-note">vs previous period</span>
+        </div>
+        {{if .Anomalies}}
+        <div class="attention-feed">
+            {{range .Anomalies}}
+            <div class="attention-item {{.Class}}">
+                <div class="att-body">
+                    <div class="att-heading">
+                        <strong class="att-device">{{.DeviceName}}</strong>
+                        <span class="attention-badge {{.Class}}">{{.Badge}}</span>
+                    </div>
+                    <p class="att-detail">{{.Explanation}}</p>
+                </div>
+                <button
+                    type="button"
+                    class="investigate-btn"
+                    hx-get="/ui/privacy/device/{{.DeviceMAC}}"
+                    hx-target="#privacy-detail-panel"
+                    hx-swap="innerHTML"
+                >Investigate ↓</button>
+            </div>
             {{end}}
-        </article>
+        </div>
+        {{else}}
+        <p class="empty-state">No unusual activity.</p>
+        {{end}}
     </section>
 
-    <section class="privacy-zone privacy-investigation" id="investigate">
-        <div class="privacy-zone-heading">
-            <p class="eyebrow">Investigate</p>
-            <h2>Investigation</h2>
-        </div>
+    <!-- ══ ZONE DIVIDER ══ -->
+    <div class="zone-divider"><span class="zone-label">Investigation</span></div>
+
+    <!-- ══ ZONE 2: INVESTIGATION ══ -->
+    <section class="investigation-zone" id="investigate">
         <div class="investigation-grid">
-            <aside class="privacy-card device-sidebar">
-                <div class="sidebar-controls">
-                    <input type="search" id="device-search" placeholder="Search devices">
+            <aside class="device-sidebar">
+                <input type="search" id="device-search" class="sidebar-search" placeholder="Filter devices...">
+                <div class="sort-row" id="device-sort-row">
                     <select id="device-sort" aria-label="Sort devices">
-                        <option value="tracker">Tracker rate</option>
-                        <option value="volume">Volume</option>
-                        <option value="name">Name</option>
+                        <option value="tracker">By Tracker Rate</option>
+                        <option value="volume">By Volume</option>
+                        <option value="name">By Name</option>
                     </select>
                 </div>
                 <div class="device-list" id="device-list">
                     {{range .Devices}}
-                    <article
-                        class="device-list-item {{.AnomalyClass}}{{if eq $.SelectedMAC .MAC}} is-selected{{end}}"
+                    <div
+                        class="device-item{{if .AnomalyClass}} {{.AnomalyClass}}{{end}}{{if eq $.SelectedMAC .MAC}} selected{{end}}"
                         data-device-name="{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}"
                         data-tracker-percent="{{printf "%.2f" .TrackerPercent}}"
                         data-query-count="{{.QueryCount}}"
@@ -122,29 +108,35 @@
                             hx-target="#privacy-detail-panel"
                             hx-swap="innerHTML"
                         >
-                            <div class="device-list-head">
+                            <div class="device-name-row">
                                 <strong>{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}</strong>
-                                <span>{{printf "%.0f" .TrackerPercent}}%</span>
+                                <span class="device-pct-badge">{{printf "%.0f" .TrackerPercent}}%</span>
                             </div>
-                            <div class="device-list-meta">{{if .Vendor}}{{.Vendor}}{{else}}{{.IP}}{{end}}</div>
                             <div class="device-bar"><span style="width: {{printf "%.2f" .TrackerPercent}}%"></span></div>
+                            <div class="device-meta">
+                                <span>{{if .Vendor}}{{.Vendor}}{{else}}{{.IP}}{{end}}</span>
+                                {{if .TrackerTrend.Text}}<span class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</span>{{end}}
+                            </div>
                         </a>
-                    </article>
+                    </div>
                     {{end}}
-                    <article class="device-list-item all-devices{{if eq .Detail.Mode "network"}} is-selected{{end}}">
+                    <div class="device-list-divider"></div>
+                    <div class="device-item all-devices{{if eq .Detail.Mode "network"}} selected{{end}}">
                         <a
                             href="/"
                             hx-get="/ui/privacy/device-all"
                             hx-target="#privacy-detail-panel"
                             hx-swap="innerHTML"
                         >
-                            <strong>All Devices</strong>
-                            <span>Network Domains</span>
+                            <div class="device-name-row">
+                                <strong>All Devices</strong>
+                                <span class="device-meta">Network Domains</span>
+                            </div>
                         </a>
-                    </article>
+                    </div>
                 </div>
             </aside>
-            <div class="privacy-card detail-panel" id="privacy-detail-panel">
+            <div class="detail-panel" id="privacy-detail-panel">
                 {{if eq .Detail.Mode "device"}}
                 {{template "device-detail" .Detail}}
                 {{else}}
@@ -189,6 +181,18 @@
                     container._uplot.destroy();
                 }
 
+                var textColor = chartColor('--pico-muted-color') || '#8a879a';
+                var gridStroke = 'rgba(106,104,136,0.15)';
+                var tickStroke = 'rgba(106,104,136,0.3)';
+                var axisOpts = {
+                    stroke: textColor,
+                    grid: { stroke: gridStroke, width: 1 / devicePixelRatio },
+                    ticks: { stroke: tickStroke, width: 1 / devicePixelRatio, size: 4 },
+                    font: '11px system-ui, sans-serif',
+                    labelFont: '11px system-ui, sans-serif',
+                    labelSize: 16,
+                };
+
                 container._uplot = new uPlot({
                     width: container.clientWidth || 720,
                     height: 280,
@@ -198,14 +202,14 @@
                         volume: { auto: true },
                     },
                     axes: [
-                        {},
-                        { scale: 'rate', label: 'Tracker %' },
-                        { scale: 'volume', label: 'Queries', side: 1 },
+                        Object.assign({}, axisOpts),
+                        Object.assign({ scale: 'rate', label: 'Tracker %' }, axisOpts),
+                        Object.assign({ scale: 'volume', label: 'Queries', side: 1 }, axisOpts),
                     ],
                     series: [
                         {},
-                        { label: 'Tracker rate', scale: 'rate', stroke: chartColor('--scrye-chart-tracker'), width: 2 },
-                        { label: 'Queries', scale: 'volume', stroke: chartColor('--scrye-chart-total'), width: 2 },
+                        { label: 'Tracker rate', scale: 'rate', stroke: chartColor('--scrye-chart-tracker'), width: 2, points: { show: false } },
+                        { label: 'Queries', scale: 'volume', stroke: chartColor('--scrye-chart-total'), width: 2, points: { show: false } },
                     ],
                 }, [times, trackerRate, totals], container);
             })
@@ -251,7 +255,7 @@
 
         function applyListState() {
             var query = search.value.toLowerCase();
-            var rows = Array.prototype.slice.call(list.querySelectorAll('.device-list-item:not(.all-devices)'));
+            var rows = Array.prototype.slice.call(list.querySelectorAll('.device-item:not(.all-devices)'));
             rows.forEach(function (row) {
                 var name = (row.dataset.deviceName || '').toLowerCase();
                 row.hidden = query !== '' && name.indexOf(query) === -1;
@@ -292,72 +296,60 @@
 
 {{define "label-edit"}}
 <div class="device-label-block" id="device-label-editor">
-    <div>
-        <p class="eyebrow">Device</p>
-        <h3>{{.DeviceName}}</h3>
-        <p>Edit Label</p>
-    </div>
+    <h3 class="detail-device-name">{{.DeviceName}}</h3>
     <form class="label-form" hx-post="/ui/devices/{{.Device.MAC}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
-        <input type="text" name="label" value="{{.Device.Label}}" maxlength="128" placeholder="Add a label">
-        <button type="submit">Save Label</button>
+        <input type="text" name="label" value="{{.Device.Label}}" maxlength="128" placeholder="Edit Label">
+        <button type="submit" class="secondary">Save Label</button>
     </form>
 </div>
 {{end}}
 
 {{define "device-detail"}}
-<section class="detail-view detail-view-device">
+<section class="detail-view detail-device">
     <header class="detail-header">
-        <div>
+        <div class="detail-header-left">
             <p class="eyebrow">Device Detail</p>
             {{template "label-edit" .}}
-            <p>{{.Subtitle}}</p>
+            <p class="detail-subtitle">{{.Subtitle}}</p>
         </div>
     </header>
-    <section class="detail-summary">
-        <div class="detail-summary-card">
-            <span>Queries</span>
-            <strong>{{.PrivacySummary.QueryCount}}</strong>
-            <small class="{{.QueryTrend.Class}}">{{.QueryTrend.Text}}</small>
-        </div>
-        <div class="detail-summary-card tracker-pct">
-            <span>Tracker %</span>
-            <strong>{{printf "%.0f" .PrivacySummary.TrackerPercent}}%</strong>
-            <small class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</small>
-        </div>
-        <div class="detail-summary-card">
-            <span>Domains</span>
-            <strong>{{.PrivacySummary.UniqueDomains}}</strong>
-        </div>
-    </section>
-    <div class="breakdown-bar" aria-label="Device category breakdown">
-        {{range .Breakdown}}
-        <span class="breakdown-segment {{.Class}}" style="width: {{printf "%.2f" .Percent}}%"></span>
-        {{end}}
-    </div>
-    <div class="breakdown-legend">
-        {{range .Breakdown}}
-        <span><i class="legend-swatch {{.Class}}"></i>{{.Label}} <strong>{{.Count}}</strong></span>
-        {{end}}
-    </div>
-    <article class="chart-card">
-        <header class="card-header-with-actions">
-            <div>
-                <h3>{{.ChartTitle}}</h3>
-                <p>{{.ChartDescription}}</p>
+
+    <div class="device-privacy-row">
+        <div class="device-privacy-bar-wrap">
+            <div class="breakdown-bar">
+                {{range .Breakdown}}
+                <span class="breakdown-segment {{.Class}}" style="width: {{printf "%.2f" .Percent}}%"></span>
+                {{end}}
             </div>
+            <div class="breakdown-legend">
+                {{range .Breakdown}}
+                <span><i class="legend-swatch {{.Class}}"></i>{{.Label}} {{printf "%.0f" .Percent}}%</span>
+                {{end}}
+            </div>
+        </div>
+        <div class="device-query-stat">
+            <span class="stat-num">{{.PrivacySummary.QueryCount}}</span>
+            <span class="stat-detail">queries (24h){{if .TrackerTrend.Text}} · <span class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</span>{{end}}</span>
+        </div>
+    </div>
+
+    <div class="overview-chart">
+        <div class="chart-header">
+            <span class="chart-label">{{.ChartTitle}}</span>
             <div class="range-controls" data-chart-id="{{.ChartID}}">
                 <button type="button" class="outline" data-range="24h">24h</button>
                 <button type="button" data-range="7d">7d</button>
                 <button type="button" class="outline" data-range="30d">30d</button>
             </div>
-        </header>
+        </div>
         <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="device={{.Device.MAC}}" data-chart-title="{{.ChartTitle}}"></div>
-    </article>
+    </div>
+
     <section>
-        <header class="detail-table-header">
-            <h3>Top Domains</h3>
-            <p>Classification pills include source list names.</p>
-        </header>
+        <div class="section-title">
+            <span>Domains</span>
+            <span class="section-note">{{.PrivacySummary.UniqueDomains}} unique · showing top 20</span>
+        </div>
         <div class="domain-table-wrap">
             <table class="domain-table" role="grid">
                 <thead>
@@ -386,33 +378,31 @@
 {{end}}
 
 {{define "network-detail"}}
-<section class="detail-view detail-view-network">
+<section class="detail-view detail-network">
     <header class="detail-header">
-        <div>
-            <p class="eyebrow">Investigation</p>
+        <div class="detail-header-left">
             <h3>{{.Title}}</h3>
-            <p>{{.Subtitle}}</p>
+            <p class="detail-subtitle">{{.Subtitle}}</p>
         </div>
     </header>
-    <article class="chart-card">
-        <header class="card-header-with-actions">
-            <div>
-                <h3>{{.ChartTitle}}</h3>
-                <p>{{.ChartDescription}}</p>
-            </div>
+
+    <div class="overview-chart">
+        <div class="chart-header">
+            <span class="chart-label">{{.ChartTitle}}</span>
             <div class="range-controls" data-chart-id="{{.ChartID}}">
                 <button type="button" class="outline" data-range="24h">24h</button>
                 <button type="button" data-range="7d">7d</button>
                 <button type="button" class="outline" data-range="30d">30d</button>
             </div>
-        </header>
+        </div>
         <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="" data-chart-title="{{.ChartTitle}}"></div>
-    </article>
+    </div>
+
     <section>
-        <header class="detail-table-header">
-            <h3>Network Domains</h3>
-            <p>Sorted by reach and volume.</p>
-        </header>
+        <div class="section-title">
+            <span>Network Domains</span>
+            <span class="section-note">Sorted by reach and volume</span>
+        </div>
         <div class="domain-table-wrap">
             <table class="domain-table" role="grid">
                 <thead>
