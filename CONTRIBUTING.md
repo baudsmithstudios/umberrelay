@@ -9,6 +9,10 @@ Thanks for your interest in contributing. Scrye is a small Raspberry Pi and home
 3. Run `go test ./...` to verify everything passes
 4. Create a branch for your change
 
+## Raspberry Pi Deployment
+
+For cross-compilation, dev-machine image builds, and live Pi testing, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Local UI Preview
 
 For UI and UX work, start Scrye with representative local demo data from the repo root:

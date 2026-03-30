@@ -41,6 +41,8 @@ DNS is an intentionally narrow lens, but it is still a useful one: it is cheap t
 
 ## Quick Start
 
+> For Raspberry Pi deployment, ARM64 image builds on a dev machine, and live-Pi testing, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ```sh
 git clone https://github.com/baudsmithstudios/scrye.git && cd scrye
 
@@ -191,7 +193,9 @@ Selected error responses use this JSON shape:
 
 ## Docker Deployment
 
-The compose file uses `network_mode: host` so Scrye can see DNS traffic and the ARP table. Config is bind-mounted read-only.
+The default [`docker-compose.yml`](docker-compose.yml) is aimed at local development and simple local Docker runs. It uses `network_mode: host` so Scrye can see DNS traffic and the ARP table, mounts config read-only, and stores `/data` in a named volume.
+
+For Raspberry Pi deployment from a dev machine, use [`docker-compose.pi.yml`](docker-compose.pi.yml) together with the workflow in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). That compose file references a prebuilt `scrye:latest` image and is designed for `docker load` on the Pi after transferring an ARM64 image tar.
 
 ### Runtime Requirements
 
@@ -204,6 +208,14 @@ The compose file uses `network_mode: host` so Scrye can see DNS traffic and the 
 docker compose up -d        # start
 docker compose logs -f      # logs
 docker compose down          # stop
+```
+
+For Pi deployment with the separate compose file:
+
+```sh
+docker compose -f docker-compose.pi.yml up -d
+docker compose -f docker-compose.pi.yml logs -f
+docker compose -f docker-compose.pi.yml down
 ```
 
 The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `alpine:3.19` with just the binary and CA certificates.

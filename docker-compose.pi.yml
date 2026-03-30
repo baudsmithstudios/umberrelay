@@ -1,0 +1,11 @@
+services:
+  scrye:
+    image: scrye:latest
+    container_name: scrye
+    network_mode: host
+    volumes:
+      - ./config.toml:/etc/scrye/config.toml:ro
+      # IMPORTANT: point this at persistent storage on the Pi, ideally not the SD card.
+      # Update this path to match your external drive or other persistent mount point.
+      - /path/to/external/drive/scrye:/data
+    restart: unless-stopped
