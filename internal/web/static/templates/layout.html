@@ -5,15 +5,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Umberrelay{{if .Title}} — {{.Title}}{{end}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/pico.min.css">
     <link rel="stylesheet" href="/static/css/theme.css">
     <link rel="stylesheet" href="/static/css/privacy.css">
     <link rel="stylesheet" href="/static/css/uplot.min.css">
     <script src="/static/js/uplot.min.js" defer></script>
     <style>
-        :root {
-            --pico-font-size: 16px;
-        }
         .tracker-pct { color: var(--umberrelay-critical); }
         nav ul { list-style: none; }
         small:empty { display: none; }
@@ -25,7 +25,7 @@
         }
         .trend-flat { color: var(--pico-muted-color); }
         .tracker-pct .trend-up { color: var(--umberrelay-critical); }
-        .tracker-pct .trend-down { color: var(--umberrelay-accent); }
+        .tracker-pct .trend-down { color: var(--umberrelay-positive); }
     </style>
 </head>
 <body>
