@@ -120,6 +120,9 @@
     --umberrelay-warn: #d08a1b;
     --umberrelay-critical: #ff4f4f;
     --umberrelay-accent: #f5a623;
+    --umberrelay-accent-soft: #ffd978;
+    --umberrelay-accent-deep: #e08700;
+    --umberrelay-title-relay: #c8b88a;
     --umberrelay-positive: #1dbd5c;
     --umberrelay-chart-total: #f5a623;
     --umberrelay-chart-tracker: #ff4f4f;
@@ -133,10 +136,62 @@ h1, h2, h3 {
 }
 
 .umberrelay-brand {
+    color: inherit;
     font-family: 'Orbitron', sans-serif;
     font-weight: 700;
     letter-spacing: 0.08em;
+    text-decoration: none;
+    text-shadow:
+        0 0 0.4rem color-mix(in srgb, var(--umberrelay-accent) 70%, transparent),
+        0 0 1rem color-mix(in srgb, var(--umberrelay-accent) 55%, transparent),
+        0 0 1.8rem color-mix(in srgb, var(--umberrelay-accent) 40%, transparent);
     text-transform: uppercase;
+}
+
+.umberrelay-brand:hover,
+.umberrelay-brand:focus-visible {
+    text-decoration: none;
+}
+
+.umberrelay-brand-umber {
+    color: var(--umberrelay-accent);
+}
+
+.umberrelay-brand-relay {
+    color: var(--umberrelay-title-relay);
+}
+
+.umberrelay-shell-header {
+    background: color-mix(in srgb, var(--pico-background-color) 84%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--pico-card-border-color) 85%, transparent);
+    backdrop-filter: blur(2px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.umberrelay-topbar {
+    --pico-nav-element-spacing-vertical: 0.25rem;
+    --pico-nav-link-spacing-vertical: 0.15rem;
+    margin-bottom: 0;
+}
+
+.umberrelay-toplink {
+    color: color-mix(in srgb, var(--pico-muted-color) 88%, var(--pico-color));
+    text-decoration: none;
+    transition: color 120ms ease, text-shadow 120ms ease;
+}
+
+.umberrelay-toplink:hover,
+.umberrelay-toplink:focus-visible {
+    color: var(--pico-color);
+}
+
+.umberrelay-toplink[aria-current="page"] {
+    color: var(--umberrelay-accent-soft);
+    text-shadow:
+        0 0 0.35rem color-mix(in srgb, var(--umberrelay-accent) 55%, transparent),
+        0 0 0.8rem color-mix(in srgb, var(--umberrelay-accent) 30%, transparent);
 }
 
 nav a,

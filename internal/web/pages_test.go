@@ -156,7 +156,8 @@ func TestPrivacyPage(t *testing.T) {
 	body := html.UnescapeString(w.Body.String())
 	for _, want := range []string{
 		"<title>Umberrelay",
-		`class="umberrelay-brand" href="/">Umberrelay</a>`,
+		`class="umberrelay-brand" href="/">`,
+		`class="umberrelay-brand-umber">Umber</span><span class="umberrelay-brand-relay">relay</span>`,
 		"Privacy",
 		"Settings",
 		"/static/css/privacy.css",

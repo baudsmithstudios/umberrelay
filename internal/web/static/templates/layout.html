@@ -29,14 +29,18 @@
     </style>
 </head>
 <body>
-    <header class="container umberrelay-shell-header">
-        <nav class="umberrelay-topbar">
+    <header class="umberrelay-shell-header">
+        <nav class="container umberrelay-topbar">
             <ul>
-                <li><a class="umberrelay-brand" href="/">Umberrelay</a></li>
+                <li>
+                    <a class="umberrelay-brand" href="/">
+                        <span class="umberrelay-brand-umber">Umber</span><span class="umberrelay-brand-relay">relay</span>
+                    </a>
+                </li>
             </ul>
             <ul>
-                <li><a href="/"{{if eq .Active "privacy"}} aria-current="page"{{end}}>Privacy</a></li>
-                <li><a href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a></li>
+                <li><a class="umberrelay-toplink" href="/"{{if eq .Active "privacy"}} aria-current="page"{{end}}>Privacy</a></li>
+                <li><a class="umberrelay-toplink" href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a></li>
             </ul>
         </nav>
     </header>
