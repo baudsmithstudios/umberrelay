@@ -5,6 +5,7 @@ docs/superpowers/
 # Build output
 /umberrelay
 *.exe
+*.tar
 
 # Database files
 *.db
