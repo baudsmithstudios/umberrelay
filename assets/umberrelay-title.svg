@@ -6,16 +6,12 @@
       /* dark mode (default) */
       .title-umber { fill: #f5a623; }
       .title-relay { fill: #c8b88a; }
-      .decoration  { stroke: #a27f46; }
-      .rivet       { fill: #a27f46; }
       .glow-text   { filter: url(#phosphor-glow); }
 
       /* light mode */
       @media (prefers-color-scheme: light) {
         .title-umber { fill: #955a08; }
         .title-relay { fill: #4a3820; }
-        .decoration  { stroke: #8b6d3c; }
-        .rivet       { fill: #8b6d3c; }
         .glow-text   { filter: url(#phosphor-glow-light); }
       }
     </style>
@@ -50,20 +46,6 @@
       </feMerge>
     </filter>
   </defs>
-
-  <!-- corner rivets -->
-  <circle class="rivet" cx="14" cy="14" r="3" opacity="0.7"/>
-  <circle class="rivet" cx="586" cy="14" r="3" opacity="0.7"/>
-  <circle class="rivet" cx="14" cy="82" r="3" opacity="0.7"/>
-  <circle class="rivet" cx="586" cy="82" r="3" opacity="0.7"/>
-
-  <!-- flanking rules with dot terminals -->
-  <line class="decoration" x1="32" y1="50" x2="155" y2="50" stroke-width="1"/>
-  <circle class="rivet" cx="32" cy="50" r="2" opacity="0.5"/>
-  <circle class="rivet" cx="155" cy="50" r="2" opacity="0.5"/>
-  <line class="decoration" x1="445" y1="50" x2="568" y2="50" stroke-width="1"/>
-  <circle class="rivet" cx="445" cy="50" r="2" opacity="0.5"/>
-  <circle class="rivet" cx="568" cy="50" r="2" opacity="0.5"/>
 
   <!-- title: per-character tspans for uniform spacing with two-tone color -->
   <text
