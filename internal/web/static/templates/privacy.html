@@ -4,13 +4,6 @@
     <!-- ══ ZONE 1: OVERVIEW ══ -->
     <section class="overview-zone" aria-label="Overview">
         <div class="headline-row">
-            <div class="headline-ring" aria-label="Tracker Rate">
-                <svg class="tracker-ring" viewBox="0 0 120 120" aria-hidden="true">
-                    <circle class="tracker-ring-track" cx="60" cy="60" r="48"></circle>
-                    <circle class="tracker-ring-value" cx="60" cy="60" r="48" style="stroke-dasharray: {{printf "%.1f" .TrackerRate}} 100;"></circle>
-                </svg>
-                <span class="ring-value">{{printf "%.0f" .TrackerRate}}%</span>
-            </div>
             <div class="headline-body">
                 <strong class="headline-title">Network Privacy</strong>
                 <p class="headline-subtitle">{{printf "%.0f" .TrackerRate}}% of DNS queries hit known trackers across {{.Stats.DeviceCount}} devices</p>
@@ -182,12 +175,11 @@
                 }
 
                 var textColor = chartColor('--pico-muted-color') || '#b09470';
-                var gridStroke = 'rgba(92,72,40,0.15)';
-                var tickStroke = 'rgba(92,72,40,0.3)';
+                var axisStroke = chartColor('--pico-card-border-color') || '#a27f46';
                 var axisOpts = {
-                    stroke: textColor,
-                    grid: { stroke: gridStroke, width: 1 / devicePixelRatio },
-                    ticks: { stroke: tickStroke, width: 1 / devicePixelRatio, size: 4 },
+                    stroke: axisStroke,
+                    grid: { show: false },
+                    ticks: { show: true, stroke: axisStroke, width: 1.25 / devicePixelRatio, size: 6 },
                     font: '11px "Courier Prime", "Courier New", monospace',
                     labelFont: '11px "Courier Prime", "Courier New", monospace',
                     labelSize: 16,
@@ -201,6 +193,8 @@
                         rate: { auto: true },
                         volume: { auto: true },
                     },
+                    legend: { show: true, live: false },
+                    cursor: { show: false },
                     axes: [
                         Object.assign({}, axisOpts),
                         Object.assign({ scale: 'rate', label: 'Tracker %' }, axisOpts),
