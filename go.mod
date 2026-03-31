@@ -1,4 +1,4 @@
-module scrye
+module umberrelay
 
 go 1.26.1
 

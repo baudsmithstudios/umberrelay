@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 
 	mdns "github.com/miekg/dns"
 )

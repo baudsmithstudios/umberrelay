@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"scrye/internal/classify"
+	"umberrelay/internal/classify"
 )
 
 func TestSetDomainOverridePersistsOverride(t *testing.T) {

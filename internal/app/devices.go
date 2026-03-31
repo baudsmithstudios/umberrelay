@@ -3,7 +3,7 @@ package app
 import (
 	"errors"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 var ErrDeviceNotFound = errors.New("device not found")

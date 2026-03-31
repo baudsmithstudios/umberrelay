@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"scrye/internal/classify"
-	"scrye/internal/store"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/store"
 )
 
 var ErrListNotFound = errors.New("list not found")

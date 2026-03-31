@@ -3,7 +3,7 @@ package demo
 import (
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 // Seed populates an empty database with representative demo data for local UI work.
@@ -195,7 +195,7 @@ func recentQueries(now time.Time) []store.Query {
 }
 
 func seedLists(db *store.DB) error {
-	listID, err := db.AddList("https://demo.scrye.local/lists/privacy.txt", "Demo Privacy List", "tracking")
+	listID, err := db.AddList("https://demo.umberrelay.local/lists/privacy.txt", "Demo Privacy List", "tracking")
 	if err != nil {
 		return err
 	}

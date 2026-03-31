@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in Scrye
+about: Report a bug in Umberrelay
 title: ''
 labels: bug
 assignees: ''
@@ -21,11 +21,11 @@ What you expected to happen.
 - OS / architecture (e.g. Raspberry Pi OS 64-bit, aarch64):
 - Go version:
 - Docker version (if applicable):
-- Scrye version/commit:
+- Umberrelay version/commit:
 - Running mode (Docker / bare metal):
 
 **Logs**
-If applicable, paste relevant output from `docker compose logs scrye` or stderr.
+If applicable, paste relevant output from `docker compose logs umberrelay` or stderr.
 
 **Screenshots**
 If applicable, add screenshots of the web UI.

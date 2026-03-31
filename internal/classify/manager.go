@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 // domainMap is a read-only map of domain -> category.

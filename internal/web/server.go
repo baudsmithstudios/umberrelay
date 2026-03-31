@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"scrye/internal/classify"
-	"scrye/internal/store"
-	"scrye/internal/web/static"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/store"
+	"umberrelay/internal/web/static"
 )
 
 // Server provides the HTTP interface for the web UI and API.

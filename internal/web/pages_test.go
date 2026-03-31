@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 func seedTrendPageDevice(t *testing.T, s *Server, mac, hostname string, now time.Time) {
@@ -155,7 +155,8 @@ func TestPrivacyPage(t *testing.T) {
 
 	body := html.UnescapeString(w.Body.String())
 	for _, want := range []string{
-		"<title>Scrye",
+		"<title>Umberrelay",
+		`class="umberrelay-brand" href="/">Umberrelay</a>`,
 		"Privacy",
 		"Settings",
 		"/static/css/privacy.css",

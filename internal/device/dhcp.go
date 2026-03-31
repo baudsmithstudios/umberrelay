@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 // RunDHCP starts listening for DHCP packets on UDP port 67. Blocks until done is closed.

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"scrye/internal/app"
-	"scrye/internal/store"
+	"umberrelay/internal/app"
+	"umberrelay/internal/store"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

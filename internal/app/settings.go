@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"scrye/internal/classify"
-	"scrye/internal/store"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/store"
 )
 
 // SettingsInput holds runtime settings managed through the UI and API.

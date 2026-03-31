@@ -1,5 +1,5 @@
 :root {
-    --scrye-analytics: #d4a017;
+    --umberrelay-analytics: #d4a017;
 }
 
 /* ── Layout shell ── */
@@ -25,7 +25,7 @@
 
 .headline-ring {
     align-items: center;
-    border: 4px solid var(--scrye-critical);
+    border: 4px solid var(--umberrelay-critical);
     border-radius: 50%;
     display: flex;
     flex-shrink: 0;
@@ -54,16 +54,16 @@
 }
 
 .headline-ring .tracker-ring-track {
-    stroke: color-mix(in srgb, var(--scrye-accent) 22%, transparent);
+    stroke: color-mix(in srgb, var(--umberrelay-accent) 22%, transparent);
 }
 
 .headline-ring .tracker-ring-value {
-    stroke: var(--scrye-critical);
+    stroke: var(--umberrelay-critical);
     stroke-linecap: round;
 }
 
 .ring-value {
-    color: var(--scrye-critical);
+    color: var(--umberrelay-critical);
     font-size: 1rem;
     font-weight: 700;
     position: relative;
@@ -136,15 +136,15 @@
 }
 
 .breakdown-tracking {
-    background: var(--scrye-critical);
+    background: var(--umberrelay-critical);
 }
 
 .breakdown-analytics {
-    background: var(--scrye-analytics);
+    background: var(--umberrelay-analytics);
 }
 
 .breakdown-unclassified {
-    background: var(--scrye-accent);
+    background: var(--umberrelay-accent);
 }
 
 .breakdown-legend {
@@ -247,7 +247,7 @@
 .attention-item {
     align-items: center;
     background: color-mix(in srgb, var(--pico-card-sectioning-background-color) 60%, transparent);
-    border-left: 3px solid var(--scrye-accent);
+    border-left: 3px solid var(--umberrelay-accent);
     border-radius: 0 var(--pico-border-radius) var(--pico-border-radius) 0;
     display: flex;
     gap: 1rem;
@@ -256,13 +256,13 @@
 }
 
 .attention-item.anomaly-tracker {
-    background: color-mix(in srgb, var(--scrye-critical) 6%, transparent);
-    border-left-color: var(--scrye-critical);
+    background: color-mix(in srgb, var(--umberrelay-critical) 6%, transparent);
+    border-left-color: var(--umberrelay-critical);
 }
 
 .attention-item.anomaly-volume {
-    background: color-mix(in srgb, var(--scrye-analytics) 6%, transparent);
-    border-left-color: var(--scrye-analytics);
+    background: color-mix(in srgb, var(--umberrelay-analytics) 6%, transparent);
+    border-left-color: var(--umberrelay-analytics);
 }
 
 .att-body {
@@ -297,13 +297,13 @@
 }
 
 .attention-badge.anomaly-tracker {
-    background: color-mix(in srgb, var(--scrye-critical) 15%, transparent);
-    color: var(--scrye-critical);
+    background: color-mix(in srgb, var(--umberrelay-critical) 15%, transparent);
+    color: var(--umberrelay-critical);
 }
 
 .attention-badge.anomaly-volume {
-    background: color-mix(in srgb, var(--scrye-analytics) 15%, transparent);
-    color: var(--scrye-analytics);
+    background: color-mix(in srgb, var(--umberrelay-analytics) 15%, transparent);
+    color: var(--umberrelay-analytics);
 }
 
 .investigate-btn {
@@ -408,11 +408,11 @@
 }
 
 .device-item.anomaly-tracker {
-    border-left-color: var(--scrye-critical);
+    border-left-color: var(--umberrelay-critical);
 }
 
 .device-item.anomaly-volume {
-    border-left-color: var(--scrye-analytics);
+    border-left-color: var(--umberrelay-analytics);
 }
 
 .device-item.selected {
@@ -440,9 +440,9 @@
 }
 
 .device-pct-badge {
-    background: color-mix(in srgb, var(--scrye-accent) 15%, transparent);
+    background: color-mix(in srgb, var(--umberrelay-accent) 15%, transparent);
     border-radius: 3px;
-    color: var(--scrye-accent);
+    color: var(--umberrelay-accent);
     font-size: 0.6rem;
     font-weight: 600;
     padding: 0.05rem 0.3rem;
@@ -456,7 +456,7 @@
 }
 
 .device-bar span {
-    background: linear-gradient(90deg, var(--scrye-critical), var(--scrye-accent));
+    background: linear-gradient(90deg, var(--umberrelay-critical), var(--umberrelay-accent));
     display: block;
     height: 100%;
 }
@@ -581,7 +581,7 @@
 }
 
 .classification-pill {
-    background: color-mix(in srgb, var(--scrye-accent) 12%, transparent);
+    background: color-mix(in srgb, var(--umberrelay-accent) 12%, transparent);
     border-radius: 3px;
     display: inline-flex;
     font-size: 0.7rem;
@@ -613,11 +613,11 @@
 /* ── Trend classes ── */
 
 .trend-up {
-    color: var(--scrye-critical);
+    color: var(--umberrelay-critical);
 }
 
 .trend-down {
-    color: var(--scrye-accent);
+    color: var(--umberrelay-accent);
 }
 
 .trend-flat {

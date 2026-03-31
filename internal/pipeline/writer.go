@@ -5,10 +5,10 @@ import (
 	"log"
 	"time"
 
-	"scrye/internal/classify"
-	"scrye/internal/device"
-	"scrye/internal/dns"
-	"scrye/internal/store"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/device"
+	"umberrelay/internal/dns"
+	"umberrelay/internal/store"
 )
 
 // Config controls writer batching behavior.

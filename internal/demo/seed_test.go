@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 func testDB(t *testing.T) *store.DB {
