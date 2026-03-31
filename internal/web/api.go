@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"umberrelay/internal/app"
+	"umberrelay/internal/store"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +40,11 @@ func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "device not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSONError(w, http.StatusNotFound, "device not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, dev)
@@ -121,9 +127,17 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 	deviceMAC := r.URL.Query().Get("device")
+	timeRange := r.URL.Query().Get("range")
+	if timeRange == "" {
+		timeRange = "24h"
+	}
 
-	buckets, err := s.db.HourlyActivity(deviceMAC)
+	buckets, err := s.db.RangedActivity(deviceMAC, timeRange)
 	if err != nil {
+		if strings.Contains(err.Error(), "invalid range") {
+			writeJSONError(w, http.StatusBadRequest, "range must be one of 24h, 7d, 30d")
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -156,12 +170,60 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = n
 	}
-	domains, err := s.db.TopDomains(limit)
+	domains, err := s.db.TopDomainsWithSource(limit)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, domains)
+	devices, err := s.db.ListDevices()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		TotalDevices int                      `json:"total_devices"`
+		Domains      []store.DomainWithSource `json:"domains"`
+	}{
+		TotalDevices: len(devices),
+		Domains:      domains,
+	})
+}
+
+func (s *Server) handleAPIAnomalies(w http.ResponseWriter, r *http.Request) {
+	anomalies, err := s.db.DeviceAnomalies()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	type anomalyResponse struct {
+		DeviceMAC           string  `json:"device_mac"`
+		DeviceName          string  `json:"device_name"`
+		Type                string  `json:"type"`
+		CurrentValue        float64 `json:"current_value"`
+		AverageValue        float64 `json:"average_value"`
+		Delta               float64 `json:"delta"`
+		TopDomain           string  `json:"top_domain"`
+		TopDomainCategory   string  `json:"top_domain_category"`
+		TopDomainSourceList string  `json:"top_domain_source_list"`
+	}
+
+	response := make([]anomalyResponse, 0, len(anomalies))
+	for _, anomaly := range anomalies {
+		response = append(response, anomalyResponse{
+			DeviceMAC:           anomaly.DeviceMAC,
+			DeviceName:          anomaly.DeviceName,
+			Type:                anomaly.Type,
+			CurrentValue:        anomaly.CurrentValue,
+			AverageValue:        anomaly.AverageValue,
+			Delta:               anomaly.Delta,
+			TopDomain:           anomaly.TopDomain,
+			TopDomainCategory:   anomaly.TopDomainCategory,
+			TopDomainSourceList: anomaly.TopDomainSourceList,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {

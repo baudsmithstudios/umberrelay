@@ -74,7 +74,9 @@ func TestManagerOverrides(t *testing.T) {
 	m.domains.Store(newDomainMap(map[string]string{
 		"ads.example.com": "advertising",
 	}))
-	m.SetOverride("ads.example.com", "telemetry")
+	if err := m.SetOverride("ads.example.com", "telemetry"); err != nil {
+		t.Fatalf("SetOverride: %v", err)
+	}
 
 	got := m.Classify("ads.example.com.")
 	if got != "telemetry" {

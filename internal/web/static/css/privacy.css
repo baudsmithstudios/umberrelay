@@ -1,0 +1,730 @@
+:root {
+    --umberrelay-analytics: #d4a017;
+}
+
+/* ── Layout shell ── */
+
+.privacy-page {
+    display: grid;
+    gap: 2rem;
+    padding-bottom: 3rem;
+}
+
+.overview-zone {
+    display: grid;
+    gap: 1rem;
+}
+
+/* ── Headline row (ring + body + stats) ── */
+
+.headline-row {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+}
+
+.headline-ring {
+    align-items: center;
+    border: 4px solid var(--umberrelay-critical);
+    border-radius: 50%;
+    display: flex;
+    flex-shrink: 0;
+    height: 64px;
+    justify-content: center;
+    position: relative;
+    width: 64px;
+}
+
+.headline-ring .tracker-ring {
+    height: 64px;
+    left: -4px;
+    position: absolute;
+    top: -4px;
+    transform: rotate(-90deg);
+    width: 64px;
+}
+
+.headline-ring .tracker-ring-track,
+.headline-ring .tracker-ring-value {
+    cx: 60;
+    cy: 60;
+    fill: none;
+    r: 48;
+    stroke-width: 10;
+}
+
+.headline-ring .tracker-ring-track {
+    stroke: color-mix(in srgb, var(--umberrelay-accent) 22%, transparent);
+}
+
+.headline-ring .tracker-ring-value {
+    stroke: var(--umberrelay-critical);
+    stroke-linecap: round;
+}
+
+.ring-value {
+    color: var(--umberrelay-critical);
+    font-size: 1rem;
+    font-weight: 700;
+    position: relative;
+}
+
+.headline-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.headline-title {
+    color: var(--pico-color);
+    display: block;
+    font-size: 1.05rem;
+}
+
+.headline-subtitle {
+    color: var(--pico-muted-color);
+    font-size: 0.8rem;
+    margin: 0.15rem 0 0.35rem;
+}
+
+.headline-bar {
+    height: 8px;
+}
+
+.headline-stats {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr 1fr;
+    width: 170px;
+}
+
+.stat-box {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-card-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.stat-num {
+    color: var(--pico-color);
+    display: block;
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.stat-lbl {
+    color: var(--pico-muted-color);
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* ── Breakdown bar + legend (shared) ── */
+
+.breakdown-bar {
+    background: var(--pico-form-element-background-color);
+    border-radius: 999px;
+    display: flex;
+    gap: 0.15rem;
+    min-height: 0.5rem;
+    overflow: hidden;
+}
+
+.breakdown-segment {
+    display: block;
+    min-width: 0;
+}
+
+.breakdown-tracking {
+    background: var(--umberrelay-critical);
+}
+
+.breakdown-analytics {
+    background: var(--umberrelay-analytics);
+}
+
+.breakdown-unclassified {
+    background: var(--umberrelay-accent);
+}
+
+.breakdown-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.breakdown-legend span {
+    align-items: center;
+    display: inline-flex;
+    font-size: 0.75rem;
+    gap: 0.3rem;
+}
+
+.legend-swatch {
+    border-radius: 999px;
+    display: inline-block;
+    height: 0.55rem;
+    width: 0.55rem;
+}
+
+/* ── Chart container ── */
+
+.overview-chart {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-card-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.75rem;
+}
+
+.chart-header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.chart-label {
+    color: var(--pico-muted-color);
+    font-size: 0.8rem;
+}
+
+.range-controls {
+    display: inline-flex;
+    gap: 0.35rem;
+}
+
+.range-controls button {
+    font-size: 0.75rem;
+    margin-bottom: 0;
+    min-width: 3rem;
+    padding: 0.2rem 0.5rem;
+}
+
+.privacy-chart {
+    min-height: 200px;
+}
+
+.privacy-chart .u-legend {
+    color: var(--pico-muted-color);
+    font-size: 0.75rem;
+}
+
+.privacy-chart .u-legend .u-series th {
+    color: var(--pico-color);
+    font-weight: 400;
+}
+
+.privacy-chart .u-legend .u-value {
+    color: var(--pico-muted-color);
+}
+
+/* ── Section titles ── */
+
+.section-title {
+    align-items: center;
+    color: var(--pico-muted-color);
+    display: flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    justify-content: space-between;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.section-note {
+    font-size: 0.7rem;
+    font-weight: 400;
+}
+
+/* ── Attention feed ── */
+
+.attention-feed {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.attention-item {
+    align-items: center;
+    background: color-mix(in srgb, var(--pico-card-sectioning-background-color) 60%, transparent);
+    border-left: 3px solid var(--umberrelay-accent);
+    border-radius: 0 var(--pico-border-radius) var(--pico-border-radius) 0;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+}
+
+.attention-item.anomaly-tracker {
+    background: color-mix(in srgb, var(--umberrelay-critical) 6%, transparent);
+    border-left-color: var(--umberrelay-critical);
+}
+
+.attention-item.anomaly-volume {
+    background: color-mix(in srgb, var(--umberrelay-analytics) 6%, transparent);
+    border-left-color: var(--umberrelay-analytics);
+}
+
+.att-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.att-heading {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+}
+
+.att-device {
+    color: var(--pico-color);
+    font-size: 0.85rem;
+}
+
+.att-detail {
+    color: var(--pico-muted-color);
+    font-size: 0.75rem;
+    margin: 0;
+}
+
+.attention-badge {
+    border-radius: 3px;
+    display: inline-flex;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+}
+
+.attention-badge.anomaly-tracker {
+    background: color-mix(in srgb, var(--umberrelay-critical) 15%, transparent);
+    color: var(--umberrelay-critical);
+}
+
+.attention-badge.anomaly-volume {
+    background: color-mix(in srgb, var(--umberrelay-analytics) 15%, transparent);
+    color: var(--umberrelay-analytics);
+}
+
+.investigate-btn {
+    background: var(--pico-secondary-background);
+    border: none;
+    border-radius: var(--pico-border-radius);
+    color: var(--pico-color);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+    white-space: nowrap;
+}
+
+.investigate-btn:hover {
+    background: var(--pico-secondary-hover-background);
+}
+
+.empty-state {
+    color: var(--pico-muted-color);
+    margin: 0;
+}
+
+/* ── Zone divider ── */
+
+.zone-divider {
+    border-top: 1px solid var(--pico-muted-border-color);
+    margin: 0.5rem 0;
+    padding-top: 0.5rem;
+}
+
+.zone-label {
+    align-items: center;
+    color: var(--pico-muted-border-color);
+    display: flex;
+    font-size: 0.7rem;
+    gap: 0.5rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.zone-label::after {
+    background: var(--pico-muted-border-color);
+    content: '';
+    flex: 1;
+    height: 1px;
+    opacity: 0.3;
+}
+
+/* ── Investigation grid ── */
+
+.investigation-zone {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.investigation-grid {
+    display: grid;
+    gap: 0;
+    grid-template-columns: 210px 1fr;
+    min-height: 400px;
+}
+
+/* ── Device sidebar ── */
+
+.device-sidebar {
+    align-self: start;
+    background: var(--pico-card-background-color);
+    border-right: 1px solid var(--pico-card-border-color);
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.6rem;
+    position: sticky;
+    top: 0;
+}
+
+.sidebar-search {
+    background: var(--pico-background-color);
+    border: 1px solid var(--pico-card-border-color);
+    border-radius: var(--pico-border-radius);
+    color: var(--pico-muted-color);
+    font-size: 0.75rem;
+    margin-bottom: 0;
+    padding: 0.35rem 0.5rem;
+    width: 100%;
+}
+
+.sort-row select {
+    font-size: 0.7rem;
+    margin-bottom: 0;
+    padding: 0.25rem 0.4rem;
+}
+
+.device-list {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.device-item {
+    border-left: 3px solid transparent;
+    border-radius: var(--pico-border-radius);
+    transition: background-color 120ms ease;
+}
+
+.device-item.anomaly-tracker {
+    border-left-color: var(--umberrelay-critical);
+}
+
+.device-item.anomaly-volume {
+    border-left-color: var(--umberrelay-analytics);
+}
+
+.device-item.selected {
+    background: var(--pico-secondary-background);
+}
+
+.device-item:hover:not(.selected) {
+    background: var(--pico-card-sectioning-background-color);
+}
+
+.device-item a {
+    color: inherit;
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.4rem 0.5rem;
+    text-decoration: none;
+}
+
+.device-name-row {
+    align-items: center;
+    display: flex;
+    font-size: 0.8rem;
+    gap: 0.4rem;
+    justify-content: space-between;
+}
+
+.device-pct-badge {
+    background: color-mix(in srgb, var(--umberrelay-accent) 15%, transparent);
+    border-radius: 3px;
+    color: var(--umberrelay-accent);
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.05rem 0.3rem;
+}
+
+.device-bar {
+    background: var(--pico-form-element-background-color);
+    border-radius: 999px;
+    min-height: 6px;
+    overflow: hidden;
+}
+
+.device-bar span {
+    background: linear-gradient(90deg, var(--umberrelay-critical), var(--umberrelay-accent));
+    display: block;
+    height: 100%;
+}
+
+.device-meta {
+    color: var(--pico-muted-color);
+    display: flex;
+    font-size: 0.65rem;
+    justify-content: space-between;
+}
+
+.device-list-divider {
+    border-top: 1px solid var(--pico-muted-border-color);
+    margin: 0.3rem 0;
+}
+
+.all-devices a {
+    font-size: 0.8rem;
+}
+
+/* ── Detail panel ── */
+
+.detail-panel {
+    min-width: 0;
+    padding: 0.8rem;
+}
+
+.detail-view {
+    display: grid;
+    gap: 1rem;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+}
+
+.detail-header-left {
+    min-width: 0;
+}
+
+.eyebrow {
+    color: var(--pico-muted-color);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    margin: 0 0 0.15rem;
+    text-transform: uppercase;
+}
+
+.detail-device-name {
+    margin-bottom: 0.15rem;
+}
+
+.detail-subtitle {
+    color: var(--pico-muted-color);
+    font-size: 0.78rem;
+    margin: 0;
+}
+
+.device-label-block {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.label-form {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.label-form input {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+    max-width: 200px;
+    padding: 0.25rem 0.4rem;
+}
+
+.label-form button {
+    font-size: 0.75rem;
+    margin-bottom: 0;
+    padding: 0.25rem 0.5rem;
+}
+
+/* ── Device privacy summary row ── */
+
+.device-privacy-row {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+}
+
+.device-privacy-bar-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.device-query-stat {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.device-query-stat .stat-num {
+    font-size: 1.2rem;
+}
+
+.stat-detail {
+    color: var(--pico-muted-color);
+    display: block;
+    font-size: 0.7rem;
+}
+
+/* ── Domain table ── */
+
+.domain-table-wrap {
+    overflow-x: auto;
+}
+
+.domain-table {
+    font-size: 0.8rem;
+    width: 100%;
+}
+
+.classification-pill {
+    background: color-mix(in srgb, var(--umberrelay-accent) 12%, transparent);
+    border-radius: 3px;
+    display: inline-flex;
+    font-size: 0.7rem;
+    gap: 0.25rem;
+    padding: 0.1rem 0.35rem;
+    white-space: nowrap;
+}
+
+.override-form {
+    align-items: center;
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0;
+}
+
+.override-form select {
+    font-size: 0.75rem;
+    margin-bottom: 0;
+    min-width: 8rem;
+    padding: 0.2rem 0.3rem;
+}
+
+.override-form button {
+    font-size: 0.7rem;
+    margin-bottom: 0;
+    padding: 0.2rem 0.5rem;
+}
+
+/* ── Trend classes ── */
+
+.trend-up {
+    color: var(--umberrelay-critical);
+}
+
+.trend-down {
+    color: var(--umberrelay-accent);
+}
+
+.trend-flat {
+    color: var(--pico-muted-color);
+}
+
+/* ── Responsive: medium ── */
+
+@media (max-width: 1023px) {
+    .headline-ring {
+        display: none;
+    }
+
+    .headline-stats {
+        width: 130px;
+    }
+
+    .investigation-grid {
+        grid-template-columns: 170px 1fr;
+    }
+
+    .device-meta {
+        display: none;
+    }
+}
+
+/* ── Responsive: small ── */
+
+@media (max-width: 767px) {
+    .headline-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .headline-stats {
+        width: 100%;
+    }
+
+    .investigation-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .device-sidebar {
+        border-right: 0;
+        position: static;
+    }
+
+    .device-list {
+        grid-template-columns: 1fr;
+    }
+
+    .device-privacy-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .device-query-stat {
+        text-align: left;
+    }
+
+    .label-form,
+    .attention-item,
+    .override-form {
+        align-items: stretch;
+        display: grid;
+    }
+
+    .label-form input {
+        max-width: none;
+    }
+
+    .range-controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .domain-table thead {
+        display: none;
+    }
+
+    .domain-table,
+    .domain-table tbody,
+    .domain-table tr,
+    .domain-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .domain-table tr {
+        border-bottom: 1px solid var(--pico-table-border-color);
+        padding: 0.6rem 0;
+    }
+
+    .domain-table td {
+        border: 0;
+        padding: 0.15rem 0;
+    }
+
+    .domain-table td::before {
+        color: var(--pico-muted-color);
+        content: attr(data-label);
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.1rem;
+        text-transform: uppercase;
+    }
+}

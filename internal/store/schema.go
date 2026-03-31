@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS list_domains (
     category TEXT    NOT NULL,
     PRIMARY KEY (list_id, domain)
 );
+CREATE INDEX IF NOT EXISTS idx_list_domains_domain ON list_domains(domain);
 
 CREATE TABLE IF NOT EXISTS config (
     key   TEXT PRIMARY KEY,

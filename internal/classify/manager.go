@@ -64,21 +64,27 @@ func (m *Manager) Classify(domain string) string {
 }
 
 // SetOverride adds a user-defined classification override and persists it.
-func (m *Manager) SetOverride(domain, category string) {
+func (m *Manager) SetOverride(domain, category string) error {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
-	m.overrides.Store(domain, category)
 	if m.db != nil {
-		m.db.SetDomainOverride(domain, category)
+		if err := m.db.SetDomainOverride(domain, category); err != nil {
+			return err
+		}
 	}
+	m.overrides.Store(domain, category)
+	return nil
 }
 
 // RemoveOverride removes a user-defined classification override and deletes it from storage.
-func (m *Manager) RemoveOverride(domain string) {
+func (m *Manager) RemoveOverride(domain string) error {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
-	m.overrides.Delete(domain)
 	if m.db != nil {
-		m.db.DeleteDomainOverride(domain)
+		if err := m.db.DeleteDomainOverride(domain); err != nil {
+			return err
+		}
 	}
+	m.overrides.Delete(domain)
+	return nil
 }
 
 // LoadOverrides loads persisted domain overrides from the store into memory.

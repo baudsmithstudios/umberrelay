@@ -26,7 +26,7 @@ DNS is an intentionally narrow lens, but it is still a useful one: it is cheap t
 - **Per-device attribution** — maps queries to devices via ARP table polling, DHCP snooping, mDNS, and SSDP discovery
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
-- **Web dashboard** — query volume, tracker percentage, per-device breakdown, domain rankings, all in the browser
+- **Privacy UI** — Privacy and Settings pages for query volume, tracker percentage, per-device breakdown, domain rankings, and runtime configuration
 - **REST API** — JSON API for devices, queries, activity, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
@@ -137,8 +137,9 @@ The API is unauthenticated — bind to localhost or a trusted network.
 | `GET` | `/api/devices/{mac}` | Single device |
 | `PUT` | `/api/devices/{mac}` | Update device label |
 | `GET` | `/api/queries` | Query log (filterable by device, domain, time range) |
-| `GET` | `/api/activity` | Hourly activity buckets (optionally filter by device) |
-| `GET` | `/api/domains` | Top domains (last 24h) |
+| `GET` | `/api/activity` | Activity buckets for `24h`, `7d`, or `30d` (optionally filter by device) |
+| `GET` | `/api/anomalies` | Devices with unusual tracker rate or query volume spikes |
+| `GET` | `/api/domains` | Top domains with source list attribution and device counts (last 24h) |
 | `GET` | `/api/settings` | Current settings |
 | `PUT` | `/api/settings` | Update settings |
 | `GET` | `/api/lists` | All classification lists |
@@ -168,6 +169,9 @@ Selected read endpoints return these JSON shapes:
 | Endpoint | JSON Response |
 |---|---|
 | `GET /api/health` | `{ "status": "ok" }` |
+| `GET /api/activity` | `[{"timestamp": 1711670400, "total": 42, "tracker": 18}]` |
+| `GET /api/anomalies` | `[{"device_mac": "aa:bb:cc:dd:ee:ff", "device_name": "Living Room TV", "type": "tracker_spike", "current_value": 75, "average_value": 20, "delta": 55, "top_domain": "ads.example.com", "top_domain_category": "tracking", "top_domain_source_list": "Tracking List"}]` |
+| `GET /api/domains` | `{ "total_devices": 12, "domains": [{"domain": "ads.example.com", "category": "tracking", "query_count": 120, "device_count": 4, "source_list": "Tracking List"}] }` |
 | `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
 
 Selected error responses use this JSON shape:
@@ -190,6 +194,25 @@ Selected error responses use this JSON shape:
 | `to` | End time (RFC3339, defaults to now) |
 | `limit` | Results per page (default 100) |
 | `offset` | Pagination offset |
+
+`GET /api/activity` supports:
+
+| Param | Description |
+|---|---|
+| `device` | Filter by device MAC |
+| `range` | Time window: `24h` (default, hourly buckets), `7d` (daily buckets), or `30d` (daily buckets) |
+
+`GET /api/domains` returns an object with `total_devices` plus a `domains` array. Each domain item includes:
+
+| Field | Description |
+|---|---|
+| `domain` | Domain name |
+| `category` | Stored classification category |
+| `query_count` | Number of matching queries in the last 24h |
+| `device_count` | Distinct devices that queried the domain in the last 24h |
+| `source_list` | Best-effort attribution for the matching blocklist, or `manual` / `unknown` |
+
+This replaces the previous flat array response for `GET /api/domains`.
 
 ## Docker Deployment
 
@@ -260,7 +283,9 @@ Purge Loop (goroutine)
     └─ Delete queries older than retention_days (daily)
 
 Web Server
-    ├─ Dashboard, Devices, Domains, Settings pages
+    ├─ Privacy page
+    ├─ Settings page
+    ├─ HTMX fragment handlers for privacy investigation and settings actions
     └─ REST API
 ```
 
