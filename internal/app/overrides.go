@@ -1,8 +1,8 @@
 package app
 
 import (
-	"scrye/internal/classify"
-	"scrye/internal/store"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/store"
 )
 
 // SetDomainOverride persists a domain classification override.

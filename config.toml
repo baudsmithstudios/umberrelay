@@ -1,4 +1,4 @@
-# config.toml — Scrye bootstrap configuration
+# config.toml — Umberrelay bootstrap configuration
 # Everything else is configured via the web UI at http://<host>:<http_port>
 
 listen = "0.0.0.0:53"

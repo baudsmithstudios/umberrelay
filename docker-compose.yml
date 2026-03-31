@@ -1,11 +1,11 @@
 services:
-  scrye:
+  umberrelay:
     build: .
     network_mode: host
     volumes:
-      - ./config.toml:/etc/scrye/config.toml:ro
-      - scrye-data:/data
+      - ./config.toml:/etc/umberrelay/config.toml:ro
+      - umberrelay-data:/data
     restart: unless-stopped
 
 volumes:
-  scrye-data:
+  umberrelay-data:

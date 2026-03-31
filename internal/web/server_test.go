@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"scrye/internal/classify"
-	"scrye/internal/store"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/store"
 )
 
 func testServer(t *testing.T) *Server {

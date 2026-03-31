@@ -3,7 +3,7 @@ docs/superpowers/
 .superpowers/
 
 # Build output
-/scrye
+/umberrelay
 *.exe
 
 # Database files

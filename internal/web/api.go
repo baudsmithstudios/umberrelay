@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"scrye/internal/app"
+	"umberrelay/internal/app"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

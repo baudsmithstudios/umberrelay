@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"scrye/internal/app"
-	"scrye/internal/store"
+	"umberrelay/internal/app"
+	"umberrelay/internal/store"
 )
 
 type pageData struct {

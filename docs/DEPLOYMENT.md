@@ -1,6 +1,6 @@
 # Raspberry Pi Deployment Guide
 
-> **This is a developer/contributor reference.** It covers dev-machine builds, image transfer to a Pi, and live deployment testing. If you're setting up Scrye for the first time, the [README Quick Start](../README.md#quick-start) is the right place to begin.
+> **This is a developer/contributor reference.** It covers dev-machine builds, image transfer to a Pi, and live deployment testing. If you're setting up Umberrelay for the first time, the [README Quick Start](../README.md#quick-start) is the right place to begin.
 
 ## Prerequisites
 
@@ -11,11 +11,11 @@
 
 ## Deployment Model
 
-Scrye is not just a dashboard. A live deployment means the Pi is running the DNS server your clients actually query.
+Umberrelay is not just a dashboard. A live deployment means the Pi is running the DNS server your clients actually query.
 
 That has a few consequences:
 
-- Scrye needs to bind DNS on port `53`
+- Umberrelay needs to bind DNS on port `53`
 - The provided container deployment uses host networking so it can see DNS traffic and the ARP table
 - Passive discovery also listens on UDP `67`, `5353`, and `1900`
 - Another service already using those ports on the Pi can reduce visibility or prevent startup
@@ -34,9 +34,9 @@ http_port = 8080
 ### Option A — Build on the Pi
 
 ```sh
-git clone https://github.com/baudsmithstudios/scrye.git
-cd scrye
-docker build -t scrye:latest --load .
+git clone https://github.com/baudsmithstudios/umberrelay.git
+cd umberrelay
+docker build -t umberrelay:latest --load .
 docker compose up -d
 ```
 
@@ -46,7 +46,7 @@ This is the simplest path, but it is slower on older Pi models.
 
 This is the recommended contributor workflow for building on a dev machine and deploying to a Pi.
 
-One important difference: the checked-in [`docker-compose.yml`](../docker-compose.yml) is build-oriented. For image transfer from a dev machine, use a Pi-specific compose file that references `image: scrye:latest` instead of `build: .`.
+One important difference: the checked-in [`docker-compose.yml`](../docker-compose.yml) is build-oriented. For image transfer from a dev machine, use a Pi-specific compose file that references `image: umberrelay:latest` instead of `build: .`.
 
 Build the ARM64 image tar on your dev machine:
 
@@ -55,52 +55,52 @@ Build the ARM64 image tar on your dev machine:
 docker buildx create --use --name pibuilder
 
 # Build for ARM64 and export the image as a tar
-docker buildx build --platform linux/arm64 -t scrye:latest \
-  --output type=docker,dest=scrye.tar .
+docker buildx build --platform linux/arm64 -t umberrelay:latest \
+  --output type=docker,dest=umberrelay.tar .
 ```
 
 Create a deployment compose file named `docker-compose.pi.yml`:
 
 ```yaml
 services:
-  scrye:
-    image: scrye:latest
-    container_name: scrye
+  umberrelay:
+    image: umberrelay:latest
+    container_name: umberrelay
     network_mode: host
     volumes:
-      - ./config.toml:/etc/scrye/config.toml:ro
-      - /path/to/external/drive/scrye:/data
+      - ./config.toml:/etc/umberrelay/config.toml:ro
+      - /path/to/external/drive/umberrelay:/data
     restart: unless-stopped
 ```
 
 Copy the image and supporting files to the Pi:
 
 ```sh
-scp scrye.tar config.toml docker-compose.pi.yml user@<pi-ip>:~/scrye/
+scp umberrelay.tar config.toml docker-compose.pi.yml user@<pi-ip>:~/umberrelay/
 ```
 
 On the Pi, load the image and start the container:
 
 ```sh
-cd ~/scrye
-docker load < scrye.tar
+cd ~/umberrelay
+docker load < umberrelay.tar
 docker compose -f docker-compose.pi.yml up -d
 ```
 
 ### Redeploying after changes
 
 ```sh
-docker buildx build --platform linux/arm64 -t scrye:latest \
-  --output type=docker,dest=scrye.tar .
+docker buildx build --platform linux/arm64 -t umberrelay:latest \
+  --output type=docker,dest=umberrelay.tar .
 
-scp scrye.tar user@<pi-ip>:~/scrye/ && \
-  ssh user@<pi-ip> "cd ~/scrye && docker load < scrye.tar && docker compose -f docker-compose.pi.yml up -d"
+scp umberrelay.tar user@<pi-ip>:~/umberrelay/ && \
+  ssh user@<pi-ip> "cd ~/umberrelay && docker load < umberrelay.tar && docker compose -f docker-compose.pi.yml up -d"
 ```
 
 If you want a clean restart during redeploy:
 
 ```sh
-ssh user@<pi-ip> "cd ~/scrye && docker compose -f docker-compose.pi.yml down && docker load < scrye.tar && docker compose -f docker-compose.pi.yml up -d"
+ssh user@<pi-ip> "cd ~/umberrelay && docker compose -f docker-compose.pi.yml down && docker load < umberrelay.tar && docker compose -f docker-compose.pi.yml up -d"
 ```
 
 ## Persistent Storage
@@ -116,23 +116,23 @@ lsblk -o NAME,MOUNTPOINT,FSTYPE,SIZE,LABEL
 Create the data directory:
 
 ```sh
-mkdir -p /your/mount/point/scrye
+mkdir -p /your/mount/point/umberrelay
 ```
 
 Update the Pi compose file:
 
 ```yaml
 volumes:
-  - /your/mount/point/scrye:/data
+  - /your/mount/point/umberrelay:/data
 ```
 
 ## Live Testing On The Pi
 
-Do not treat `./scrye-demo.sh` as a live deployment test. Demo mode seeds fake data for UI review and skips the real DNS listener and passive discovery paths.
+Do not treat `./umberrelay-demo.sh` as a live deployment test. Demo mode seeds fake data for UI review and skips the real DNS listener and passive discovery paths.
 
 Use a staged test instead:
 
-1. Deploy Scrye to the Pi without changing router DNS yet.
+1. Deploy Umberrelay to the Pi without changing router DNS yet.
 2. Confirm the web UI and API respond:
    ```sh
    curl http://<pi-ip>:8080/api/health
@@ -162,7 +162,7 @@ Typical conflicts include:
 - a DHCP server already bound to UDP `67`
 - another service already using port `8080`
 
-### The UI works, but Scrye sees no real traffic
+### The UI works, but Umberrelay sees no real traffic
 
 Make sure the client device is actually using the Pi for DNS:
 
@@ -174,14 +174,14 @@ If that works but normal browsing does not show up, the client may be using encr
 
 ### Queries are visible, but device attribution is weak
 
-Scrye depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information.
+Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information.
 
 ## Health Checklist
 
 - [ ] Pi is running a 64-bit OS with Docker and Docker Compose installed
 - [ ] ARM64 image built successfully on the dev machine or Pi
-- [ ] Pi deployment compose file uses `image: scrye:latest`
-- [ ] Config is mounted to `/etc/scrye/config.toml`
+- [ ] Pi deployment compose file uses `image: umberrelay:latest`
+- [ ] Config is mounted to `/etc/umberrelay/config.toml`
 - [ ] Data directory is bind-mounted to persistent storage
 - [ ] `docker compose -f docker-compose.pi.yml up -d` starts cleanly
 - [ ] `http://<pi-ip>:8080/api/health` returns success

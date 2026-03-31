@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="assets/scrye-title.svg" alt="Scrye" width="600">
+  <img src="assets/umberrelay-title.svg" alt="Umberrelay" width="600">
 </p>
 
 <p align="center">
-  <em>See where your network goes when nobody is paying attention.</em>
+  <em>Trace the traffic your network never explains.</em>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Raspberry%20Pi-A22846?style=flat&logo=raspberrypi&logoColor=white" alt="Raspberry Pi">
-  <a href="https://github.com/baudsmithstudios/scrye/releases/latest"><img src="https://img.shields.io/github/v/release/baudsmithstudios/scrye?label=version" alt="Latest release"></a>
+  <a href="https://github.com/baudsmithstudios/umberrelay/releases/latest"><img src="https://img.shields.io/github/v/release/baudsmithstudios/umberrelay?label=version" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-5faf87.svg" alt="Apache 2.0 License"></a>
   <img src="https://img.shields.io/badge/go-1.26-00ADD8.svg" alt="Go 1.26">
   <img src="https://img.shields.io/badge/platform-Linux%20%2F%20ARM64-333333.svg" alt="Linux / ARM64">
@@ -16,9 +16,9 @@
 
 ## What It Does
 
-Scrye is a forwarding DNS server that logs every query, identifies which device made it, and classifies domains against community-maintained tracking lists. It gives you a per-device picture of where your network traffic is going — and how much of it is talking to trackers.
+Umberrelay is a forwarding DNS server that logs every query, identifies which device made it, and classifies domains against community-maintained tracking lists. It gives you a per-device picture of where your network traffic is going — and how much of it is talking to trackers.
 
-DNS is an intentionally narrow lens, but it is still a useful one: it is cheap to collect, passive to deploy, and often enough to reveal which devices are the noisiest, which services they depend on, and how often they contact known trackers. Scrye focuses on turning that signal into something readable instead of trying to be a blocker, IDS, or full packet analyzer.
+DNS is an intentionally narrow lens, but it is still a useful one: it is cheap to collect, passive to deploy, and often enough to reveal which devices are the noisiest, which services they depend on, and how often they contact known trackers. Umberrelay focuses on turning that signal into something readable instead of trying to be a blocker, IDS, or full packet analyzer.
 
 ## Features
 
@@ -32,9 +32,9 @@ DNS is an intentionally narrow lens, but it is still a useful one: it is cheap t
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
 - **Configurable via UI** — retention, list refresh interval, blocklist management all from the settings page
 
-## What Scrye Is Not
+## What Umberrelay Is Not
 
-- **Not a DNS blocker** — Scrye labels domains but does not block or rewrite responses
+- **Not a DNS blocker** — Umberrelay labels domains but does not block or rewrite responses
 - **Not an IDS or firewall** — it does not inspect packets deeply, enforce policy, or sit inline as a security appliance
 - **Not a packet capture tool** — it works from DNS traffic plus passive discovery signals, not full payload capture
 - **Not complete network visibility** — devices using DoH, DoT, hardcoded resolvers, or direct IP connections can bypass the DNS lens entirely
@@ -44,23 +44,23 @@ DNS is an intentionally narrow lens, but it is still a useful one: it is cheap t
 > For Raspberry Pi deployment, ARM64 image builds on a dev machine, and live-Pi testing, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```sh
-git clone https://github.com/baudsmithstudios/scrye.git && cd scrye
+git clone https://github.com/baudsmithstudios/umberrelay.git && cd umberrelay
 
 # Build and run with Docker
 docker compose up -d
 ```
 
-Then open `http://localhost:8080` in a browser and point your router's DNS to the host running Scrye.
+Then open `http://localhost:8080` in a browser and point your router's DNS to the host running Umberrelay.
 
 ## Deployment Model
 
-Scrye works best when it is the DNS server your network actually uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Scrye so client devices send their queries through it.
+Umberrelay works best when it is the DNS server your network actually uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
 
-That deployment model is the main tradeoff. Scrye sees only the DNS traffic that reaches it. If a device uses encrypted DNS (`DoH` / `DoT`), a hardcoded external resolver, or talks directly to IP addresses without DNS lookups, Scrye's visibility for that device becomes partial.
+That deployment model is the main tradeoff. Umberrelay sees only the DNS traffic that reaches it. If a device uses encrypted DNS (`DoH` / `DoT`), a hardcoded external resolver, or talks directly to IP addresses without DNS lookups, Umberrelay's visibility for that device becomes partial.
 
 ## Configuration
 
-Scrye needs minimal bootstrap config — everything else is managed through the web UI.
+Umberrelay needs minimal bootstrap config — everything else is managed through the web UI.
 
 ```toml
 # config.toml
@@ -77,7 +77,7 @@ http_port = 8080
 | `data_dir` | `/data` | SQLite database and data directory |
 | `http_port` | `8080` | Web UI and API port |
 
-All fields are optional — Scrye runs with sane defaults if no config file exists.
+All fields are optional — Umberrelay runs with sane defaults if no config file exists.
 
 ### Runtime Settings
 
@@ -90,7 +90,7 @@ These are managed through the web UI or API:
 
 ## Device Discovery
 
-Scrye uses four passive methods to build and maintain a device inventory:
+Umberrelay uses four passive methods to build and maintain a device inventory:
 
 | Method | What It Discovers |
 |---|---|
@@ -99,11 +99,11 @@ Scrye uses four passive methods to build and maintain a device inventory:
 | **mDNS** | Hostnames from PTR/SRV records on `224.0.0.251:5353` |
 | **SSDP** | Device presence from announcements on `239.255.255.250:1900` |
 
-All discovery is passive — Scrye never sends probes or scans your network.
+All discovery is passive — Umberrelay never sends probes or scans your network.
 
 ## Classification
 
-Scrye ships with three default blocklists:
+Umberrelay ships with three default blocklists:
 
 | List | Category |
 |---|---|
@@ -115,9 +115,9 @@ Lists are fetched on first run, cached to SQLite, and refreshed on a configurabl
 
 ## Privacy And Storage
 
-Scrye stores DNS query history, device identifiers discovered on the local network, domain classifications, and the runtime settings needed by the UI and API. By default, query history is retained for 30 days and then purged automatically.
+Umberrelay stores DNS query history, device identifiers discovered on the local network, domain classifications, and the runtime settings needed by the UI and API. By default, query history is retained for 30 days and then purged automatically.
 
-All of that data stays local unless you choose upstream DNS resolvers or blocklists hosted elsewhere. Scrye does not ship analytics, cloud sync, or third-party telemetry.
+All of that data stays local unless you choose upstream DNS resolvers or blocklists hosted elsewhere. Umberrelay does not ship analytics, cloud sync, or third-party telemetry.
 
 ## API
 
@@ -193,14 +193,14 @@ Selected error responses use this JSON shape:
 
 ## Docker Deployment
 
-The default [`docker-compose.yml`](docker-compose.yml) is aimed at local development and simple local Docker runs. It uses `network_mode: host` so Scrye can see DNS traffic and the ARP table, mounts config read-only, and stores `/data` in a named volume.
+The default [`docker-compose.yml`](docker-compose.yml) is aimed at local development and simple local Docker runs. It uses `network_mode: host` so Umberrelay can see DNS traffic and the ARP table, mounts config read-only, and stores `/data` in a named volume.
 
-For Raspberry Pi deployment from a dev machine, use [`docker-compose.pi.yml`](docker-compose.pi.yml) together with the workflow in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). That compose file references a prebuilt `scrye:latest` image and is designed for `docker load` on the Pi after transferring an ARM64 image tar.
+For Raspberry Pi deployment from a dev machine, use [`docker-compose.pi.yml`](docker-compose.pi.yml) together with the workflow in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). That compose file references a prebuilt `umberrelay:latest` image and is designed for `docker load` on the Pi after transferring an ARM64 image tar.
 
 ### Runtime Requirements
 
 - **Linux host** — device attribution depends on Linux networking details such as `/proc/net/arp`
-- **Port access** — Scrye needs to bind DNS on port `53`; passive listeners also use UDP `67`, `5353`, and `1900`
+- **Port access** — Umberrelay needs to bind DNS on port `53`; passive listeners also use UDP `67`, `5353`, and `1900`
 - **Host networking** — the provided Docker deployment uses `network_mode: host` so DNS and multicast traffic are visible to the container
 - **Trusted network placement** — the web UI and API are unauthenticated, so the host should live on a network you trust or sit behind a reverse proxy
 
@@ -222,10 +222,10 @@ The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `
 
 ## Troubleshooting
 
-- **A device is missing** — confirm the device is actually using Scrye for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
+- **A device is missing** — confirm the device is actually using Umberrelay for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
 - **Queries are visible but device names are weak** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices simply do not advertise much
 - **Tracker labels look wrong** — classifications come from community blocklists; use domain overrides when a list is too broad or out of date
-- **Some traffic is invisible** — Scrye does not see direct IP traffic or DNS that bypasses it, so partial visibility is an expected limitation in some networks
+- **Some traffic is invisible** — Umberrelay does not see direct IP traffic or DNS that bypasses it, so partial visibility is an expected limitation in some networks
 
 ## Architecture
 
@@ -272,7 +272,7 @@ Web Server
 
 ## Security
 
-- **No blocking** — Scrye observes and classifies but does not block or modify DNS responses
+- **No blocking** — Umberrelay observes and classifies but does not block or modify DNS responses
 - **No authentication** — the web UI and API are unauthenticated; bind to a trusted network or put behind a reverse proxy
 - **No outbound data** — the only outbound connections are DNS forwarding and blocklist fetches
 - **Passive discovery** — device identification uses only broadcast/multicast traffic and the local ARP table
@@ -281,9 +281,9 @@ Web Server
 
 ## Comparison
 
-Scrye targets a narrower niche than general network monitors or DNS blockers: a fully local DNS forwarder that turns query logs into per-device privacy reporting. The tradeoff is deliberate. Scrye does not do blocking, deep packet inspection, or inline firewalling, because that would push it toward a heavier, broader product category with different deployment and hardware expectations. That narrower scope matters because it lets Scrye stay simple, Pi-friendly, and fully local while filling a gap the other tools leave behind: turning DNS activity into concise per-device privacy visibility instead of just raw query logs, broad traffic categories, or security events.
+Umberrelay targets a narrower niche than general network monitors or DNS blockers: a fully local DNS forwarder that turns query logs into per-device privacy reporting. The tradeoff is deliberate. Umberrelay does not do blocking, deep packet inspection, or inline firewalling, because that would push it toward a heavier, broader product category with different deployment and hardware expectations. That narrower scope matters because it lets Umberrelay stay simple, Pi-friendly, and fully local while filling a gap the other tools leave behind: turning DNS activity into concise per-device privacy visibility instead of just raw query logs, broad traffic categories, or security events.
 
-| Feature | Scrye | [Pi-hole](https://pi-hole.net/) | [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | [Firewalla](https://firewalla.com/) | [ntopng](https://www.ntop.org/products/traffic-analysis/ntop/) |
+| Feature | Umberrelay | [Pi-hole](https://pi-hole.net/) | [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | [Firewalla](https://firewalla.com/) | [ntopng](https://www.ntop.org/products/traffic-analysis/ntop/) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | DNS query logging | Yes | Yes | Yes | Some | Some |
 | Per-device attribution | Yes | Yes | Yes | Yes | Yes |

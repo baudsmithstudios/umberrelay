@@ -9,11 +9,11 @@ script_dir=$(
 demo_dir="$script_dir/.demo"
 data_dir="$demo_dir/tmpdata"
 config_path="$demo_dir/config.local.toml"
-gocache_dir="/tmp/scrye-gocache"
+gocache_dir="/tmp/umberrelay-gocache"
 
-dns_listen="${SCRYE_DEMO_DNS_LISTEN:-127.0.0.1:1053}"
-upstream_dns="${SCRYE_DEMO_UPSTREAM:-1.1.1.1:53}"
-http_port="${SCRYE_DEMO_HTTP_PORT:-8080}"
+dns_listen="${UMBERRELAY_DEMO_DNS_LISTEN:-127.0.0.1:1053}"
+upstream_dns="${UMBERRELAY_DEMO_UPSTREAM:-1.1.1.1:53}"
+http_port="${UMBERRELAY_DEMO_HTTP_PORT:-8080}"
 
 reset_demo=false
 
@@ -45,9 +45,9 @@ data_dir = "$data_dir"
 http_port = $http_port
 EOF
 
-printf 'starting Scrye demo UI on http://localhost:%s\n' "$http_port"
+printf 'starting Umberrelay demo UI on http://localhost:%s\n' "$http_port"
 printf 'demo config: %s\n' "$config_path"
 printf 'demo data dir: %s\n' "$data_dir"
 
 cd "$script_dir"
-GOCACHE="$gocache_dir" go run ./cmd/scrye -config "$config_path" -demo-data
+GOCACHE="$gocache_dir" go run ./cmd/umberrelay -config "$config_path" -demo-data

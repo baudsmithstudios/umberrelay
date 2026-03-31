@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 // RunSSDP starts listening for SSDP announcements on 239.255.255.250:1900. Blocks until done is closed.

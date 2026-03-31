@@ -1,6 +1,6 @@
-# Contributing to Scrye
+# Contributing to Umberrelay
 
-Thanks for your interest in contributing. Scrye is a small Raspberry Pi and homelab project, and focused contributions are welcome.
+Thanks for your interest in contributing. Umberrelay is a small Raspberry Pi and homelab project, and focused contributions are welcome.
 
 ## Getting Started
 
@@ -15,16 +15,16 @@ For cross-compilation, dev-machine image builds, and live Pi testing, see [docs/
 
 ## Local UI Preview
 
-For UI and UX work, start Scrye with representative local demo data from the repo root:
+For UI and UX work, start Umberrelay with representative local demo data from the repo root:
 
 ```sh
-./scrye-demo.sh
+./umberrelay-demo.sh
 ```
 
 To wipe the demo database and reseed it from scratch:
 
 ```sh
-./scrye-demo.sh --reset
+./umberrelay-demo.sh --reset
 ```
 
 The script:

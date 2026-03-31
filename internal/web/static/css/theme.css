@@ -1,5 +1,5 @@
 /*
- * Steel Violet -- Scrye color theme
+ * Steel Violet -- Umberrelay color theme
  *
  * Dark mode is the default. Light mode activates via data-theme="light".
  * All foreground colors meet WCAG AA contrast against every background
@@ -109,12 +109,12 @@
     --pico-tooltip-color: #d4d0e0;
     --pico-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 
-    /* Scrye semantic tokens (not Pico, used by our custom styles) */
-    --scrye-warn: #d4a017;
-    --scrye-critical: #ec5252;
-    --scrye-accent: #8678F0;
-    --scrye-chart-total: #8678F0;
-    --scrye-chart-tracker: #ec5252;
+    /* Umberrelay semantic tokens (not Pico, used by our custom styles) */
+    --umberrelay-warn: #d4a017;
+    --umberrelay-critical: #ec5252;
+    --umberrelay-accent: #8678F0;
+    --umberrelay-chart-total: #8678F0;
+    --umberrelay-chart-tracker: #ec5252;
 }
 
 /* === Light mode === */
@@ -225,10 +225,10 @@
         0.2085rem 0.417rem 2.502rem rgba(26, 24, 40, 0.043),
         0.5rem 1rem 6rem rgba(26, 24, 40, 0.06);
 
-    /* Scrye semantic tokens */
-    --scrye-warn: #756000;
-    --scrye-critical: #a82020;
-    --scrye-accent: #5B4CB0;
-    --scrye-chart-total: #5B4CB0;
-    --scrye-chart-tracker: #a82020;
+    /* Umberrelay semantic tokens */
+    --umberrelay-warn: #756000;
+    --umberrelay-critical: #a82020;
+    --umberrelay-accent: #5B4CB0;
+    --umberrelay-chart-total: #5B4CB0;
+    --umberrelay-chart-tracker: #a82020;
 }

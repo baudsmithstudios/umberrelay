@@ -12,18 +12,24 @@ import (
 	"syscall"
 	"time"
 
-	"scrye/internal/classify"
-	"scrye/internal/config"
-	"scrye/internal/demo"
-	"scrye/internal/device"
-	"scrye/internal/dns"
-	"scrye/internal/pipeline"
-	"scrye/internal/store"
-	"scrye/internal/web"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/config"
+	"umberrelay/internal/demo"
+	"umberrelay/internal/device"
+	"umberrelay/internal/dns"
+	"umberrelay/internal/pipeline"
+	"umberrelay/internal/store"
+	"umberrelay/internal/web"
+)
+
+const (
+	runtimeName       = "umberrelay"
+	defaultConfigPath = "/etc/umberrelay/config.toml"
+	defaultDBName     = "umberrelay.db"
 )
 
 func main() {
-	configPath := flag.String("config", "/etc/scrye/config.toml", "path to config file")
+	configPath := flag.String("config", defaultConfigPath, "path to config file")
 	demoData := flag.Bool("demo-data", false, "seed demo data into an empty database for local UI review")
 	flag.Parse()
 
@@ -36,7 +42,7 @@ func main() {
 		log.Fatalf("create data dir: %v", err)
 	}
 
-	dbPath := filepath.Join(cfg.DataDir, "scrye.db")
+	dbPath := filepath.Join(cfg.DataDir, defaultDBName)
 	db, err := store.Open(dbPath)
 	if err != nil {
 		log.Fatalf("open db: %v", err)
@@ -135,9 +141,9 @@ func main() {
 	}()
 
 	if *demoData {
-		log.Printf("scrye demo mode started (http=:%d)", cfg.HTTPPort)
+		log.Printf("%s demo mode started (http=:%d)", runtimeName, cfg.HTTPPort)
 	} else {
-		log.Printf("scrye started (dns=%s, upstream=%v)", cfg.Listen, cfg.Upstream)
+		log.Printf("%s started (dns=%s, upstream=%v)", runtimeName, cfg.Listen, cfg.Upstream)
 	}
 	<-ctx.Done()
 	log.Println("shutdown complete")

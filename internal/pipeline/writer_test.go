@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"scrye/internal/classify"
-	"scrye/internal/device"
-	"scrye/internal/dns"
-	"scrye/internal/store"
+	"umberrelay/internal/classify"
+	"umberrelay/internal/device"
+	"umberrelay/internal/dns"
+	"umberrelay/internal/store"
 )
 
 func testSetup(t *testing.T) (*store.DB, *device.Tracker, *classify.Manager) {

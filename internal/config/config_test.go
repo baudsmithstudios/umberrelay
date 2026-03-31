@@ -38,7 +38,7 @@ func TestLoadValid(t *testing.T) {
 	err := os.WriteFile(path, []byte(`
 listen = "127.0.0.1:5353"
 upstream = ["9.9.9.9:53"]
-data_dir = "/tmp/scrye"
+data_dir = "/tmp/umberrelay"
 http_port = 9090
 `), 0644)
 	if err != nil {

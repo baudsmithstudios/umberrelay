@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 func seedTrendPageDevice(t *testing.T, s *Server, mac, hostname string, now time.Time) {
@@ -87,6 +87,16 @@ func TestDashboardPage(t *testing.T) {
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		"<title>Umberrelay",
+		">Umberrelay</strong>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
 	}
 }
 

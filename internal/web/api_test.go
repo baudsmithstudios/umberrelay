@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 func TestAPISummary(t *testing.T) {

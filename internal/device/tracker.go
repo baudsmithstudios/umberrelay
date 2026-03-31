@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"scrye/internal/store"
+	"umberrelay/internal/store"
 )
 
 type arpEntry struct {

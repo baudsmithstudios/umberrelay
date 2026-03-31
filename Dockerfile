@@ -3,9 +3,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /scrye ./cmd/scrye/
+RUN CGO_ENABLED=0 go build -o /umberrelay ./cmd/umberrelay/
 
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates
-COPY --from=build /scrye /usr/local/bin/scrye
-ENTRYPOINT ["scrye"]
+COPY --from=build /umberrelay /usr/local/bin/umberrelay
+ENTRYPOINT ["umberrelay"]
