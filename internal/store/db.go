@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"umberrelay/internal/category"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -339,8 +341,9 @@ func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Quer
 		args = append(args, filter.Domain)
 	}
 	if filter.Category != "" {
-		if filter.Category == "uncategorized" {
-			conditions = append(conditions, "(category = '' OR category = 'uncategorized')")
+		if filter.Category == category.Uncategorized {
+			conditions = append(conditions, "(category = '' OR category = ?)")
+			args = append(args, category.Uncategorized)
 		} else {
 			conditions = append(conditions, "category = ?")
 			args = append(args, filter.Category)

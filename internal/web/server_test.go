@@ -17,8 +17,12 @@ func testServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { db.Close() })
-	return NewServer(db, nil)
+	s := NewServer(db, nil)
+	t.Cleanup(func() {
+		s.Close()
+		db.Close()
+	})
+	return s
 }
 
 func testServerWithClassify(t *testing.T) *Server {
@@ -28,8 +32,12 @@ func testServerWithClassify(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { db.Close() })
-	return NewServer(db, classify.NewManager(db))
+	s := NewServer(db, classify.NewManager(db))
+	t.Cleanup(func() {
+		s.Close()
+		db.Close()
+	})
+	return s
 }
 
 func TestHealthEndpoint(t *testing.T) {

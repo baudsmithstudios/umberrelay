@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"umberrelay/internal/app"
+	"umberrelay/internal/category"
 	"umberrelay/internal/store"
 )
 
@@ -287,10 +288,12 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		afterID = lastID
 		flusher.Flush()
 	}
-
-	pollTicker := time.NewTicker(1 * time.Second)
+	if s.queryHub != nil {
+		s.queryHub.AdvanceCursor(afterID)
+	}
+	stream, cancel := s.queryHub.Subscribe()
+	defer cancel()
 	heartbeatTicker := time.NewTicker(15 * time.Second)
-	defer pollTicker.Stop()
 	defer heartbeatTicker.Stop()
 
 	for {
@@ -302,16 +305,17 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
-		case <-pollTicker.C:
-			queries, err := s.db.QueryFeed(afterID, filter, limit)
-			if err != nil {
-				log.Printf("stream query feed failed: %v", err)
+		case query, ok := <-stream:
+			if !ok {
 				return
 			}
-			if len(queries) == 0 {
+			if query.ID <= afterID {
 				continue
 			}
-			lastID, err = writeQueryStreamBatch(w, queries)
+			if !queryMatchesFeedFilter(query, filter) {
+				continue
+			}
+			lastID, err = writeQueryStreamBatch(w, []store.Query{query})
 			if err != nil {
 				log.Printf("stream batch write failed: %v", err)
 				return
@@ -645,16 +649,8 @@ func parseBoundedInt(value string, min, max int) (int, error) {
 	return n, nil
 }
 
-func normalizeQueryCategoryFilter(category string) (string, bool) {
-	normalized := strings.ToLower(strings.TrimSpace(category))
-	switch normalized {
-	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":
-		return normalized, true
-	case "unclassified":
-		return "uncategorized", true
-	default:
-		return "", false
-	}
+func normalizeQueryCategoryFilter(categoryFilter string) (string, bool) {
+	return category.Normalize(categoryFilter)
 }
 
 func writeQueryStreamBatch(w http.ResponseWriter, queries []store.Query) (int64, error) {
@@ -695,6 +691,29 @@ func streamActorKey(query store.Query) string {
 		return actorKeyForDevice(query.DeviceMAC)
 	}
 	return actorKeyForSource(query.SourceIP)
+}
+
+func queryMatchesFeedFilter(query store.Query, filter store.QueryFeedFilter) bool {
+	if filter.SourceIP != "" {
+		if query.DeviceMAC != "" || query.SourceIP != filter.SourceIP {
+			return false
+		}
+	} else if filter.DeviceMAC != "" && query.DeviceMAC != filter.DeviceMAC {
+		return false
+	}
+
+	if filter.Domain != "" && query.Domain != filter.Domain {
+		return false
+	}
+
+	if filter.Category == category.Uncategorized {
+		return query.Category == "" || query.Category == category.Uncategorized
+	}
+	if filter.Category != "" && query.Category != filter.Category {
+		return false
+	}
+
+	return true
 }
 
 func parseBoolFormValue(value string) (bool, error) {

@@ -54,6 +54,30 @@ func TestAddListRejectsInvalidCategory(t *testing.T) {
 	}
 }
 
+func TestAddListNormalizesUnclassifiedAlias(t *testing.T) {
+	db := testDB(t)
+
+	_, err := AddList(context.Background(), db, AddListInput{
+		URL:      "https://93.184.216.34/list.txt",
+		Name:     "Example",
+		Category: "unclassified",
+	})
+	if err != nil {
+		t.Fatalf("AddList: %v", err)
+	}
+
+	lists, err := db.ListLists()
+	if err != nil {
+		t.Fatalf("ListLists: %v", err)
+	}
+	if len(lists) != 1 {
+		t.Fatalf("len(lists) = %d, want 1", len(lists))
+	}
+	if lists[0].Category != "uncategorized" {
+		t.Fatalf("category = %q, want %q", lists[0].Category, "uncategorized")
+	}
+}
+
 func TestAddListRejectsMissingFields(t *testing.T) {
 	db := testDB(t)
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"umberrelay/internal/app"
+	"umberrelay/internal/category"
 	"umberrelay/internal/store"
 )
 
@@ -62,6 +63,7 @@ type anomalyRow struct {
 type privacyDomainRow struct {
 	Domain              string
 	Category            string
+	CategoryOptions     []category.Option
 	CategoryLabel       string
 	SourceList          string
 	QueryCount          int
@@ -77,6 +79,7 @@ type privacyDetail struct {
 	Title            string
 	Subtitle         string
 	LiveActorKey     string
+	CategoryOptions  []category.Option
 	Device           store.Device
 	DeviceName       string
 	SourceIP         string
@@ -302,6 +305,7 @@ func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorK
 	row := privacyDomainRow{
 		Domain:              domain.Domain,
 		Category:            domain.Category,
+		CategoryOptions:     category.Options(),
 		CategoryLabel:       categoryLabel(domain.Category),
 		SourceList:          domain.SourceList,
 		QueryCount:          domain.QueryCount,
@@ -458,6 +462,7 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 		Title:            "Device Detail",
 		Subtitle:         detailSubtitle(device),
 		LiveActorKey:     actorKeyForDevice(device.MAC),
+		CategoryOptions:  category.Options(),
 		Device:           device,
 		DeviceName:       deviceDisplayName(device),
 		PrivacySummary:   privacySummary,
@@ -501,6 +506,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		Title:            "Source Detail",
 		Subtitle:         "Unattributed source · " + sourceIP,
 		LiveActorKey:     actorKeyForSource(sourceIP),
+		CategoryOptions:  category.Options(),
 		DeviceName:       sourceActorDisplayName(sourceIP),
 		SourceIP:         sourceIP,
 		PrivacySummary:   privacySummary,
@@ -532,6 +538,7 @@ func (s *Server) loadNetworkDetail(stats store.DashboardStats, totalActors int) 
 		Title:            "Network Domains",
 		Subtitle:         fmt.Sprintf("%d distinct domains in the last 24 hours", stats.UniqueDomainCount),
 		LiveActorKey:     "",
+		CategoryOptions:  category.Options(),
 		Domains:          domains,
 		RangeQuery:       "",
 		ChartID:          "network-detail-chart",

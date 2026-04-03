@@ -16,6 +16,7 @@ import (
 type Server struct {
 	db       *store.DB
 	classify *classify.Manager
+	queryHub *queryStreamHub
 	mux      *http.ServeMux
 	pages    map[string]*template.Template
 	now      func() time.Time
@@ -26,9 +27,12 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 	s := &Server{
 		db:       db,
 		classify: classify,
-		mux:      http.NewServeMux(),
-		pages:    parsePages(),
-		now:      time.Now,
+		queryHub: newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
+			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
+		}, time.Second, 500),
+		mux:   http.NewServeMux(),
+		pages: parsePages(),
+		now:   time.Now,
 	}
 	s.registerRoutes()
 	return s
@@ -96,6 +100,13 @@ func (s *Server) Handler() http.Handler {
 	return s.mux
 }
 
+// Close releases server-owned background resources.
+func (s *Server) Close() {
+	if s.queryHub != nil {
+		s.queryHub.Close()
+	}
+}
+
 func (s *Server) httpServer(addr string) *http.Server {
 	return &http.Server{
 		Addr:              addr,
@@ -113,6 +124,7 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	srv := s.httpServer(addr)
 	go func() {
 		<-ctx.Done()
+		s.Close()
 		srv.Close()
 	}()
 	return srv.ListenAndServe()

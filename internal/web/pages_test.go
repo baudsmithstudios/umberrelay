@@ -303,7 +303,7 @@ func TestPrivacyPageDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 		`id="live-query-domain-filter"`,
 		`id="live-query-category-filter"`,
 		`id="live-query-feed"`,
-		`/api/queries/stream`,
+		`/static/js/privacy.js`,
 		`data-actor-key="device:aa:bb:cc:dd:ee:ff"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -347,6 +347,28 @@ func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected source fallback actor in privacy view: %#v", view.Devices)
+	}
+}
+
+func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `/static/js/privacy.js`) {
+		t.Fatalf("response missing external privacy script reference")
+	}
+	if strings.Contains(body, "function chartColor(") {
+		t.Fatalf("privacy page should not inline large script logic")
 	}
 }
 

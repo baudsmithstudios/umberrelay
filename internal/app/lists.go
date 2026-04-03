@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"umberrelay/internal/category"
 	"umberrelay/internal/classify"
 	"umberrelay/internal/store"
 )
@@ -28,9 +29,11 @@ func AddList(ctx context.Context, db *store.DB, input AddListInput) (int64, erro
 	if input.URL == "" || input.Name == "" || input.Category == "" {
 		return 0, fmt.Errorf("url, name, and category are required")
 	}
-	if !validCategory(input.Category) {
+	normalizedCategory, ok := category.Normalize(input.Category)
+	if !ok {
 		return 0, fmt.Errorf("invalid category")
 	}
+	input.Category = normalizedCategory
 	if _, err := classify.ParseAndValidateListURL(ctx, input.URL); err != nil {
 		return 0, err
 	}
@@ -83,13 +86,4 @@ func RefreshListSources(ctx context.Context, mgr *classify.Manager, sources []cl
 		return fmt.Errorf("classify manager not available")
 	}
 	return mgr.Refresh(ctx, sources)
-}
-
-func validCategory(category string) bool {
-	switch category {
-	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":
-		return true
-	default:
-		return false
-	}
 }
