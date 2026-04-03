@@ -143,7 +143,9 @@ Use a staged test instead:
    ```
 4. Confirm the query appears in the UI or `/api/queries`.
 5. Point a single test device at the Pi for DNS and browse normally.
-6. Confirm device attribution and ongoing query logging.
+6. Confirm attribution behavior and ongoing query logging:
+   - same-subnet clients should usually resolve to device MAC entries
+   - routed VLAN clients without MAC visibility should appear as source-IP fallback actors
 7. Only then switch the router's LAN DNS to the Pi for whole-network coverage.
 
 ## Troubleshooting
@@ -172,9 +174,9 @@ dig @<pi-ip> example.com
 
 If that works but normal browsing does not show up, the client may be using encrypted DNS, a hardcoded resolver, or direct IP traffic.
 
-### Queries are visible, but device attribution is weak
+### Queries are visible, but attribution is weak
 
-Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information.
+Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information. Across routed VLANs, source-IP fallback actors are expected when MAC attribution is unavailable.
 
 ## Health Checklist
 
@@ -187,4 +189,5 @@ Umberrelay depends on passive signals from the host network namespace. Host netw
 - [ ] `http://<pi-ip>:8080/api/health` returns success
 - [ ] `dig @<pi-ip> example.com` succeeds
 - [ ] Queries appear in the UI or API
+- [ ] Routed-subnet queries without MAC visibility appear as source-IP fallback actors in `/api/actors`
 - [ ] A single-device DNS cutover works before changing router-wide DNS

@@ -90,24 +90,24 @@
                 <div class="device-list" id="device-list">
                     {{range .Devices}}
                     <div
-                        class="device-item{{if .AnomalyClass}} {{.AnomalyClass}}{{end}}{{if eq $.SelectedMAC .MAC}} selected{{end}}"
-                        data-device-name="{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}"
+                        class="device-item{{if .AnomalyClass}} {{.AnomalyClass}}{{end}}{{if eq $.SelectedActorKey .ActorKey}} selected{{end}}"
+                        data-device-name="{{if eq .ActorType "source"}}Unattributed · {{.SourceIP}}{{else if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}"
                         data-tracker-percent="{{printf "%.2f" .TrackerPercent}}"
                         data-query-count="{{.QueryCount}}"
                     >
                         <a
-                            href="/devices/{{.MAC}}"
-                            hx-get="/ui/privacy/device/{{.MAC}}"
+                            href="/devices/{{.ActorKey}}"
+                            hx-get="/ui/privacy/device/{{.ActorKey}}"
                             hx-target="#privacy-detail-panel"
                             hx-swap="innerHTML"
                         >
                             <div class="device-name-row">
-                                <strong>{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}</strong>
+                                <strong>{{if eq .ActorType "source"}}Unattributed · {{.SourceIP}}{{else if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}</strong>
                                 <span class="device-pct-badge">{{printf "%.0f" .TrackerPercent}}%</span>
                             </div>
                             <div class="device-bar"><span style="width: {{printf "%.2f" .TrackerPercent}}%"></span></div>
                             <div class="device-meta">
-                                <span>{{if .Vendor}}{{.Vendor}}{{else}}{{.IP}}{{end}}</span>
+                                <span>{{if eq .ActorType "source"}}Unattributed source{{else if .Vendor}}{{.Vendor}}{{else}}{{.IP}}{{end}}</span>
                                 {{if .TrackerTrend.Text}}<span class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</span>{{end}}
                             </div>
                         </a>
@@ -132,6 +132,8 @@
             <div class="detail-panel" id="privacy-detail-panel">
                 {{if eq .Detail.Mode "device"}}
                 {{template "device-detail" .Detail}}
+                {{else if eq .Detail.Mode "source"}}
+                {{template "source-detail" .Detail}}
                 {{else}}
                 {{template "network-detail" .Detail}}
                 {{end}}
@@ -298,6 +300,79 @@
 </div>
 {{end}}
 
+{{define "source-detail"}}
+<section class="detail-view detail-device">
+    <header class="detail-header">
+        <div class="detail-header-left">
+            <p class="eyebrow">Source Detail</p>
+            <h3 class="detail-device-name">{{.DeviceName}}</h3>
+            <p class="detail-subtitle">{{.Subtitle}}</p>
+        </div>
+    </header>
+
+    <div class="device-privacy-row">
+        <div class="device-privacy-bar-wrap">
+            <div class="breakdown-bar">
+                {{range .Breakdown}}
+                <span class="breakdown-segment {{.Class}}" style="width: {{printf "%.2f" .Percent}}%"></span>
+                {{end}}
+            </div>
+            <div class="breakdown-legend">
+                {{range .Breakdown}}
+                <span><i class="legend-swatch {{.Class}}"></i>{{.Label}} {{printf "%.0f" .Percent}}%</span>
+                {{end}}
+            </div>
+        </div>
+        <div class="device-query-stat">
+            <span class="stat-num">{{.PrivacySummary.QueryCount}}</span>
+            <span class="stat-detail">queries (24h){{if .TrackerTrend.Text}} · <span class="{{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</span>{{end}}</span>
+        </div>
+    </div>
+
+    <div class="overview-chart">
+        <div class="chart-header">
+            <span class="chart-label">{{.ChartTitle}}</span>
+            <div class="range-controls" data-chart-id="{{.ChartID}}">
+                <button type="button" class="outline" data-range="24h">24h</button>
+                <button type="button" data-range="7d">7d</button>
+                <button type="button" class="outline" data-range="30d">30d</button>
+            </div>
+        </div>
+        <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="{{.RangeQuery}}" data-chart-title="{{.ChartTitle}}"></div>
+    </div>
+
+    <section>
+        <div class="section-title">
+            <span>Domains</span>
+            <span class="section-note">{{.PrivacySummary.UniqueDomains}} unique · showing top 20</span>
+        </div>
+        <div class="domain-table-wrap">
+            <table class="domain-table" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Domain</th>
+                        <th scope="col">Classification</th>
+                        <th scope="col">Queries</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{if .Domains}}
+                    {{range .Domains}}
+                    {{template "domain-row" .}}
+                    {{end}}
+                    {{else}}
+                    <tr>
+                        <td colspan="4">{{.EmptyMessage}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
+{{end}}
+
 {{define "device-detail"}}
 <section class="detail-view detail-device">
     <header class="detail-header">
@@ -336,7 +411,7 @@
                 <button type="button" class="outline" data-range="30d">30d</button>
             </div>
         </div>
-        <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="device={{.Device.MAC}}" data-chart-title="{{.ChartTitle}}"></div>
+        <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="{{.RangeQuery}}" data-chart-title="{{.ChartTitle}}"></div>
     </div>
 
     <section>
@@ -435,7 +510,7 @@
     {{end}}
     <td data-label="Actions">
         <form class="override-form" hx-post="/ui/overrides/{{.Domain}}" hx-target="closest tr" hx-swap="outerHTML">
-            <input type="hidden" name="device_mac" value="{{.DeviceMAC}}">
+            <input type="hidden" name="actor_key" value="{{.ActorKey}}">
             <select name="category" aria-label="Override category for {{.Domain}}">
                 <option value="tracking"{{if eq .Category "tracking"}} selected{{end}}>tracking</option>
                 <option value="advertising"{{if eq .Category "advertising"}} selected{{end}}>advertising</option>

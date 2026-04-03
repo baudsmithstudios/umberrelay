@@ -247,6 +247,51 @@ func (d *DB) QueryLog(deviceMAC, domain string, from, to time.Time, limit, offse
 	return out, rows.Err()
 }
 
+// QueryLogBySource returns queries for an unattributed source IP matching the given filters, newest first.
+func (d *DB) QueryLogBySource(sourceIP, domain string, from, to time.Time, limit, offset int) ([]Query, error) {
+	var conditions []string
+	var args []any
+
+	conditions = append(conditions, "device_mac = ''")
+	conditions = append(conditions, "source_ip = ?")
+	args = append(args, sourceIP)
+
+	if domain != "" {
+		conditions = append(conditions, "domain = ?")
+		args = append(args, domain)
+	}
+	if !from.IsZero() {
+		conditions = append(conditions, "timestamp >= ?")
+		args = append(args, from.UnixNano())
+	}
+	if !to.IsZero() {
+		conditions = append(conditions, "timestamp <= ?")
+		args = append(args, to.UnixNano())
+	}
+
+	query := `SELECT id, device_mac, source_ip, domain, query_type, category, timestamp FROM queries WHERE ` + strings.Join(conditions, " AND ")
+	query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := d.sql.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Query
+	for rows.Next() {
+		var q Query
+		var ts int64
+		if err := rows.Scan(&q.ID, &q.DeviceMAC, &q.SourceIP, &q.Domain, &q.QueryType, &q.Category, &ts); err != nil {
+			return nil, err
+		}
+		q.Timestamp = time.Unix(0, ts)
+		out = append(out, q)
+	}
+	return out, rows.Err()
+}
+
 // HourlyActivity returns 24 UTC calendar-hour buckets, oldest first.
 func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
 	const bucketCount = 24
@@ -269,6 +314,52 @@ func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
 	query += ` GROUP BY hour_key ORDER BY hour_key`
 
 	rows, err := d.sql.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	countsByHour := make(map[int64]HourlyBucket, bucketCount)
+	for rows.Next() {
+		var hourKey int64
+		var bucket HourlyBucket
+		if err := rows.Scan(&hourKey, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
+			return nil, err
+		}
+		countsByHour[hourKey] = bucket
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	buckets := make([]HourlyBucket, 0, bucketCount)
+	for i := 0; i < bucketCount; i++ {
+		ts := oldestHour.Add(time.Duration(i) * time.Hour)
+		hourKey := ts.UnixNano() / hourNS
+		bucket := countsByHour[hourKey]
+		bucket.Timestamp = ts
+		buckets = append(buckets, bucket)
+	}
+
+	return buckets, nil
+}
+
+// SourceHourlyActivity returns 24 UTC calendar-hour buckets for an unattributed source IP, oldest first.
+func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
+	const bucketCount = 24
+
+	currentHour := time.Now().UTC().Truncate(time.Hour)
+	oldestHour := currentHour.Add(-(bucketCount - 1) * time.Hour)
+	hourNS := int64(time.Hour)
+
+	rows, err := d.sql.Query(`
+		SELECT timestamp / ? AS hour_key,
+		       COUNT(*),
+		       COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0)
+		FROM queries
+		WHERE timestamp >= ? AND device_mac = '' AND source_ip = ?
+		GROUP BY hour_key
+		ORDER BY hour_key`, hourNS, oldestHour.UnixNano(), sourceIP)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +627,7 @@ func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
 	}
 
 	err = d.sql.QueryRow(`
-        SELECT COUNT(DISTINCT device_mac) FROM queries WHERE timestamp >= ?`, cutoff,
+        SELECT COUNT(DISTINCT `+attributionIdentitySQL("device_mac", "source_ip")+`) FROM queries WHERE timestamp >= ?`, cutoff,
 	).Scan(&stats.DeviceCount)
 	if err != nil {
 		return stats, err
@@ -551,7 +642,7 @@ func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
                COALESCE(SUM(CASE WHEN q.category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0) as tracker_cnt
         FROM queries q
         LEFT JOIN devices dev ON dev.mac = q.device_mac
-        WHERE q.timestamp >= ?
+        WHERE q.timestamp >= ? AND q.device_mac != ''
         GROUP BY q.device_mac
         ORDER BY cnt DESC
         LIMIT 5`, cutoff)
@@ -667,6 +758,15 @@ type DeviceWithStats struct {
 // DeviceWithTrends holds a device record with current stats and trend data.
 type DeviceWithTrends struct {
 	Device
+	QueryCount     int
+	TrackerPercent float64
+	QueryTrend     Trend
+	TrackerTrend   Trend
+}
+
+// SourceWithTrends holds current stats and trend data for an unattributed source IP.
+type SourceWithTrends struct {
+	SourceIP       string
 	QueryCount     int
 	TrackerPercent float64
 	QueryTrend     Trend
@@ -881,6 +981,50 @@ func (d *DB) ListDevicesWithTrendsAt(now time.Time) ([]DeviceWithTrends, error) 
 	return out, rows.Err()
 }
 
+// ListSourceWithTrendsAt returns source-IP fallback actors with current stats and trend data.
+func (d *DB) ListSourceWithTrendsAt(now time.Time) ([]SourceWithTrends, error) {
+	priorStart, currentStart, now := trendWindowAt(now)
+
+	rows, err := d.sql.Query(`
+		SELECT q.source_ip,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0)
+		FROM queries q
+		WHERE q.device_mac = '' AND q.source_ip != '' AND q.timestamp >= ? AND q.timestamp < ?
+		GROUP BY q.source_ip
+		HAVING COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) > 0
+		ORDER BY 2 DESC, q.source_ip ASC`,
+		currentStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		priorStart.UnixNano(), currentStart.UnixNano(),
+		priorStart.UnixNano(), now.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []SourceWithTrends
+	for rows.Next() {
+		var swt SourceWithTrends
+		var currentTrackerCount, priorCount, priorTrackerCount int
+		if err := rows.Scan(&swt.SourceIP, &swt.QueryCount, &currentTrackerCount, &priorCount, &priorTrackerCount); err != nil {
+			return nil, err
+		}
+		if swt.QueryCount > 0 {
+			swt.TrackerPercent = float64(currentTrackerCount) / float64(swt.QueryCount) * 100
+		}
+		swt.QueryTrend = queryCountTrend(swt.QueryCount, priorCount)
+		swt.TrackerTrend = trackerPercentTrend(swt.QueryCount, currentTrackerCount, priorCount, priorTrackerCount)
+		out = append(out, swt)
+	}
+	return out, rows.Err()
+}
+
 // DevicePrivacySummary returns privacy summary stats for a specific device (last 24 hours).
 func (d *DB) DevicePrivacySummary(mac string) (DevicePrivacySummary, error) {
 	return d.DevicePrivacySummaryAt(mac, time.Now())
@@ -898,6 +1042,34 @@ func (d *DB) DevicePrivacySummaryAt(mac string, now time.Time) (DevicePrivacySum
                COUNT(DISTINCT CASE WHEN category IN `+trackingCategorySQL+` THEN domain END)
         FROM queries
         WHERE device_mac = ? AND timestamp >= ?`, mac, cutoff,
+	).Scan(
+		&summary.QueryCount,
+		&trackerCount,
+		&summary.UniqueDomains,
+		&summary.UniqueTrackerDomains,
+	)
+	if err != nil {
+		return summary, err
+	}
+	if summary.QueryCount > 0 {
+		summary.TrackerPercent = float64(trackerCount) / float64(summary.QueryCount) * 100
+	}
+	return summary, nil
+}
+
+// SourcePrivacySummaryAt returns privacy summary stats for a source-IP fallback actor (last 24 hours).
+func (d *DB) SourcePrivacySummaryAt(sourceIP string, now time.Time) (DevicePrivacySummary, error) {
+	cutoff := now.Add(-24 * time.Hour).UnixNano()
+	var summary DevicePrivacySummary
+	var trackerCount int
+
+	err := d.sql.QueryRow(`
+        SELECT COUNT(*),
+               COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0),
+               COUNT(DISTINCT domain),
+               COUNT(DISTINCT CASE WHEN category IN `+trackingCategorySQL+` THEN domain END)
+        FROM queries
+        WHERE device_mac = '' AND source_ip = ? AND timestamp >= ?`, sourceIP, cutoff,
 	).Scan(
 		&summary.QueryCount,
 		&trackerCount,
@@ -943,6 +1115,31 @@ func (d *DB) NetworkCategoryBreakdown() ([]CategoryCount, error) {
 	return out, nil
 }
 
+// SourceCategoryBreakdown returns per-category query counts for a source-IP fallback actor (last 24 hours).
+func (d *DB) SourceCategoryBreakdown(sourceIP string) ([]CategoryCount, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+        SELECT COALESCE(category, ''), COUNT(*) as cnt
+        FROM queries
+        WHERE device_mac = '' AND source_ip = ? AND timestamp >= ?
+        GROUP BY category
+        ORDER BY cnt DESC, category ASC`, sourceIP, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []CategoryCount
+	for rows.Next() {
+		var cc CategoryCount
+		if err := rows.Scan(&cc.Category, &cc.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, cc)
+	}
+	return out, rows.Err()
+}
+
 // RangedActivity returns activity buckets for the requested range.
 func (d *DB) RangedActivity(deviceMAC string, timeRange string) ([]HourlyBucket, error) {
 	switch timeRange {
@@ -952,6 +1149,20 @@ func (d *DB) RangedActivity(deviceMAC string, timeRange string) ([]HourlyBucket,
 		return d.dailyActivity(deviceMAC, 7)
 	case "30d":
 		return d.dailyActivity(deviceMAC, 30)
+	default:
+		return nil, fmt.Errorf("%w %q", ErrInvalidRange, timeRange)
+	}
+}
+
+// SourceRangedActivity returns activity buckets for a source-IP fallback actor.
+func (d *DB) SourceRangedActivity(sourceIP string, timeRange string) ([]HourlyBucket, error) {
+	switch timeRange {
+	case "", "24h":
+		return d.SourceHourlyActivity(sourceIP)
+	case "7d":
+		return d.dailyActivitySource(sourceIP, 7)
+	case "30d":
+		return d.dailyActivitySource(sourceIP, 30)
 	default:
 		return nil, fmt.Errorf("%w %q", ErrInvalidRange, timeRange)
 	}
@@ -1006,6 +1217,49 @@ func (d *DB) dailyActivity(deviceMAC string, bucketCount int) ([]HourlyBucket, e
 	return buckets, nil
 }
 
+func (d *DB) dailyActivitySource(sourceIP string, bucketCount int) ([]HourlyBucket, error) {
+	currentDay := time.Now().UTC().Truncate(24 * time.Hour)
+	oldestDay := currentDay.AddDate(0, 0, -(bucketCount - 1))
+	dayNS := int64(24 * time.Hour)
+
+	rows, err := d.sql.Query(`
+		SELECT timestamp / ? AS day_key,
+		       COUNT(*),
+		       COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0)
+		FROM queries
+		WHERE timestamp >= ? AND device_mac = '' AND source_ip = ?
+		GROUP BY day_key
+		ORDER BY day_key`, dayNS, oldestDay.UnixNano(), sourceIP)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	countsByDay := make(map[int64]HourlyBucket, bucketCount)
+	for rows.Next() {
+		var dayKey int64
+		var bucket HourlyBucket
+		if err := rows.Scan(&dayKey, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
+			return nil, err
+		}
+		countsByDay[dayKey] = bucket
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	buckets := make([]HourlyBucket, 0, bucketCount)
+	for i := 0; i < bucketCount; i++ {
+		ts := oldestDay.AddDate(0, 0, i)
+		dayKey := ts.UnixNano() / dayNS
+		bucket := countsByDay[dayKey]
+		bucket.Timestamp = ts
+		buckets = append(buckets, bucket)
+	}
+
+	return buckets, nil
+}
+
 func sourceListAttributionSQL(domainExpr, categoryExpr string) string {
 	return fmt.Sprintf(`
 		       COALESCE(
@@ -1028,6 +1282,15 @@ func sourceListAttributionSQL(domainExpr, categoryExpr string) string {
 		       )`, domainExpr, categoryExpr, domainExpr, categoryExpr)
 }
 
+func attributionIdentitySQL(deviceExpr, sourceExpr string) string {
+	return fmt.Sprintf(`
+		CASE
+			WHEN COALESCE(%s, '') != '' THEN 'device:' || %s
+			WHEN COALESCE(%s, '') != '' THEN 'source:' || %s
+			ELSE 'source:unknown'
+		END`, deviceExpr, deviceExpr, sourceExpr, sourceExpr)
+}
+
 // TopDomainsWithSource returns the most-queried domains in the last 24 hours with source attribution.
 func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
 	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
@@ -1041,7 +1304,7 @@ func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
 			    SELECT domain,
 			           MAX(COALESCE(category, '')) as category,
 		           COUNT(*) as cnt,
-		           COUNT(DISTINCT device_mac) as dev_cnt
+		           COUNT(DISTINCT `+attributionIdentitySQL("device_mac", "source_ip")+`) as dev_cnt
 		    FROM queries
 		    WHERE timestamp >= ?
 		    GROUP BY domain
@@ -1083,6 +1346,41 @@ func (d *DB) DeviceTopDomainsWithSource(mac string, limit int) ([]DomainWithSour
 		) summary
 		ORDER BY summary.cnt DESC, summary.domain ASC
 		LIMIT ?`, mac, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DomainWithSource
+	for rows.Next() {
+		var domain DomainWithSource
+		if err := rows.Scan(&domain.Domain, &domain.Category, &domain.QueryCount, &domain.DeviceCount, &domain.SourceList); err != nil {
+			return nil, err
+		}
+		out = append(out, domain)
+	}
+	return out, rows.Err()
+}
+
+// SourceTopDomainsWithSource returns the most-queried domains for a source-IP fallback actor in the last 24 hours with source attribution.
+func (d *DB) SourceTopDomainsWithSource(sourceIP string, limit int) ([]DomainWithSource, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+			SELECT summary.domain,
+			       summary.category,
+			       summary.cnt,
+			       1 as dev_cnt,
+			       `+sourceListAttributionSQL("summary.domain", "summary.category")+` as source_list
+			FROM (
+			    SELECT domain,
+			           MAX(COALESCE(category, '')) as category,
+		           COUNT(*) as cnt
+		    FROM queries
+		    WHERE device_mac = '' AND source_ip = ? AND timestamp >= ?
+		    GROUP BY domain
+		) summary
+		ORDER BY summary.cnt DESC, summary.domain ASC
+		LIMIT ?`, sourceIP, cutoff, limit)
 	if err != nil {
 		return nil, err
 	}
