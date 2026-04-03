@@ -16,6 +16,7 @@ docs/superpowers/
 
 # Go
 vendor/
+.cache/
 
 # IDE
 .idea/

@@ -83,12 +83,10 @@ func (t *Tracker) upsertFromSSDP(srcIP, server string) {
 	}
 
 	now := time.Now()
-	if t.db != nil {
-		t.db.UpsertDevice(store.Device{
-			MAC:       mac,
-			FirstSeen: now,
-			LastSeen:  now,
-		})
-	}
+	t.saveDiscoveredDevice(store.Device{
+		MAC:       mac,
+		FirstSeen: now,
+		LastSeen:  now,
+	}, "ssdp")
 	log.Printf("ssdp: %s server=%q", mac, server)
 }

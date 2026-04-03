@@ -130,6 +130,7 @@ type ListSource struct {
 // Refresh fetches all enabled lists, rebuilds the in-memory lookup, and updates the cache.
 func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 	combined := make(map[string]string)
+	successCount := 0
 	for _, src := range sources {
 		fetchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		domains, err := fetchList(fetchCtx, src.URL)
@@ -138,6 +139,7 @@ func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 			log.Printf("fetch list %s: %v", src.Name, err)
 			continue
 		}
+		successCount++
 		listDomains := make(map[string]string, len(domains))
 		for _, d := range domains {
 			cat := src.Category
@@ -155,6 +157,9 @@ func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 			m.db.UpdateListFetchTime(src.ID)
 		}
 		log.Printf("loaded %s: %d domains", src.Name, len(domains))
+	}
+	if len(sources) > 0 && successCount == 0 {
+		return fmt.Errorf("all list refreshes failed")
 	}
 	m.domains.Store(newDomainMap(combined))
 	log.Printf("classification database: %d domains total", len(combined))

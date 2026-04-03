@@ -525,23 +525,16 @@ func (s *Server) handlePrivacyDeviceAll(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	retentionStr, _ := s.db.GetConfig("retention_days")
-	retention := 30
-	if retentionStr != "" {
-		if n, err := strconv.Atoi(retentionStr); err == nil {
-			retention = n
-		}
+	settings, err := loadRuntimeSettings(s.db)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-
-	refreshStr, _ := s.db.GetConfig("list_refresh_hours")
-	refreshHours := 24
-	if refreshStr != "" {
-		if n, err := strconv.Atoi(refreshStr); err == nil {
-			refreshHours = n
-		}
+	lists, err := s.db.ListLists()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-
-	lists, _ := s.db.ListLists()
 
 	data := struct {
 		pageData
@@ -550,8 +543,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Lists            interface{}
 	}{
 		pageData:         pageData{Title: "Settings", Active: "settings"},
-		RetentionDays:    retention,
-		ListRefreshHours: refreshHours,
+		RetentionDays:    settings.RetentionDays,
+		ListRefreshHours: settings.ListRefreshHours,
 		Lists:            lists,
 	}
 	s.renderPage(w, "settings", data)

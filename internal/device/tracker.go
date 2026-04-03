@@ -43,6 +43,15 @@ func (t *Tracker) SetARPEntry(ip, mac string) {
 	t.arpCache.Store(ip, mac)
 }
 
+func (t *Tracker) saveDiscoveredDevice(dev store.Device, source string) {
+	if t.db == nil {
+		return
+	}
+	if err := t.db.UpsertDevice(dev); err != nil {
+		log.Printf("%s device save %s: %v", source, dev.MAC, err)
+	}
+}
+
 // Run starts the ARP polling loop and broadcast listeners. Blocks until ctx is cancelled.
 func (t *Tracker) Run(ctx context.Context) {
 	t.pollARP()
@@ -80,19 +89,17 @@ func (t *Tracker) pollARP() {
 	now := time.Now()
 	for _, e := range entries {
 		t.arpCache.Store(e.IP, e.MAC)
-		if t.db != nil {
-			vendor := ""
-			if t.oui != nil {
-				vendor = t.oui.Lookup(e.MAC)
-			}
-			t.db.UpsertDevice(store.Device{
-				MAC:       e.MAC,
-				IP:        e.IP,
-				Vendor:    vendor,
-				FirstSeen: now,
-				LastSeen:  now,
-			})
+		vendor := ""
+		if t.oui != nil {
+			vendor = t.oui.Lookup(e.MAC)
 		}
+		t.saveDiscoveredDevice(store.Device{
+			MAC:       e.MAC,
+			IP:        e.IP,
+			Vendor:    vendor,
+			FirstSeen: now,
+			LastSeen:  now,
+		}, "arp")
 	}
 }
 

@@ -1,7 +1,14 @@
 package device
 
 import (
+	"bytes"
+	"log"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"umberrelay/internal/store"
 )
 
 func TestParseARPTable(t *testing.T) {
@@ -30,5 +37,35 @@ func TestResolveIP(t *testing.T) {
 	mac = tracker.ResolveIP("192.168.1.99")
 	if mac != "" {
 		t.Errorf("ResolveIP unknown = %q, want empty", mac)
+	}
+}
+
+func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	tracker := NewTracker(db, nil)
+
+	var logs bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&logs)
+	t.Cleanup(func() {
+		log.SetOutput(prev)
+	})
+
+	tracker.saveDiscoveredDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		FirstSeen: time.Now(),
+		LastSeen:  time.Now(),
+	}, "dhcp")
+
+	if !strings.Contains(logs.String(), "dhcp device save") {
+		t.Fatalf("expected device save error log, got %q", logs.String())
 	}
 }

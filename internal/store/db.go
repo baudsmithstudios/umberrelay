@@ -79,6 +79,9 @@ type DB struct {
 // ErrNotFound indicates the requested row does not exist.
 var ErrNotFound = errors.New("not found")
 
+// ErrInvalidRange indicates an unsupported activity range.
+var ErrInvalidRange = errors.New("invalid range")
+
 // Open opens (or creates) the SQLite database and applies the schema.
 func Open(path string) (*DB, error) {
 	conn, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_synchronous=NORMAL")
@@ -950,7 +953,7 @@ func (d *DB) RangedActivity(deviceMAC string, timeRange string) ([]HourlyBucket,
 	case "30d":
 		return d.dailyActivity(deviceMAC, 30)
 	default:
-		return nil, fmt.Errorf("invalid range %q", timeRange)
+		return nil, fmt.Errorf("%w %q", ErrInvalidRange, timeRange)
 	}
 }
 
@@ -1003,20 +1006,14 @@ func (d *DB) dailyActivity(deviceMAC string, bucketCount int) ([]HourlyBucket, e
 	return buckets, nil
 }
 
-// TopDomainsWithSource returns the most-queried domains in the last 24 hours with source attribution.
-func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
-	rows, err := d.sql.Query(`
-		SELECT summary.domain,
-		       summary.category,
-		       summary.cnt,
-		       summary.dev_cnt,
+func sourceListAttributionSQL(domainExpr, categoryExpr string) string {
+	return fmt.Sprintf(`
 		       COALESCE(
 		           (
 		               SELECT l.name
 		               FROM list_domains ld
 		               JOIN lists l ON l.id = ld.list_id
-		               WHERE ld.domain = summary.domain AND ld.category = summary.category AND l.enabled = 1
+		               WHERE ld.domain = %s AND ld.category = %s AND l.enabled = 1
 		               ORDER BY l.id ASC
 		               LIMIT 1
 		           ),
@@ -1024,14 +1021,25 @@ func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
 		               WHEN EXISTS (
 		                   SELECT 1
 		                   FROM domain_overrides do
-		                   WHERE do.domain = summary.domain AND do.category = summary.category
+		                   WHERE do.domain = %s AND do.category = %s
 		               ) THEN 'manual'
 		               ELSE 'unknown'
 		           END
-		       ) as source_list
-		FROM (
-		    SELECT domain,
-		           MAX(COALESCE(category, '')) as category,
+		       )`, domainExpr, categoryExpr, domainExpr, categoryExpr)
+}
+
+// TopDomainsWithSource returns the most-queried domains in the last 24 hours with source attribution.
+func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
+	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
+	rows, err := d.sql.Query(`
+			SELECT summary.domain,
+			       summary.category,
+			       summary.cnt,
+			       summary.dev_cnt,
+			       `+sourceListAttributionSQL("summary.domain", "summary.category")+` as source_list
+			FROM (
+			    SELECT domain,
+			           MAX(COALESCE(category, '')) as category,
 		           COUNT(*) as cnt,
 		           COUNT(DISTINCT device_mac) as dev_cnt
 		    FROM queries
@@ -1060,31 +1068,14 @@ func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
 func (d *DB) DeviceTopDomainsWithSource(mac string, limit int) ([]DomainWithSource, error) {
 	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
 	rows, err := d.sql.Query(`
-		SELECT summary.domain,
-		       summary.category,
-		       summary.cnt,
-		       1 as dev_cnt,
-		       COALESCE(
-		           (
-		               SELECT l.name
-		               FROM list_domains ld
-		               JOIN lists l ON l.id = ld.list_id
-		               WHERE ld.domain = summary.domain AND ld.category = summary.category AND l.enabled = 1
-		               ORDER BY l.id ASC
-		               LIMIT 1
-		           ),
-		           CASE
-		               WHEN EXISTS (
-		                   SELECT 1
-		                   FROM domain_overrides do
-		                   WHERE do.domain = summary.domain AND do.category = summary.category
-		               ) THEN 'manual'
-		               ELSE 'unknown'
-		           END
-		       ) as source_list
-		FROM (
-		    SELECT domain,
-		           MAX(COALESCE(category, '')) as category,
+			SELECT summary.domain,
+			       summary.category,
+			       summary.cnt,
+			       1 as dev_cnt,
+			       `+sourceListAttributionSQL("summary.domain", "summary.category")+` as source_list
+			FROM (
+			    SELECT domain,
+			           MAX(COALESCE(category, '')) as category,
 		           COUNT(*) as cnt
 		    FROM queries
 		    WHERE device_mac = ? AND timestamp >= ?
@@ -1202,31 +1193,14 @@ func (d *DB) DeviceAnomalies() ([]Anomaly, error) {
 
 func (d *DB) deviceTopTrackerDomain(mac string, currentStart, now time.Time) (DomainWithSource, error) {
 	rows, err := d.sql.Query(`
-		SELECT q.domain,
-		       q.category,
-		       COUNT(*) as cnt,
-		       1 as dev_cnt,
-		       COALESCE(
-		           (
-		               SELECT l.name
-		               FROM list_domains ld
-		               JOIN lists l ON l.id = ld.list_id
-		               WHERE ld.domain = q.domain AND ld.category = q.category AND l.enabled = 1
-		               ORDER BY l.id ASC
-		               LIMIT 1
-		           ),
-		           CASE
-		               WHEN EXISTS (
-		                   SELECT 1
-		                   FROM domain_overrides do
-		                   WHERE do.domain = q.domain AND do.category = q.category
-		               ) THEN 'manual'
-		               ELSE 'unknown'
-		           END
-		       ) as source_list
-		FROM queries q
-		WHERE q.device_mac = ? AND q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+`
-		GROUP BY q.domain, q.category
+			SELECT q.domain,
+			       q.category,
+			       COUNT(*) as cnt,
+			       1 as dev_cnt,
+			       `+sourceListAttributionSQL("q.domain", "q.category")+` as source_list
+			FROM queries q
+			WHERE q.device_mac = ? AND q.timestamp >= ? AND q.timestamp < ? AND q.category IN `+trackingCategorySQL+`
+			GROUP BY q.domain, q.category
 		ORDER BY cnt DESC, q.domain ASC
 		LIMIT 1`, mac, currentStart.UnixNano(), now.UnixNano())
 	if err != nil {
@@ -1246,31 +1220,14 @@ func (d *DB) deviceTopTrackerDomain(mac string, currentStart, now time.Time) (Do
 
 func (d *DB) deviceTopVolumeSpikeDomain(mac string, currentStart, now, priorStart time.Time) (DomainWithSource, error) {
 	rows, err := d.sql.Query(`
-		SELECT q.domain,
-		       q.category,
-		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as current_count,
-		       1 as dev_cnt,
-		       COALESCE(
-		           (
-		               SELECT l.name
-		               FROM list_domains ld
-		               JOIN lists l ON l.id = ld.list_id
-		               WHERE ld.domain = q.domain AND ld.category = q.category AND l.enabled = 1
-		               ORDER BY l.id ASC
-		               LIMIT 1
-		           ),
-		           CASE
-		               WHEN EXISTS (
-		                   SELECT 1
-		                   FROM domain_overrides do
-		                   WHERE do.domain = q.domain AND do.category = q.category
-		               ) THEN 'manual'
-		               ELSE 'unknown'
-		           END
-		       ) as source_list,
-		       (
-		           COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) -
-		           (COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) / 7.0)
+			SELECT q.domain,
+			       q.category,
+			       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as current_count,
+			       1 as dev_cnt,
+			       `+sourceListAttributionSQL("q.domain", "q.category")+` as source_list,
+			       (
+			           COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) -
+			           (COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) / 7.0)
 		       ) as delta
 		FROM queries q
 		WHERE q.device_mac = ? AND q.timestamp >= ? AND q.timestamp < ?

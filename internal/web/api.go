@@ -134,7 +134,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 
 	buckets, err := s.db.RangedActivity(deviceMAC, timeRange)
 	if err != nil {
-		if strings.Contains(err.Error(), "invalid range") {
+		if errors.Is(err, store.ErrInvalidRange) {
 			writeJSONError(w, http.StatusBadRequest, "range must be one of 24h, 7d, 30d")
 			return
 		}
@@ -227,23 +227,14 @@ func (s *Server) handleAPIAnomalies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
-	retention, _ := s.db.GetConfig("retention_days")
-	retentionDays := 30
-	if retention != "" {
-		if n, err := strconv.Atoi(retention); err == nil {
-			retentionDays = n
-		}
-	}
-	refreshHours, _ := s.db.GetConfig("list_refresh_hours")
-	listRefreshHours := 24
-	if refreshHours != "" {
-		if n, err := strconv.Atoi(refreshHours); err == nil {
-			listRefreshHours = n
-		}
+	settings, err := loadRuntimeSettings(s.db)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{
-		"retention_days":     retentionDays,
-		"list_refresh_hours": listRefreshHours,
+		"retention_days":     settings.RetentionDays,
+		"list_refresh_hours": settings.ListRefreshHours,
 	})
 }
 

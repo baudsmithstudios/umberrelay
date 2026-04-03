@@ -101,3 +101,24 @@ func TestParseAndValidateListURLRejectsPrivateIP(t *testing.T) {
 		t.Fatal("expected private ip url to be rejected")
 	}
 }
+
+func TestRefreshKeepsExistingDomainsWhenAllSourcesFail(t *testing.T) {
+	m := NewManager(nil)
+	m.domains.Store(newDomainMap(map[string]string{
+		"ads.example.com": "tracking",
+	}))
+
+	err := m.Refresh(context.Background(), []ListSource{
+		{
+			URL:      "ftp://example.com/list.txt",
+			Name:     "broken",
+			Category: "tracking",
+		},
+	})
+	if err == nil {
+		t.Fatal("Refresh error = nil, want error")
+	}
+	if got := m.Classify("ads.example.com."); got != "tracking" {
+		t.Fatalf("Classify after failed refresh = %q, want %q", got, "tracking")
+	}
+}

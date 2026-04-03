@@ -69,18 +69,16 @@ func (t *Tracker) parseDHCP(pkt []byte) {
 	if clientIP != "0.0.0.0" {
 		t.arpCache.Store(clientIP, mac)
 	}
-	if t.db != nil {
-		dev := store.Device{
-			MAC:       mac,
-			Hostname:  hostname,
-			FirstSeen: now,
-			LastSeen:  now,
-		}
-		if clientIP != "0.0.0.0" {
-			dev.IP = clientIP
-		}
-		t.db.UpsertDevice(dev)
+	dev := store.Device{
+		MAC:       mac,
+		Hostname:  hostname,
+		FirstSeen: now,
+		LastSeen:  now,
 	}
+	if clientIP != "0.0.0.0" {
+		dev.IP = clientIP
+	}
+	t.saveDiscoveredDevice(dev, "dhcp")
 	log.Printf("dhcp: %s (%s) hostname=%q", mac, clientIP, hostname)
 }
 

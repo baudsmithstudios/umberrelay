@@ -73,14 +73,12 @@ func (t *Tracker) parseMDNS(pkt []byte, srcIP string) {
 	}
 
 	now := time.Now()
-	if t.db != nil {
-		t.db.UpsertDevice(store.Device{
-			MAC:       mac,
-			Hostname:  hostname,
-			FirstSeen: now,
-			LastSeen:  now,
-		})
-	}
+	t.saveDiscoveredDevice(store.Device{
+		MAC:       mac,
+		Hostname:  hostname,
+		FirstSeen: now,
+		LastSeen:  now,
+	}, "mdns")
 	log.Printf("mdns: %s hostname=%q", mac, hostname)
 }
 

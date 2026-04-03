@@ -39,6 +39,14 @@ DNS is an intentionally narrow lens, but it is still a useful one: it is cheap t
 - **Not a packet capture tool** — it works from DNS traffic plus passive discovery signals, not full payload capture
 - **Not complete network visibility** — devices using DoH, DoT, hardcoded resolvers, or direct IP connections can bypass the DNS lens entirely
 
+## Where It Fits Best
+
+Umberrelay is strongest when you want a **fully local, low-overhead privacy view by device** without turning your network into a full security stack.
+
+- If your main question is **"which device is talking to trackers, and how much?"**, Umberrelay is a good fit.
+- If your main question is **"what protocol flow and payload details are on my network?"**, use DPI/flow tools (or run them alongside Umberrelay).
+- If your main question is **"block ads/trackers aggressively at DNS"**, a blocker-first tool (Pi-hole or AdGuard Home) is a better primary fit.
+
 ## Quick Start
 
 > For Raspberry Pi deployment, ARM64 image builds on a dev machine, and live-Pi testing, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
@@ -57,6 +65,32 @@ Then open `http://localhost:8080` in a browser and point your router's DNS to th
 Umberrelay works best when it is the DNS server your network actually uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
 
 That deployment model is the main tradeoff. Umberrelay sees only the DNS traffic that reaches it. If a device uses encrypted DNS (`DoH` / `DoT`), a hardcoded external resolver, or talks directly to IP addresses without DNS lookups, Umberrelay's visibility for that device becomes partial.
+
+### Works With Pi-hole / AdGuard Home
+
+Umberrelay is a passive DNS pass-through observer and classifier, so you can run it alongside blocker-first tools instead of choosing one or the other.
+
+Recommended chain:
+
+```
+Clients / Router
+      |
+      v
+  Umberrelay
+      |
+      v
+Pi-hole or AdGuard Home
+      |
+      v
+Upstream DNS
+```
+
+This lets Pi-hole or AdGuard do blocking while Umberrelay provides per-device attribution and privacy reporting.
+
+Caveats:
+
+- Avoid DNS forwarding loops.
+- Do not bind both services to the same `:53` socket on the same host/interface without explicit port/interface separation.
 
 ## Configuration
 
@@ -306,7 +340,7 @@ Web Server
 
 ## Comparison
 
-Umberrelay targets a narrower niche than general network monitors or DNS blockers: a fully local DNS forwarder that turns query logs into per-device privacy reporting. The tradeoff is deliberate. Umberrelay does not do blocking, deep packet inspection, or inline firewalling, because that would push it toward a heavier, broader product category with different deployment and hardware expectations. That narrower scope matters because it lets Umberrelay stay simple, Pi-friendly, and fully local while filling a gap the other tools leave behind: turning DNS activity into concise per-device privacy visibility instead of just raw query logs, broad traffic categories, or security events.
+Umberrelay targets a narrower niche than general network monitors or DNS blockers: a fully local DNS forwarder that turns query logs into per-device privacy reporting. The tradeoff is deliberate. Umberrelay does not do blocking, deep packet inspection, or inline firewalling, because that would push it into a heavier product class with different deployment and hardware expectations. That narrower scope matters because it keeps Umberrelay simple, Pi-friendly, and local-first while filling a practical gap: turning DNS activity into concise per-device privacy visibility instead of just raw logs, broad traffic categories, or IDS-style events.
 
 | Feature | Umberrelay | [Pi-hole](https://pi-hole.net/) | [AdGuard Home](https://adguard.com/en/adguard-home/overview.html) | [Firewalla](https://firewalla.com/) | [ntopng](https://www.ntop.org/products/traffic-analysis/ntop/) |
 |---|:---:|:---:|:---:|:---:|:---:|

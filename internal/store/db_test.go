@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"math"
 	"path/filepath"
 	"strings"
@@ -1081,6 +1082,9 @@ func TestRangedActivityRejectsInvalidRange(t *testing.T) {
 	_, err := db.RangedActivity("", "bogus")
 	if err == nil {
 		t.Fatal("RangedActivity(bogus) error = nil, want error")
+	}
+	if !errors.Is(err, ErrInvalidRange) {
+		t.Fatalf("errors.Is(err, ErrInvalidRange) = false, err = %v", err)
 	}
 }
 

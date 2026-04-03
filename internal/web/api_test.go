@@ -62,6 +62,30 @@ func TestUpdateSettingsRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestUpdateSettingsRejectsMultipleJSONValues(t *testing.T) {
+	s := testServer(t)
+	body := bytes.NewBufferString(`{"retention_days":7}{"list_refresh_hours":12}`)
+	req := httptest.NewRequest("PUT", "/api/settings", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUpdateSettingsRejectsTrailingJSONValue(t *testing.T) {
+	s := testServer(t)
+	body := bytes.NewBufferString(`{"retention_days":7} true`)
+	req := httptest.NewRequest("PUT", "/api/settings", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
 func TestUpdateSettingsRejectsNonJSONRequests(t *testing.T) {
 	s := testServer(t)
 	body := strings.NewReader("retention_days=7&list_refresh_hours=12")
@@ -125,6 +149,51 @@ func TestAPIGetSettingsReturnsNumericValues(t *testing.T) {
 	}
 	if response.ListRefreshHours != 12 {
 		t.Fatalf("list_refresh_hours = %d, want %d", response.ListRefreshHours, 12)
+	}
+}
+
+func TestAPIGetSettingsReturnsDefaultsForOutOfRangeValues(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.SetConfig("retention_days", "-1"); err != nil {
+		t.Fatalf("SetConfig(retention_days): %v", err)
+	}
+	if err := s.db.SetConfig("list_refresh_hours", "0"); err != nil {
+		t.Fatalf("SetConfig(list_refresh_hours): %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/settings", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response struct {
+		RetentionDays    int `json:"retention_days"`
+		ListRefreshHours int `json:"list_refresh_hours"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response.RetentionDays != 30 {
+		t.Fatalf("retention_days = %d, want %d", response.RetentionDays, 30)
+	}
+	if response.ListRefreshHours != 24 {
+		t.Fatalf("list_refresh_hours = %d, want %d", response.ListRefreshHours, 24)
+	}
+}
+
+func TestAPIGetSettingsReturnsInternalErrorForStoreFailures(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/settings", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
 	}
 }
 
