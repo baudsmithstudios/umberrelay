@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"path/filepath"
 	"strings"
@@ -289,6 +290,83 @@ func TestPurgeQueries(t *testing.T) {
 	}
 	if results[0].Domain != "new.com" {
 		t.Errorf("remaining domain = %q, want new.com", results[0].Domain)
+	}
+}
+
+func TestPurgeQueriesOlderThanChunk(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := db.UpsertDevice(Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	old := now.Add(-48 * time.Hour)
+	var queries []Query
+	for i := 0; i < 5; i++ {
+		queries = append(queries, Query{
+			DeviceMAC: mac,
+			Domain:    fmt.Sprintf("old-%d.example.com", i),
+			QueryType: "A",
+			Timestamp: old.Add(time.Duration(i) * time.Second),
+		})
+	}
+	for i := 0; i < 2; i++ {
+		queries = append(queries, Query{
+			DeviceMAC: mac,
+			Domain:    fmt.Sprintf("new-%d.example.com", i),
+			QueryType: "A",
+			Timestamp: now.Add(time.Duration(i) * time.Second),
+		})
+	}
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	cutoff := now.Add(-24 * time.Hour)
+	deleted, err := db.PurgeQueriesOlderThanChunk(cutoff, 2)
+	if err != nil {
+		t.Fatalf("PurgeQueriesOlderThanChunk(first): %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("deleted first chunk = %d, want 2", deleted)
+	}
+
+	deleted, err = db.PurgeQueriesOlderThanChunk(cutoff, 2)
+	if err != nil {
+		t.Fatalf("PurgeQueriesOlderThanChunk(second): %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("deleted second chunk = %d, want 2", deleted)
+	}
+
+	deleted, err = db.PurgeQueriesOlderThanChunk(cutoff, 2)
+	if err != nil {
+		t.Fatalf("PurgeQueriesOlderThanChunk(third): %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted third chunk = %d, want 1", deleted)
+	}
+
+	deleted, err = db.PurgeQueriesOlderThanChunk(cutoff, 2)
+	if err != nil {
+		t.Fatalf("PurgeQueriesOlderThanChunk(final): %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("deleted final chunk = %d, want 0", deleted)
+	}
+
+	remaining, err := db.QueryLog("", "", time.Time{}, now.Add(24*time.Hour), 100, 0)
+	if err != nil {
+		t.Fatalf("QueryLog: %v", err)
+	}
+	if len(remaining) != 2 {
+		t.Fatalf("remaining rows = %d, want 2", len(remaining))
 	}
 }
 

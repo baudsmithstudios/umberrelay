@@ -166,6 +166,8 @@ func runPurge(ctx context.Context, db *store.DB) {
 }
 
 func purge(db *store.DB) {
+	const purgeBatchSize = 5000
+
 	days := 30
 	val, err := db.GetConfig("retention_days")
 	if err == nil && val != "" {
@@ -174,8 +176,20 @@ func purge(db *store.DB) {
 		}
 	}
 	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
-	if err := db.PurgeQueriesOlderThan(cutoff); err != nil {
-		log.Printf("purge: %v", err)
+	var totalDeleted int64
+	for {
+		deleted, err := db.PurgeQueriesOlderThanChunk(cutoff, purgeBatchSize)
+		if err != nil {
+			log.Printf("purge: %v", err)
+			return
+		}
+		totalDeleted += deleted
+		if deleted < purgeBatchSize {
+			break
+		}
+	}
+	if totalDeleted > 0 {
+		log.Printf("purge: deleted %d rows", totalDeleted)
 	}
 }
 

@@ -501,6 +501,30 @@ func (d *DB) PurgeQueriesOlderThan(cutoff time.Time) error {
 	return err
 }
 
+// PurgeQueriesOlderThanChunk deletes up to limit query records older than cutoff.
+func (d *DB) PurgeQueriesOlderThanChunk(cutoff time.Time, limit int) (int64, error) {
+	if limit <= 0 {
+		return 0, nil
+	}
+	result, err := d.sql.Exec(`
+		DELETE FROM queries
+		WHERE id IN (
+			SELECT id
+			FROM queries
+			WHERE timestamp < ?
+			ORDER BY timestamp ASC
+			LIMIT ?
+		)`, cutoff.UnixNano(), limit)
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return rowsAffected, nil
+}
+
 // SetConfig inserts or updates a config key-value pair.
 func (d *DB) SetConfig(key, value string) error {
 	_, err := d.sql.Exec(
