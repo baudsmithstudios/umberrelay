@@ -27,6 +27,31 @@ func TestOpenAndClose(t *testing.T) {
 	}
 }
 
+func TestOpenAppliesPiConnectionTuning(t *testing.T) {
+	db := testDB(t)
+
+	stats := db.sql.Stats()
+	if stats.MaxOpenConnections != 2 {
+		t.Fatalf("MaxOpenConnections = %d, want 2", stats.MaxOpenConnections)
+	}
+
+	var busyTimeout int
+	if err := db.sql.QueryRow(`PRAGMA busy_timeout`).Scan(&busyTimeout); err != nil {
+		t.Fatalf("PRAGMA busy_timeout: %v", err)
+	}
+	if busyTimeout != 5000 {
+		t.Fatalf("busy_timeout = %d, want 5000", busyTimeout)
+	}
+
+	var tempStore int
+	if err := db.sql.QueryRow(`PRAGMA temp_store`).Scan(&tempStore); err != nil {
+		t.Fatalf("PRAGMA temp_store: %v", err)
+	}
+	if tempStore != 2 {
+		t.Fatalf("temp_store = %d, want 2 (MEMORY)", tempStore)
+	}
+}
+
 func TestUpsertAndListDevices(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

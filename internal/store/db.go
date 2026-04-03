@@ -112,6 +112,30 @@ func Open(path string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
+	// Keep the pool tiny for Pi-class hardware while still allowing
+	// nested read patterns that can deadlock with a single connection.
+	conn.SetMaxOpenConns(2)
+	conn.SetMaxIdleConns(1)
+	if _, err := conn.Exec(`PRAGMA busy_timeout = 5000`); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("apply pragma busy_timeout: %w", err)
+	}
+	if _, err := conn.Exec(`PRAGMA temp_store = MEMORY`); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("apply pragma temp_store: %w", err)
+	}
+	if _, err := conn.Exec(`PRAGMA wal_autocheckpoint = 1000`); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("apply pragma wal_autocheckpoint: %w", err)
+	}
+	if _, err := conn.Exec(`PRAGMA journal_size_limit = 67108864`); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("apply pragma journal_size_limit: %w", err)
+	}
+	if _, err := conn.Exec(`PRAGMA cache_size = -8192`); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("apply pragma cache_size: %w", err)
+	}
 	if _, err := conn.Exec(schema); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("apply schema: %w", err)
