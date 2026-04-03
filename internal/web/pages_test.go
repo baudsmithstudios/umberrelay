@@ -284,6 +284,81 @@ func TestPrivacyPageDeviceDeepLinkSelectsDevice(t *testing.T) {
 	}
 }
 
+func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: "",
+			SourceIP:  "10.44.0.7",
+			Domain:    "unknown.example.com",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-5 * time.Minute),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	view, err := s.privacyPageData(now, "")
+	if err != nil {
+		t.Fatalf("privacyPageData: %v", err)
+	}
+
+	found := false
+	for _, actor := range view.Devices {
+		if actor.ActorType == "source" && actor.SourceIP == "10.44.0.7" {
+			found = true
+			if actor.MAC != "" {
+				t.Fatalf("source actor MAC = %q, want empty", actor.MAC)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected source fallback actor in privacy view: %#v", view.Devices)
+	}
+}
+
+func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: "",
+			SourceIP:  "10.44.0.7",
+			Domain:    "unknown.example.com",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-5 * time.Minute),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		"Source Detail",
+		"10.44.0.7",
+		"Unattributed source",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+}
+
 func TestPrivacyPageUnknownDeviceFallsBackToNetworkView(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()

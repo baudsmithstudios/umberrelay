@@ -9,6 +9,7 @@ Priorities may change as Umberrelay matures. This roadmap reflects current produ
 ## MVP Follow-Up
 
 1. **Cross-subnet attribution fallback**
+   Status: Completed on April 3, 2026.
    Surface source IP clearly when MAC attribution is unavailable so routed multi-VLAN deployments remain understandable without router-specific integrations. This closes a practical visibility gap exposed by real Pi testing.
 
 2. **DoH/DoT detection**

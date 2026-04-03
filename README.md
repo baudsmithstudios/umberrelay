@@ -16,18 +16,18 @@
 
 ## What It Does
 
-Umberrelay is a forwarding DNS server that logs every query, identifies which device made it, and classifies domains against community-maintained tracking lists. It gives you a per-device picture of where your network traffic is going — and how much of it is talking to trackers.
+Umberrelay is a forwarding DNS server that logs every query, identifies which network actor made it, and classifies domains against community-maintained tracking lists. It gives you an attribution-focused picture of where your network traffic is going — and how much of it is talking to trackers.
 
 DNS is an intentionally narrow lens, but it is still a useful one: it is cheap to collect, passive to deploy, and often enough to reveal which devices are the noisiest, which services they depend on, and how often they contact known trackers. Umberrelay focuses on turning that signal into something readable instead of trying to be a blocker, IDS, or full packet analyzer.
 
 ## Features
 
 - **Forwarding DNS server** — drop-in replacement for your router's DNS, forwards to upstream resolvers (Cloudflare, Google, etc.)
-- **Per-device attribution** — maps queries to devices via ARP table polling, DHCP snooping, mDNS, and SSDP discovery
+- **Attribution with source-IP fallback** — maps queries to devices via ARP table polling, DHCP snooping, mDNS, and SSDP discovery, and surfaces source IP when MAC is unavailable
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
-- **Privacy UI** — Privacy and Settings pages for query volume, tracker percentage, per-device breakdown, domain rankings, and runtime configuration
-- **REST API** — JSON API for devices, queries, activity, domains, lists, settings, and overrides
+- **Privacy UI** — Privacy and Settings pages for query volume, tracker percentage, actor breakdown (device or source fallback), domain rankings, and runtime configuration
+- **REST API** — JSON API for actors, devices, queries, activity, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
 - **Configurable via UI** — retention, list refresh interval, blocklist management all from the settings page
@@ -85,7 +85,7 @@ Pi-hole or AdGuard Home
 Upstream DNS
 ```
 
-This lets Pi-hole or AdGuard do blocking while Umberrelay provides per-device attribution and privacy reporting.
+This lets Pi-hole or AdGuard do blocking while Umberrelay provides attribution-aware privacy reporting (including source-IP fallback when MAC is unavailable).
 
 Caveats:
 
@@ -168,12 +168,13 @@ The API is unauthenticated — bind to localhost or a trusted network.
 | `GET` | `/api/health` | Health check |
 | `GET` | `/api/summary` | Dashboard stats (last 24h) |
 | `GET` | `/api/devices` | All devices with query stats |
+| `GET` | `/api/actors` | Attribution actors (known devices + source-IP fallback actors) with query stats |
 | `GET` | `/api/devices/{mac}` | Single device |
 | `PUT` | `/api/devices/{mac}` | Update device label |
-| `GET` | `/api/queries` | Query log (filterable by device, domain, time range) |
-| `GET` | `/api/activity` | Activity buckets for `24h`, `7d`, or `30d` (optionally filter by device) |
-| `GET` | `/api/anomalies` | Devices with unusual tracker rate or query volume spikes |
-| `GET` | `/api/domains` | Top domains with source list attribution and device counts (last 24h) |
+| `GET` | `/api/queries` | Query log (filterable by actor, device, domain, time range) |
+| `GET` | `/api/activity` | Activity buckets for `24h`, `7d`, or `30d` (optionally filter by actor, device, or source) |
+| `GET` | `/api/anomalies` | Known devices with unusual tracker rate or query volume spikes |
+| `GET` | `/api/domains` | Top domains with source list attribution and attribution-actor counts (last 24h) |
 | `GET` | `/api/settings` | Current settings |
 | `PUT` | `/api/settings` | Update settings |
 | `GET` | `/api/lists` | All classification lists |
@@ -203,6 +204,7 @@ Selected read endpoints return these JSON shapes:
 | Endpoint | JSON Response |
 |---|---|
 | `GET /api/health` | `{ "status": "ok" }` |
+| `GET /api/actors` | `[{"key":"device:aa:bb:cc:dd:ee:ff","type":"device","name":"Living Room TV","device_mac":"aa:bb:cc:dd:ee:ff","source_ip":"","query_count":120,"tracker_percent":47.5},{"key":"source:10.0.0.7","type":"source","name":"Unattributed · 10.0.0.7","device_mac":"","source_ip":"10.0.0.7","query_count":25,"tracker_percent":12}]` |
 | `GET /api/activity` | `[{"timestamp": 1711670400, "total": 42, "tracker": 18}]` |
 | `GET /api/anomalies` | `[{"device_mac": "aa:bb:cc:dd:ee:ff", "device_name": "Living Room TV", "type": "tracker_spike", "current_value": 75, "average_value": 20, "delta": 55, "top_domain": "ads.example.com", "top_domain_category": "tracking", "top_domain_source_list": "Tracking List"}]` |
 | `GET /api/domains` | `{ "total_devices": 12, "domains": [{"domain": "ads.example.com", "category": "tracking", "query_count": 120, "device_count": 4, "source_list": "Tracking List"}] }` |
@@ -222,6 +224,7 @@ Selected error responses use this JSON shape:
 
 | Param | Description |
 |---|---|
+| `actor` | Filter by actor key (`device:{mac}` or `source:{ip}`) |
 | `device` | Filter by device MAC |
 | `domain` | Filter by domain |
 | `from` | Start time (RFC3339) |
@@ -229,12 +232,18 @@ Selected error responses use this JSON shape:
 | `limit` | Results per page (default 100) |
 | `offset` | Pagination offset |
 
+When `actor` is set, it takes precedence over `device`.
+
 `GET /api/activity` supports:
 
 | Param | Description |
 |---|---|
+| `actor` | Filter by actor key (`device:{mac}` or `source:{ip}`) |
 | `device` | Filter by device MAC |
+| `source` | Filter by unattributed source IP |
 | `range` | Time window: `24h` (default, hourly buckets), `7d` (daily buckets), or `30d` (daily buckets) |
+
+Filter precedence is `actor`, then `source`, then `device`.
 
 `GET /api/domains` returns an object with `total_devices` plus a `domains` array. Each domain item includes:
 
@@ -243,7 +252,7 @@ Selected error responses use this JSON shape:
 | `domain` | Domain name |
 | `category` | Stored classification category |
 | `query_count` | Number of matching queries in the last 24h |
-| `device_count` | Distinct devices that queried the domain in the last 24h |
+| `device_count` | Distinct attribution actors that queried the domain in the last 24h (device MACs + source-IP fallback actors) |
 | `source_list` | Best-effort attribution for the matching blocklist, or `manual` / `unknown` |
 
 This replaces the previous flat array response for `GET /api/domains`.
@@ -280,6 +289,7 @@ The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `
 ## Troubleshooting
 
 - **A device is missing** — confirm the device is actually using Umberrelay for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
+- **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears as a source fallback actor in the Privacy page or `/api/actors`
 - **Queries are visible but device names are weak** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices simply do not advertise much
 - **Tracker labels look wrong** — classifications come from community blocklists; use domain overrides when a list is too broad or out of date
 - **Some traffic is invisible** — Umberrelay does not see direct IP traffic or DNS that bypasses it, so partial visibility is an expected limitation in some networks

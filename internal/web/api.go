@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +35,61 @@ func (s *Server) handleAPIDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, devices)
+}
+
+func (s *Server) handleAPIActors(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	sources, err := s.db.ListSourceWithTrendsAt(now)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	type actorResponse struct {
+		Key            string  `json:"key"`
+		Type           string  `json:"type"`
+		Name           string  `json:"name"`
+		DeviceMAC      string  `json:"device_mac"`
+		SourceIP       string  `json:"source_ip"`
+		QueryCount     int     `json:"query_count"`
+		TrackerPercent float64 `json:"tracker_percent"`
+	}
+
+	actors := make([]actorResponse, 0, len(devices)+len(sources))
+	for _, device := range devices {
+		actors = append(actors, actorResponse{
+			Key:            actorKeyForDevice(device.MAC),
+			Type:           actorTypeDevice,
+			Name:           deviceDisplayName(device.Device),
+			DeviceMAC:      device.MAC,
+			QueryCount:     device.QueryCount,
+			TrackerPercent: device.TrackerPercent,
+		})
+	}
+	for _, source := range sources {
+		actors = append(actors, actorResponse{
+			Key:            actorKeyForSource(source.SourceIP),
+			Type:           actorTypeSource,
+			Name:           sourceActorDisplayName(source.SourceIP),
+			SourceIP:       source.SourceIP,
+			QueryCount:     source.QueryCount,
+			TrackerPercent: source.TrackerPercent,
+		})
+	}
+
+	sort.SliceStable(actors, func(i, j int) bool {
+		if actors[i].TrackerPercent == actors[j].TrackerPercent {
+			return actors[i].Name < actors[j].Name
+		}
+		return actors[i].TrackerPercent > actors[j].TrackerPercent
+	})
+
+	writeJSON(w, http.StatusOK, actors)
 }
 
 func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +128,7 @@ func (s *Server) handleAPIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	actorKey := q.Get("actor")
 	deviceMAC := q.Get("device")
 	domain := q.Get("domain")
 	limit := 100
@@ -117,7 +174,22 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queries, err := s.db.QueryLog(deviceMAC, domain, from, to, limit, offset)
+	var queries []store.Query
+	var err error
+	if actorKey != "" {
+		actorType, actorValue, ok := parseActorKey(actorKey)
+		if !ok {
+			writeJSONError(w, http.StatusBadRequest, "actor must be device:{mac} or source:{ip}")
+			return
+		}
+		if actorType == actorTypeSource {
+			queries, err = s.db.QueryLogBySource(actorValue, domain, from, to, limit, offset)
+		} else {
+			queries, err = s.db.QueryLog(actorValue, domain, from, to, limit, offset)
+		}
+	} else {
+		queries, err = s.db.QueryLog(deviceMAC, domain, from, to, limit, offset)
+	}
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -126,13 +198,33 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
+	actorKey := r.URL.Query().Get("actor")
 	deviceMAC := r.URL.Query().Get("device")
+	sourceIP := r.URL.Query().Get("source")
 	timeRange := r.URL.Query().Get("range")
 	if timeRange == "" {
 		timeRange = "24h"
 	}
 
-	buckets, err := s.db.RangedActivity(deviceMAC, timeRange)
+	var buckets []store.HourlyBucket
+	var err error
+	switch {
+	case actorKey != "":
+		actorType, actorValue, ok := parseActorKey(actorKey)
+		if !ok {
+			writeJSONError(w, http.StatusBadRequest, "actor must be device:{mac} or source:{ip}")
+			return
+		}
+		if actorType == actorTypeSource {
+			buckets, err = s.db.SourceRangedActivity(actorValue, timeRange)
+		} else {
+			buckets, err = s.db.RangedActivity(actorValue, timeRange)
+		}
+	case sourceIP != "":
+		buckets, err = s.db.SourceRangedActivity(sourceIP, timeRange)
+	default:
+		buckets, err = s.db.RangedActivity(deviceMAC, timeRange)
+	}
 	if err != nil {
 		if errors.Is(err, store.ErrInvalidRange) {
 			writeJSONError(w, http.StatusBadRequest, "range must be one of 24h, 7d, 30d")
@@ -175,7 +267,7 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	devices, err := s.db.ListDevices()
+	stats, err := s.db.DashboardSummary()
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -184,7 +276,7 @@ func (s *Server) handleAPIDomains(w http.ResponseWriter, r *http.Request) {
 		TotalDevices int                      `json:"total_devices"`
 		Domains      []store.DomainWithSource `json:"domains"`
 	}{
-		TotalDevices: len(devices),
+		TotalDevices: stats.DeviceCount,
 		Domains:      domains,
 	})
 }

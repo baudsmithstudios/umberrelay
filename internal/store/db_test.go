@@ -297,6 +297,37 @@ func TestDashboardSummary(t *testing.T) {
 	}
 }
 
+func TestDashboardSummaryCountsUnattributedSourceIPsSeparately(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+
+	if err := db.UpsertDevice(Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		Hostname:  "known-device",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "known.example.com", QueryType: "A", Timestamp: now},
+		{DeviceMAC: "", SourceIP: "10.10.20.30", Domain: "unknown-a.example.com", QueryType: "A", Timestamp: now.Add(time.Second)},
+		{DeviceMAC: "", SourceIP: "10.10.20.31", Domain: "unknown-b.example.com", QueryType: "A", Timestamp: now.Add(2 * time.Second)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	summary, err := db.DashboardSummaryAt(now.Add(5 * time.Second))
+	if err != nil {
+		t.Fatalf("DashboardSummaryAt: %v", err)
+	}
+	if summary.DeviceCount != 3 {
+		t.Fatalf("DeviceCount = %d, want 3", summary.DeviceCount)
+	}
+}
+
 func TestTopDomains(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -1175,6 +1206,42 @@ func TestTopDomainsWithSource(t *testing.T) {
 	}
 	if sources["dup.example.com"] != "Tracking List" {
 		t.Fatalf("dup source = %q, want Tracking List", sources["dup.example.com"])
+	}
+}
+
+func TestTopDomainsWithSourceCountsUnattributedSourcesSeparately(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+
+	if err := db.UpsertDevice(Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "shared.example.com", QueryType: "A", Timestamp: now},
+		{DeviceMAC: "", SourceIP: "10.0.0.7", Domain: "shared.example.com", QueryType: "A", Timestamp: now.Add(time.Second)},
+		{DeviceMAC: "", SourceIP: "10.0.0.8", Domain: "shared.example.com", QueryType: "A", Timestamp: now.Add(2 * time.Second)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	domains, err := db.TopDomainsWithSource(5)
+	if err != nil {
+		t.Fatalf("TopDomainsWithSource: %v", err)
+	}
+	if len(domains) == 0 {
+		t.Fatalf("got no domains, want one")
+	}
+	if domains[0].Domain != "shared.example.com" {
+		t.Fatalf("top domain = %q, want shared.example.com", domains[0].Domain)
+	}
+	if domains[0].DeviceCount != 3 {
+		t.Fatalf("shared.example.com device_count = %d, want 3", domains[0].DeviceCount)
 	}
 }
 

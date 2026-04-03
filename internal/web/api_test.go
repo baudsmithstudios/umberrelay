@@ -207,6 +207,67 @@ func TestAPIDevices(t *testing.T) {
 	}
 }
 
+func TestAPIActorsIncludesUnattributedSources(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		Hostname:  "known-device",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "known.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)},
+		{DeviceMAC: "", SourceIP: "10.55.0.17", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-4 * time.Minute)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/actors", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response []struct {
+		Key       string `json:"key"`
+		Type      string `json:"type"`
+		Name      string `json:"name"`
+		DeviceMAC string `json:"device_mac"`
+		SourceIP  string `json:"source_ip"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+
+	foundDevice := false
+	foundSource := false
+	for _, actor := range response {
+		if actor.Key == "device:aa:bb:cc:dd:ee:ff" && actor.Type == "device" && actor.DeviceMAC == "aa:bb:cc:dd:ee:ff" {
+			foundDevice = true
+		}
+		if actor.Key == "source:10.55.0.17" && actor.Type == "source" && actor.SourceIP == "10.55.0.17" {
+			if actor.Name == "" {
+				t.Fatalf("source actor name is empty")
+			}
+			foundSource = true
+		}
+	}
+
+	if !foundDevice {
+		t.Fatalf("response missing known device actor: %#v", response)
+	}
+	if !foundSource {
+		t.Fatalf("response missing source fallback actor: %#v", response)
+	}
+}
+
 func TestAPIDeviceNotFoundReturnsJSONError(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest("GET", "/api/devices/aa:bb:cc:dd:ee:ff", nil)
@@ -606,6 +667,48 @@ func TestAPIActivityDefaultsTo24Hours(t *testing.T) {
 	}
 }
 
+func TestAPIActivitySupportsSourceActorFilter(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "", SourceIP: "10.55.0.17", Domain: "source-only.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: "", SourceIP: "10.55.0.17", Domain: "source-only.example.com", QueryType: "AAAA", Category: "", Timestamp: now.Add(-90 * time.Minute)},
+		{DeviceMAC: "", SourceIP: "10.55.0.18", Domain: "other-source.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-80 * time.Minute)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/activity?actor=source:10.55.0.17", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response []struct {
+		Timestamp int64 `json:"timestamp"`
+		Total     int   `json:"total"`
+		Tracker   int   `json:"tracker"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(response) != 24 {
+		t.Fatalf("bucket count = %d, want 24", len(response))
+	}
+
+	total := 0
+	tracker := 0
+	for _, bucket := range response {
+		total += bucket.Total
+		tracker += bucket.Tracker
+	}
+	if total != 2 || tracker != 1 {
+		t.Fatalf("totals = %d/%d, want 2/1", total, tracker)
+	}
+}
+
 func TestAPIActivityRejectsInvalidRange(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest("GET", "/api/activity?range=bogus", nil)
@@ -687,6 +790,53 @@ func TestAPIDomainsIncludesSourceListAndTotalDevices(t *testing.T) {
 	}
 	if response.Domains[1].SourceList != "manual" {
 		t.Fatalf("manual source_list = %q, want manual", response.Domains[1].SourceList)
+	}
+}
+
+func TestAPIDomainsCountSourceFallbackActors(t *testing.T) {
+	s := testServer(t)
+	now := time.Now()
+
+	if err := s.db.UpsertDevice(store.Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "shared.example.com", QueryType: "A", Category: "", Timestamp: now},
+		{DeviceMAC: "", SourceIP: "10.0.0.7", Domain: "shared.example.com", QueryType: "A", Category: "", Timestamp: now.Add(time.Second)},
+		{DeviceMAC: "", SourceIP: "10.0.0.8", Domain: "shared.example.com", QueryType: "A", Category: "", Timestamp: now.Add(2 * time.Second)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/domains?limit=10", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response struct {
+		TotalDevices int `json:"total_devices"`
+		Domains      []struct {
+			Domain      string `json:"domain"`
+			DeviceCount int    `json:"device_count"`
+		} `json:"domains"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+
+	if response.TotalDevices != 3 {
+		t.Fatalf("total_devices = %d, want 3", response.TotalDevices)
+	}
+	if len(response.Domains) == 0 {
+		t.Fatalf("domain count = 0, want 1")
+	}
+	if response.Domains[0].Domain != "shared.example.com" {
+		t.Fatalf("top domain = %q, want shared.example.com", response.Domains[0].Domain)
+	}
+	if response.Domains[0].DeviceCount != 3 {
+		t.Fatalf("device_count = %d, want 3", response.Domains[0].DeviceCount)
 	}
 }
 
