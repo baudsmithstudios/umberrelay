@@ -61,6 +61,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/queries", s.handleAPIQueries)
 	s.mux.HandleFunc("GET /api/activity", s.handleAPIActivity)
 	s.mux.HandleFunc("GET /api/anomalies", s.handleAPIAnomalies)
+	s.mux.HandleFunc("GET /api/bypass", s.handleAPIBypass)
 	s.mux.HandleFunc("GET /api/domains", s.handleAPIDomains)
 	s.mux.HandleFunc("GET /api/settings", s.handleAPIGetSettings)
 	s.mux.HandleFunc("PUT /api/settings", s.handleAPIUpdateSettings)

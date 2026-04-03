@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 )
 
 const trackingCategorySQL = "('tracking', 'advertising', 'malware')"
+const encryptedDNSBootstrapSQL = "('dns.google', 'cloudflare-dns.com', 'one.one.one.one', 'dns.quad9.net', 'doh.opendns.com', 'dns.nextdns.io', 'dns.adguard-dns.com')"
 
 // Device represents a discovered network device.
 type Device struct {
@@ -61,6 +63,18 @@ type Anomaly struct {
 	TopDomain           string
 	TopDomainCategory   string
 	TopDomainSourceList string
+}
+
+// BypassSignal indicates a device likely bypassing local DNS visibility.
+type BypassSignal struct {
+	DeviceMAC       string
+	DeviceName      string
+	Confidence      string
+	HintDomain      string
+	LastSeen        time.Time
+	LastQuery       time.Time
+	SilentMinutes   int
+	PriorQueryCount int
 }
 
 // Trend holds current and prior-period comparison data.
@@ -1551,4 +1565,96 @@ func (d *DB) deviceTopVolumeSpikeDomain(mac string, currentStart, now, priorStar
 		return domain, rows.Err()
 	}
 	return DomainWithSource{}, nil
+}
+
+// DeviceBypassSignals returns bypass signals using recent device presence and DNS silence heuristics.
+func (d *DB) DeviceBypassSignals() ([]BypassSignal, error) {
+	return d.DeviceBypassSignalsAt(time.Now())
+}
+
+// DeviceBypassSignalsAt returns bypass signals using recent device presence and DNS silence heuristics at a fixed time.
+func (d *DB) DeviceBypassSignalsAt(now time.Time) ([]BypassSignal, error) {
+	now = now.UTC()
+	seenCutoff := now.Add(-20 * time.Minute)
+	currentStart := now.Add(-45 * time.Minute)
+	historyStart := now.Add(-30 * 24 * time.Hour)
+
+	rows, err := d.sql.Query(`
+		SELECT d.mac,
+		       COALESCE(NULLIF(d.label, ''), NULLIF(d.hostname, ''), NULLIF(d.vendor, ''), d.mac),
+		       d.last_seen,
+		       COALESCE(MAX(q.timestamp), 0) as last_query_ts,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as prior_query_count,
+		       COALESCE(SUM(CASE WHEN q.timestamp >= ? AND q.timestamp < ? THEN 1 ELSE 0 END), 0) as current_query_count,
+		       COALESCE(MAX(CASE
+		           WHEN q.timestamp >= ? AND q.timestamp < ? AND LOWER(TRIM(q.domain, '.')) IN `+encryptedDNSBootstrapSQL+`
+		           THEN LOWER(TRIM(q.domain, '.'))
+		           ELSE ''
+		       END), '') as hint_domain
+		FROM devices d
+		LEFT JOIN queries q ON q.device_mac = d.mac AND q.timestamp >= ? AND q.timestamp < ?
+		WHERE d.last_seen >= ?
+		GROUP BY d.mac, d.label, d.hostname, d.vendor, d.last_seen
+		HAVING current_query_count = 0 AND prior_query_count > 0`,
+		historyStart.UnixNano(), currentStart.UnixNano(),
+		currentStart.UnixNano(), now.UnixNano(),
+		historyStart.UnixNano(), currentStart.UnixNano(),
+		historyStart.UnixNano(), now.UnixNano(),
+		seenCutoff.UnixNano(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []BypassSignal
+	for rows.Next() {
+		var signal BypassSignal
+		var lastSeenTS, lastQueryTS int64
+		var currentQueryCount int
+		if err := rows.Scan(
+			&signal.DeviceMAC,
+			&signal.DeviceName,
+			&lastSeenTS,
+			&lastQueryTS,
+			&signal.PriorQueryCount,
+			&currentQueryCount,
+			&signal.HintDomain,
+		); err != nil {
+			return nil, err
+		}
+		if currentQueryCount > 0 || signal.PriorQueryCount == 0 {
+			continue
+		}
+
+		signal.LastSeen = time.Unix(0, lastSeenTS)
+		if lastQueryTS > 0 {
+			signal.LastQuery = time.Unix(0, lastQueryTS)
+			if now.After(signal.LastQuery) {
+				signal.SilentMinutes = int(now.Sub(signal.LastQuery) / time.Minute)
+			}
+		}
+
+		signal.Confidence = "suspected"
+		if signal.HintDomain != "" {
+			signal.Confidence = "likely"
+		}
+
+		out = append(out, signal)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Confidence == out[j].Confidence {
+			if out[i].SilentMinutes == out[j].SilentMinutes {
+				return out[i].DeviceName < out[j].DeviceName
+			}
+			return out[i].SilentMinutes > out[j].SilentMinutes
+		}
+		return out[i].Confidence == "likely"
+	})
+
+	return out, nil
 }

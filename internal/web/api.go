@@ -318,6 +318,44 @@ func (s *Server) handleAPIAnomalies(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
+func (s *Server) handleAPIBypass(w http.ResponseWriter, r *http.Request) {
+	signals, err := s.db.DeviceBypassSignals()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	type bypassResponse struct {
+		DeviceMAC       string `json:"device_mac"`
+		DeviceName      string `json:"device_name"`
+		Confidence      string `json:"confidence"`
+		HintDomain      string `json:"hint_domain"`
+		SilentMinutes   int    `json:"silent_minutes"`
+		PriorQueryCount int    `json:"prior_query_count"`
+		LastSeen        int64  `json:"last_seen"`
+		LastQuery       int64  `json:"last_query"`
+	}
+
+	response := make([]bypassResponse, 0, len(signals))
+	for _, signal := range signals {
+		row := bypassResponse{
+			DeviceMAC:       signal.DeviceMAC,
+			DeviceName:      signal.DeviceName,
+			Confidence:      signal.Confidence,
+			HintDomain:      signal.HintDomain,
+			SilentMinutes:   signal.SilentMinutes,
+			PriorQueryCount: signal.PriorQueryCount,
+			LastSeen:        signal.LastSeen.Unix(),
+		}
+		if !signal.LastQuery.IsZero() {
+			row.LastQuery = signal.LastQuery.Unix()
+		}
+		response = append(response, row)
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
 func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
 	settings, err := loadRuntimeSettings(s.db)
 	if err != nil {

@@ -233,6 +233,11 @@
     border-left-color: var(--umberrelay-analytics);
 }
 
+.attention-item.anomaly-bypass {
+    background: color-mix(in srgb, var(--umberrelay-warn) 10%, transparent);
+    border-left-color: var(--umberrelay-warn);
+}
+
 .att-body {
     flex: 1;
     min-width: 0;
@@ -272,6 +277,11 @@
 .attention-badge.anomaly-volume {
     background: color-mix(in srgb, var(--umberrelay-analytics) 15%, transparent);
     color: var(--umberrelay-analytics);
+}
+
+.attention-badge.anomaly-bypass {
+    background: color-mix(in srgb, var(--umberrelay-warn) 20%, transparent);
+    color: var(--umberrelay-warn);
 }
 
 .investigate-btn {
@@ -381,6 +391,10 @@
 
 .device-item.anomaly-volume {
     border-left-color: var(--umberrelay-analytics);
+}
+
+.device-item.anomaly-bypass {
+    border-left-color: var(--umberrelay-warn);
 }
 
 .device-item.selected {
