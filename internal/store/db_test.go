@@ -150,6 +150,82 @@ func TestQueryLogFilters(t *testing.T) {
 	}
 }
 
+func TestQueryFeedFiltersAndCursor(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	if err := db.UpsertDevice(Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice(device a): %v", err)
+	}
+	if err := db.UpsertDevice(Device{
+		MAC:       "11:22:33:44:55:66",
+		IP:        "192.168.1.11",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice(device b): %v", err)
+	}
+
+	if err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-4 * time.Second)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "api.example.com", QueryType: "AAAA", Category: "", Timestamp: now.Add(-3 * time.Second)},
+		{DeviceMAC: "11:22:33:44:55:66", SourceIP: "192.168.1.11", Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Second)},
+		{DeviceMAC: "", SourceIP: "10.44.0.7", Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-1 * time.Second)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	results, err := db.QueryFeed(0, QueryFeedFilter{
+		DeviceMAC: "aa:bb:cc:dd:ee:ff",
+		Domain:    "ads.example.com",
+		Category:  "tracking",
+	}, 10)
+	if err != nil {
+		t.Fatalf("QueryFeed(device/domain/category): %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("device/domain/category filter returned %d rows, want 1", len(results))
+	}
+	if results[0].DeviceMAC != "aa:bb:cc:dd:ee:ff" || results[0].Domain != "ads.example.com" {
+		t.Fatalf("unexpected row: %#v", results[0])
+	}
+
+	sourceResults, err := db.QueryFeed(0, QueryFeedFilter{
+		SourceIP: "10.44.0.7",
+	}, 10)
+	if err != nil {
+		t.Fatalf("QueryFeed(source): %v", err)
+	}
+	if len(sourceResults) != 1 {
+		t.Fatalf("source filter returned %d rows, want 1", len(sourceResults))
+	}
+	if sourceResults[0].SourceIP != "10.44.0.7" || sourceResults[0].DeviceMAC != "" {
+		t.Fatalf("unexpected source row: %#v", sourceResults[0])
+	}
+
+	afterID := results[0].ID
+	cursorResults, err := db.QueryFeed(afterID, QueryFeedFilter{
+		DeviceMAC: "aa:bb:cc:dd:ee:ff",
+	}, 10)
+	if err != nil {
+		t.Fatalf("QueryFeed(afterID): %v", err)
+	}
+	if len(cursorResults) != 1 {
+		t.Fatalf("afterID filter returned %d rows, want 1", len(cursorResults))
+	}
+	if cursorResults[0].Domain != "api.example.com" {
+		t.Fatalf("afterID row domain = %q, want %q", cursorResults[0].Domain, "api.example.com")
+	}
+	if cursorResults[0].ID <= afterID {
+		t.Fatalf("afterID row ID = %d, want > %d", cursorResults[0].ID, afterID)
+	}
+}
+
 func TestPurgeQueries(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

@@ -173,6 +173,7 @@ The API is unauthenticated — bind to localhost or a trusted network.
 | `GET` | `/api/devices/{mac}` | Single device |
 | `PUT` | `/api/devices/{mac}` | Update device label |
 | `GET` | `/api/queries` | Query log (filterable by actor, device, domain, time range) |
+| `GET` | `/api/queries/stream` | Live query stream via Server-Sent Events (filterable by actor, device, domain, category) |
 | `GET` | `/api/activity` | Activity buckets for `24h`, `7d`, or `30d` (optionally filter by actor, device, or source) |
 | `GET` | `/api/anomalies` | Known devices with unusual tracker rate or query volume spikes |
 | `GET` | `/api/bypass` | Best-effort signals for devices that may be bypassing local DNS visibility |
@@ -212,6 +213,7 @@ Selected read endpoints return these JSON shapes:
 | `GET /api/bypass` | `[{"device_mac":"aa:bb:cc:dd:ee:ff","device_name":"Living Room TV","confidence":"likely","hint_domain":"dns.google","silent_minutes":180,"prior_query_count":42,"last_seen":1711670400,"last_query":1711659600}]` |
 | `GET /api/domains` | `{ "total_devices": 12, "domains": [{"domain": "ads.example.com", "category": "tracking", "query_count": 120, "device_count": 4, "source_list": "Tracking List"}] }` |
 | `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
+| `GET /api/queries/stream` | SSE `query` events with JSON `data` like `{"id":42,"actor_key":"device:aa:bb:cc:dd:ee:ff","device_mac":"aa:bb:cc:dd:ee:ff","source_ip":"192.168.1.10","domain":"ads.example.com","query_type":"A","category":"tracking","timestamp":1711670400}` |
 
 Selected error responses use this JSON shape:
 
@@ -234,6 +236,19 @@ Selected error responses use this JSON shape:
 | `to` | End time (RFC3339, defaults to now) |
 | `limit` | Results per page (default 100) |
 | `offset` | Pagination offset |
+
+When `actor` is set, it takes precedence over `device`.
+
+`GET /api/queries/stream` supports:
+
+| Param | Description |
+|---|---|
+| `actor` | Filter by actor key (`device:{mac}` or `source:{ip}`) |
+| `device` | Filter by device MAC |
+| `domain` | Filter by domain |
+| `category` | Filter by category (`tracking`, `advertising`, `analytics`, `telemetry`, `malware`, `uncategorized`) |
+| `after` | Only emit events with query ID greater than this cursor |
+| `limit` | Batch size per poll (default 100, max 500) |
 
 When `actor` is set, it takes precedence over `device`.
 

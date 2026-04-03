@@ -16,6 +16,7 @@ Priorities may change as Umberrelay matures. This roadmap reflects current produ
    Identify devices bypassing local DNS. Start with a best-effort signal based on existing DNS and passive discovery data so users get immediate visibility into likely blind spots without requiring packet capture. This is the highest-impact trust feature: if a device uses encrypted DNS, Umberrelay is blind to it, and users should know that immediately.
 
 3. **Live query stream**
+   Status: Completed on April 3, 2026.
    Add a real-time DNS query feed in the web UI, likely via SSE or WebSockets, with filtering by device, domain, and classification. This has immediate debugging value, strong demo value, and makes "what is this device doing right now?" easy to answer.
 
 4. **New behavior alerting**

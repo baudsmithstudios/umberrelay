@@ -36,6 +36,14 @@ type Query struct {
 	Timestamp time.Time
 }
 
+// QueryFeedFilter holds optional constraints for live query feed reads.
+type QueryFeedFilter struct {
+	DeviceMAC string
+	SourceIP  string
+	Domain    string
+	Category  string
+}
+
 // HourlyBucket holds aggregate activity for a calendar-hour bucket.
 type HourlyBucket struct {
 	Timestamp    time.Time
@@ -286,6 +294,58 @@ func (d *DB) QueryLogBySource(sourceIP, domain string, from, to time.Time, limit
 	query := `SELECT id, device_mac, source_ip, domain, query_type, category, timestamp FROM queries WHERE ` + strings.Join(conditions, " AND ")
 	query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
+
+	rows, err := d.sql.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Query
+	for rows.Next() {
+		var q Query
+		var ts int64
+		if err := rows.Scan(&q.ID, &q.DeviceMAC, &q.SourceIP, &q.Domain, &q.QueryType, &q.Category, &ts); err != nil {
+			return nil, err
+		}
+		q.Timestamp = time.Unix(0, ts)
+		out = append(out, q)
+	}
+	return out, rows.Err()
+}
+
+// QueryFeed returns queries with IDs greater than afterID, oldest first.
+func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Query, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	var conditions []string
+	var args []any
+
+	conditions = append(conditions, "id > ?")
+	args = append(args, afterID)
+
+	if filter.SourceIP != "" {
+		conditions = append(conditions, "device_mac = ''")
+		conditions = append(conditions, "source_ip = ?")
+		args = append(args, filter.SourceIP)
+	} else if filter.DeviceMAC != "" {
+		conditions = append(conditions, "device_mac = ?")
+		args = append(args, filter.DeviceMAC)
+	}
+	if filter.Domain != "" {
+		conditions = append(conditions, "domain = ?")
+		args = append(args, filter.Domain)
+	}
+	if filter.Category != "" {
+		conditions = append(conditions, "category = ?")
+		args = append(args, filter.Category)
+	}
+
+	query := `SELECT id, device_mac, source_ip, domain, query_type, category, timestamp FROM queries WHERE ` + strings.Join(conditions, " AND ")
+	query += " ORDER BY id ASC LIMIT ?"
+	args = append(args, limit)
 
 	rows, err := d.sql.Query(query, args...)
 	if err != nil {

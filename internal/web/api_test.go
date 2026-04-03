@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -553,6 +554,121 @@ func TestAPIQueriesRejectInvalidOffsetAsJSONError(t *testing.T) {
 	}
 	if response["error"] != "offset must be a non-negative integer" {
 		t.Fatalf("error = %q, want %q", response["error"], "offset must be a non-negative integer")
+	}
+}
+
+func TestAPIQueryStreamRejectsInvalidActorAsJSONError(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/api/queries/stream?actor=bad-actor", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "actor must be device:{mac} or source:{ip}" {
+		t.Fatalf("error = %q, want %q", response["error"], "actor must be device:{mac} or source:{ip}")
+	}
+}
+
+func TestAPIQueryStreamRejectsInvalidCategoryAsJSONError(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/api/queries/stream?category=not-a-real-category", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response["error"] != "invalid category filter" {
+		t.Fatalf("error = %q, want %q", response["error"], "invalid category filter")
+	}
+}
+
+func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		Hostname:  "living-room-tv",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "11:22:33:44:55:66",
+		IP:        "192.168.1.11",
+		Hostname:  "laptop",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: "11:22:33:44:55:66",
+			SourceIP:  "192.168.1.11",
+			Domain:    "ignore.example.com",
+			QueryType: "A",
+			Category:  "tracking",
+			Timestamp: now.Add(-2 * time.Second),
+		},
+		{
+			DeviceMAC: "aa:bb:cc:dd:ee:ff",
+			SourceIP:  "192.168.1.10",
+			Domain:    "ads.example.com",
+			QueryType: "A",
+			Category:  "tracking",
+			Timestamp: now.Add(-1 * time.Second),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	defer cancel()
+
+	req := httptest.NewRequest("GET", "/api/queries/stream?actor=device:aa:bb:cc:dd:ee:ff&category=tracking", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", ct)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		"event: query",
+		`"device_mac":"aa:bb:cc:dd:ee:ff"`,
+		`"domain":"ads.example.com"`,
+		`"category":"tracking"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q in body %q", want, body)
+		}
+	}
+	if strings.Contains(body, "ignore.example.com") {
+		t.Fatalf("stream response included non-matching query: %q", body)
 	}
 }
 

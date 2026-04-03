@@ -59,6 +59,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/devices/{mac}", s.handleAPIDevice)
 	s.mux.HandleFunc("PUT /api/devices/{mac}", s.handleAPIUpdateDevice)
 	s.mux.HandleFunc("GET /api/queries", s.handleAPIQueries)
+	s.mux.HandleFunc("GET /api/queries/stream", s.handleAPIQueryStream)
 	s.mux.HandleFunc("GET /api/activity", s.handleAPIActivity)
 	s.mux.HandleFunc("GET /api/anomalies", s.handleAPIAnomalies)
 	s.mux.HandleFunc("GET /api/bypass", s.handleAPIBypass)

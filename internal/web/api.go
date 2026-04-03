@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -195,6 +196,126 @@ func (s *Server) handleAPIQueries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, queries)
+}
+
+func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	actorKey := q.Get("actor")
+	deviceMAC := q.Get("device")
+	domain := q.Get("domain")
+	category := strings.TrimSpace(q.Get("category"))
+	afterID := int64(0)
+	limit := 100
+
+	if v := q.Get("after"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 {
+			writeJSONError(w, http.StatusBadRequest, "after must be a non-negative integer")
+			return
+		}
+		afterID = n
+	} else if v := strings.TrimSpace(r.Header.Get("Last-Event-ID")); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 {
+			writeJSONError(w, http.StatusBadRequest, "Last-Event-ID must be a non-negative integer")
+			return
+		}
+		afterID = n
+	}
+
+	if v := q.Get("limit"); v != "" {
+		n, err := parseBoundedInt(v, 1, 500)
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "limit must be between 1 and 500")
+			return
+		}
+		limit = n
+	}
+
+	filter := store.QueryFeedFilter{
+		Domain: domain,
+	}
+
+	if category != "" {
+		normalizedCategory, ok := normalizeQueryCategoryFilter(category)
+		if !ok {
+			writeJSONError(w, http.StatusBadRequest, "invalid category filter")
+			return
+		}
+		filter.Category = normalizedCategory
+	}
+
+	if actorKey != "" {
+		actorType, actorValue, ok := parseActorKey(actorKey)
+		if !ok {
+			writeJSONError(w, http.StatusBadRequest, "actor must be device:{mac} or source:{ip}")
+			return
+		}
+		if actorType == actorTypeSource {
+			filter.SourceIP = actorValue
+		} else {
+			filter.DeviceMAC = actorValue
+		}
+	} else if deviceMAC != "" {
+		filter.DeviceMAC = deviceMAC
+	}
+
+	initial, err := s.db.QueryFeed(afterID, filter, limit)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeJSONError(w, http.StatusInternalServerError, "streaming unsupported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	lastID, err := writeQueryStreamBatch(w, initial, afterID)
+	if err != nil {
+		return
+	}
+	if len(initial) > 0 {
+		afterID = lastID
+		flusher.Flush()
+	}
+
+	pollTicker := time.NewTicker(1 * time.Second)
+	heartbeatTicker := time.NewTicker(15 * time.Second)
+	defer pollTicker.Stop()
+	defer heartbeatTicker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-heartbeatTicker.C:
+			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
+		case <-pollTicker.C:
+			queries, err := s.db.QueryFeed(afterID, filter, limit)
+			if err != nil {
+				return
+			}
+			if len(queries) == 0 {
+				continue
+			}
+			lastID, err = writeQueryStreamBatch(w, queries, afterID)
+			if err != nil {
+				return
+			}
+			afterID = lastID
+			flusher.Flush()
+		}
+	}
 }
 
 func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
@@ -518,6 +639,57 @@ func parseBoundedInt(value string, min, max int) (int, error) {
 		return 0, fmt.Errorf("value must be between %d and %d", min, max)
 	}
 	return n, nil
+}
+
+func normalizeQueryCategoryFilter(category string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(category)) {
+	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":
+		return strings.ToLower(strings.TrimSpace(category)), true
+	case "unclassified":
+		return "uncategorized", true
+	default:
+		return "", false
+	}
+}
+
+func writeQueryStreamBatch(w http.ResponseWriter, queries []store.Query, afterID int64) (int64, error) {
+	lastID := afterID
+	for _, query := range queries {
+		payload, err := json.Marshal(struct {
+			ID        int64  `json:"id"`
+			ActorKey  string `json:"actor_key"`
+			DeviceMAC string `json:"device_mac"`
+			SourceIP  string `json:"source_ip"`
+			Domain    string `json:"domain"`
+			QueryType string `json:"query_type"`
+			Category  string `json:"category"`
+			Timestamp int64  `json:"timestamp"`
+		}{
+			ID:        query.ID,
+			ActorKey:  streamActorKey(query),
+			DeviceMAC: query.DeviceMAC,
+			SourceIP:  query.SourceIP,
+			Domain:    query.Domain,
+			QueryType: query.QueryType,
+			Category:  query.Category,
+			Timestamp: query.Timestamp.Unix(),
+		})
+		if err != nil {
+			return afterID, err
+		}
+		if _, err := fmt.Fprintf(w, "id: %d\nevent: query\ndata: %s\n\n", query.ID, payload); err != nil {
+			return lastID, err
+		}
+		lastID = query.ID
+	}
+	return lastID, nil
+}
+
+func streamActorKey(query store.Query) string {
+	if query.DeviceMAC != "" {
+		return actorKeyForDevice(query.DeviceMAC)
+	}
+	return actorKeyForSource(query.SourceIP)
 }
 
 func parseBoolFormValue(value string) (bool, error) {

@@ -143,6 +143,11 @@
 </section>
 <script>
 (function () {
+    var liveQueryStream = {
+        source: null,
+        signature: '',
+    };
+
     function chartColor(name) {
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
@@ -275,8 +280,156 @@
         applyListState();
     }
 
+    function closeLiveQueryStream() {
+        if (liveQueryStream.source) {
+            liveQueryStream.source.close();
+            liveQueryStream.source = null;
+        }
+        liveQueryStream.signature = '';
+    }
+
+    function escapeHTML(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatLiveActor(query) {
+        if (query.device_mac) {
+            return query.device_mac;
+        }
+        if (query.source_ip) {
+            return 'Unattributed · ' + query.source_ip;
+        }
+        return 'Unknown';
+    }
+
+    function formatLiveTime(unixSeconds) {
+        if (!unixSeconds) {
+            return 'now';
+        }
+        var ts = Number(unixSeconds);
+        if (!Number.isFinite(ts)) {
+            return 'now';
+        }
+        var date = new Date(ts * 1000);
+        if (Number.isNaN(date.getTime())) {
+            return 'now';
+        }
+        return date.toLocaleTimeString();
+    }
+
+    function appendLiveQueryRow(feed, query) {
+        if (feed.dataset.hasRows !== 'true') {
+            feed.innerHTML = '';
+            feed.dataset.hasRows = 'true';
+        }
+
+        var row = document.createElement('tr');
+        row.innerHTML =
+            '<td data-label="Time">' + escapeHTML(formatLiveTime(query.timestamp)) + '</td>' +
+            '<td data-label="Actor">' + escapeHTML(formatLiveActor(query)) + '</td>' +
+            '<td data-label="Domain">' + escapeHTML(query.domain) + '</td>' +
+            '<td data-label="Type">' + escapeHTML(query.query_type || '') + '</td>' +
+            '<td data-label="Category">' + escapeHTML(query.category || 'unclassified') + '</td>';
+        feed.insertBefore(row, feed.firstChild);
+
+        while (feed.children.length > 100) {
+            feed.removeChild(feed.lastChild);
+        }
+    }
+
+    function bindLiveQueryStream() {
+        var panel = document.getElementById('live-query-stream');
+        if (!panel) {
+            closeLiveQueryStream();
+            return;
+        }
+        if (panel.dataset.bound === 'true') {
+            return;
+        }
+        panel.dataset.bound = 'true';
+
+        if (typeof window.EventSource === 'undefined') {
+            return;
+        }
+
+        var domainInput = document.getElementById('live-query-domain-filter');
+        var categorySelect = document.getElementById('live-query-category-filter');
+        var feed = document.getElementById('live-query-feed');
+        var clearButton = document.getElementById('live-query-clear');
+        if (!domainInput || !categorySelect || !feed || !clearButton) {
+            return;
+        }
+
+        var debounceTimer = null;
+
+        function openStream() {
+            var actor = panel.dataset.actorKey || '';
+            var domain = domainInput.value.trim();
+            var category = categorySelect.value;
+            var params = new URLSearchParams();
+
+            if (actor) {
+                params.set('actor', actor);
+            }
+            if (domain) {
+                params.set('domain', domain);
+            }
+            if (category) {
+                params.set('category', category);
+            }
+
+            var signature = [actor, domain, category].join('|');
+            if (liveQueryStream.source && liveQueryStream.signature === signature) {
+                return;
+            }
+
+            closeLiveQueryStream();
+            liveQueryStream.signature = signature;
+
+            var url = '/api/queries/stream';
+            var queryString = params.toString();
+            if (queryString) {
+                url += '?' + queryString;
+            }
+
+            liveQueryStream.source = new EventSource(url);
+            liveQueryStream.source.addEventListener('query', function (event) {
+                var query;
+                try {
+                    query = JSON.parse(event.data);
+                } catch (_) {
+                    return;
+                }
+                appendLiveQueryRow(feed, query);
+            });
+        }
+
+        domainInput.addEventListener('input', function () {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+            }
+            debounceTimer = setTimeout(openStream, 300);
+        });
+        categorySelect.addEventListener('change', openStream);
+        clearButton.addEventListener('click', function () {
+            domainInput.value = '';
+            categorySelect.value = '';
+            feed.dataset.hasRows = 'false';
+            feed.innerHTML = '<tr><td colspan="5">Waiting for live queries…</td></tr>';
+            openStream();
+        });
+
+        openStream();
+    }
+
     function initPrivacyUI(root) {
         bindDeviceList();
+        bindLiveQueryStream();
         (root || document).querySelectorAll('.privacy-chart').forEach(bindChart);
     }
 
@@ -340,6 +493,8 @@
         </div>
         <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="{{.RangeQuery}}" data-chart-title="{{.ChartTitle}}"></div>
     </div>
+
+    {{template "live-query-stream" .}}
 
     <section>
         <div class="section-title">
@@ -414,6 +569,8 @@
         <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="{{.RangeQuery}}" data-chart-title="{{.ChartTitle}}"></div>
     </div>
 
+    {{template "live-query-stream" .}}
+
     <section>
         <div class="section-title">
             <span>Domains</span>
@@ -467,6 +624,8 @@
         <div id="{{.ChartID}}" class="privacy-chart" data-chart-query="" data-chart-title="{{.ChartTitle}}"></div>
     </div>
 
+    {{template "live-query-stream" .}}
+
     <section>
         <div class="section-title">
             <span>Network Domains</span>
@@ -497,6 +656,46 @@
             </table>
         </div>
     </section>
+</section>
+{{end}}
+
+{{define "live-query-stream"}}
+<section class="live-query-stream" id="live-query-stream" data-actor-key="{{.LiveActorKey}}">
+    <div class="section-title">
+        <span>Live Query Stream</span>
+        <span class="section-note">real-time DNS feed</span>
+    </div>
+    <div class="sort-row">
+        <input type="search" id="live-query-domain-filter" class="sidebar-search" placeholder="Filter domain...">
+        <select id="live-query-category-filter" aria-label="Filter live stream category">
+            <option value="">All categories</option>
+            <option value="tracking">tracking</option>
+            <option value="advertising">advertising</option>
+            <option value="analytics">analytics</option>
+            <option value="telemetry">telemetry</option>
+            <option value="malware">malware</option>
+            <option value="uncategorized">unclassified</option>
+        </select>
+        <button type="button" id="live-query-clear" class="secondary">Clear</button>
+    </div>
+    <div class="domain-table-wrap">
+        <table class="domain-table" role="grid">
+            <thead>
+                <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Actor</th>
+                    <th scope="col">Domain</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Category</th>
+                </tr>
+            </thead>
+            <tbody id="live-query-feed">
+                <tr>
+                    <td colspan="5">Waiting for live queries…</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </section>
 {{end}}
 

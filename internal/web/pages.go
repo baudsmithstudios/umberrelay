@@ -76,6 +76,7 @@ type privacyDetail struct {
 	Mode             string
 	Title            string
 	Subtitle         string
+	LiveActorKey     string
 	Device           store.Device
 	DeviceName       string
 	SourceIP         string
@@ -456,6 +457,7 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 		Mode:             "device",
 		Title:            "Device Detail",
 		Subtitle:         detailSubtitle(device),
+		LiveActorKey:     actorKeyForDevice(device.MAC),
 		Device:           device,
 		DeviceName:       deviceDisplayName(device),
 		PrivacySummary:   privacySummary,
@@ -498,6 +500,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		Mode:             "source",
 		Title:            "Source Detail",
 		Subtitle:         "Unattributed source · " + sourceIP,
+		LiveActorKey:     actorKeyForSource(sourceIP),
 		DeviceName:       sourceActorDisplayName(sourceIP),
 		SourceIP:         sourceIP,
 		PrivacySummary:   privacySummary,
@@ -528,6 +531,7 @@ func (s *Server) loadNetworkDetail(stats store.DashboardStats, totalActors int) 
 		Mode:             "network",
 		Title:            "Network Domains",
 		Subtitle:         fmt.Sprintf("%d distinct domains in the last 24 hours", stats.UniqueDomainCount),
+		LiveActorKey:     "",
 		Domains:          domains,
 		RangeQuery:       "",
 		ChartID:          "network-detail-chart",
