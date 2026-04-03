@@ -41,3 +41,11 @@ func TestHealthEndpoint(t *testing.T) {
 		t.Errorf("status = %d, want 200", w.Code)
 	}
 }
+
+func TestHTTPServerDisablesWriteTimeoutForStreaming(t *testing.T) {
+	s := testServer(t)
+	httpServer := s.httpServer(":8080")
+	if httpServer.WriteTimeout != 0 {
+		t.Fatalf("WriteTimeout = %s, want 0", httpServer.WriteTimeout)
+	}
+}

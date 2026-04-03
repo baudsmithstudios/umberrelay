@@ -176,6 +176,7 @@ func TestQueryFeedFiltersAndCursor(t *testing.T) {
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "api.example.com", QueryType: "AAAA", Category: "", Timestamp: now.Add(-3 * time.Second)},
 		{DeviceMAC: "11:22:33:44:55:66", SourceIP: "192.168.1.11", Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Second)},
 		{DeviceMAC: "", SourceIP: "10.44.0.7", Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-1 * time.Second)},
+		{DeviceMAC: "11:22:33:44:55:66", SourceIP: "192.168.1.11", Domain: "unknown.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-500 * time.Millisecond)},
 	}); err != nil {
 		t.Fatalf("WriteQueries: %v", err)
 	}
@@ -223,6 +224,21 @@ func TestQueryFeedFiltersAndCursor(t *testing.T) {
 	}
 	if cursorResults[0].ID <= afterID {
 		t.Fatalf("afterID row ID = %d, want > %d", cursorResults[0].ID, afterID)
+	}
+
+	unclassifiedResults, err := db.QueryFeed(0, QueryFeedFilter{
+		Category: "uncategorized",
+	}, 10)
+	if err != nil {
+		t.Fatalf("QueryFeed(uncategorized): %v", err)
+	}
+	if len(unclassifiedResults) != 2 {
+		t.Fatalf("uncategorized filter returned %d rows, want 2", len(unclassifiedResults))
+	}
+	for _, row := range unclassifiedResults {
+		if row.Category != "" && row.Category != "uncategorized" {
+			t.Fatalf("unexpected category %q in uncategorized filter", row.Category)
+		}
 	}
 }
 

@@ -96,16 +96,21 @@ func (s *Server) Handler() http.Handler {
 	return s.mux
 }
 
-// ListenAndServe starts the HTTP server, blocking until ctx is cancelled.
-func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
-	srv := &http.Server{
+func (s *Server) httpServer(addr string) *http.Server {
+	return &http.Server{
 		Addr:              addr,
 		Handler:           s.mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// Keep WriteTimeout disabled so SSE streams are not cut off.
+		WriteTimeout: 0,
+		IdleTimeout:  60 * time.Second,
 	}
+}
+
+// ListenAndServe starts the HTTP server, blocking until ctx is cancelled.
+func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
+	srv := s.httpServer(addr)
 	go func() {
 		<-ctx.Done()
 		srv.Close()

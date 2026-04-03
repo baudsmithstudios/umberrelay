@@ -339,8 +339,12 @@ func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Quer
 		args = append(args, filter.Domain)
 	}
 	if filter.Category != "" {
-		conditions = append(conditions, "category = ?")
-		args = append(args, filter.Category)
+		if filter.Category == "uncategorized" {
+			conditions = append(conditions, "(category = '' OR category = 'uncategorized')")
+		} else {
+			conditions = append(conditions, "category = ?")
+			args = append(args, filter.Category)
+		}
 	}
 
 	query := `SELECT id, device_mac, source_ip, domain, query_type, category, timestamp FROM queries WHERE ` + strings.Join(conditions, " AND ")

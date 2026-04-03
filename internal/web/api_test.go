@@ -672,6 +672,49 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 	}
 }
 
+func TestAPIQueryStreamUncategorizedFilterIncludesEmptyCategory(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		Hostname:  "living-room-tv",
+		FirstSeen: now,
+		LastSeen:  now,
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: "aa:bb:cc:dd:ee:ff",
+			SourceIP:  "192.168.1.10",
+			Domain:    "unknown.example.com",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-1 * time.Second),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	defer cancel()
+
+	req := httptest.NewRequest("GET", "/api/queries/stream?category=uncategorized", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `"domain":"unknown.example.com"`) {
+		t.Fatalf("uncategorized stream did not include empty-category query: %q", body)
+	}
+}
+
 func TestAPIRefreshListsWithoutManagerReturnsJSONError(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest("POST", "/api/lists/refresh", nil)

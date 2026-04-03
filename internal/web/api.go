@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -277,8 +278,9 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	lastID, err := writeQueryStreamBatch(w, initial, afterID)
+	lastID, err := writeQueryStreamBatch(w, initial)
 	if err != nil {
+		log.Printf("stream initial write failed: %v", err)
 		return
 	}
 	if len(initial) > 0 {
@@ -303,13 +305,15 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		case <-pollTicker.C:
 			queries, err := s.db.QueryFeed(afterID, filter, limit)
 			if err != nil {
+				log.Printf("stream query feed failed: %v", err)
 				return
 			}
 			if len(queries) == 0 {
 				continue
 			}
-			lastID, err = writeQueryStreamBatch(w, queries, afterID)
+			lastID, err = writeQueryStreamBatch(w, queries)
 			if err != nil {
+				log.Printf("stream batch write failed: %v", err)
 				return
 			}
 			afterID = lastID
@@ -642,9 +646,10 @@ func parseBoundedInt(value string, min, max int) (int, error) {
 }
 
 func normalizeQueryCategoryFilter(category string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(category)) {
+	normalized := strings.ToLower(strings.TrimSpace(category))
+	switch normalized {
 	case "tracking", "advertising", "analytics", "telemetry", "malware", "uncategorized":
-		return strings.ToLower(strings.TrimSpace(category)), true
+		return normalized, true
 	case "unclassified":
 		return "uncategorized", true
 	default:
@@ -652,8 +657,8 @@ func normalizeQueryCategoryFilter(category string) (string, bool) {
 	}
 }
 
-func writeQueryStreamBatch(w http.ResponseWriter, queries []store.Query, afterID int64) (int64, error) {
-	lastID := afterID
+func writeQueryStreamBatch(w http.ResponseWriter, queries []store.Query) (int64, error) {
+	var lastID int64
 	for _, query := range queries {
 		payload, err := json.Marshal(struct {
 			ID        int64  `json:"id"`
@@ -675,7 +680,7 @@ func writeQueryStreamBatch(w http.ResponseWriter, queries []store.Query, afterID
 			Timestamp: query.Timestamp.Unix(),
 		})
 		if err != nil {
-			return afterID, err
+			return lastID, err
 		}
 		if _, err := fmt.Fprintf(w, "id: %d\nevent: query\ndata: %s\n\n", query.ID, payload); err != nil {
 			return lastID, err
