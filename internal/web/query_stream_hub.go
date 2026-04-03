@@ -11,9 +11,8 @@ import (
 type queryFeedFetcher func(afterID int64, limit int) ([]store.Query, error)
 
 type queryStreamHub struct {
-	fetch        queryFeedFetcher
-	pollInterval time.Duration
-	batchSize    int
+	fetch     queryFeedFetcher
+	batchSize int
 
 	mu          sync.Mutex
 	subscribers map[int]chan store.Query
@@ -21,21 +20,20 @@ type queryStreamHub struct {
 	lastID      int64
 	running     bool
 	stop        chan struct{}
+	wake        chan struct{}
 }
 
 func newQueryStreamHub(fetch queryFeedFetcher, pollInterval time.Duration, batchSize int) *queryStreamHub {
 	if batchSize <= 0 {
 		batchSize = 100
 	}
-	if pollInterval <= 0 {
-		pollInterval = time.Second
-	}
+	_ = pollInterval
 	return &queryStreamHub{
-		fetch:        fetch,
-		pollInterval: pollInterval,
-		batchSize:    batchSize,
-		subscribers:  make(map[int]chan store.Query),
-		stop:         make(chan struct{}),
+		fetch:       fetch,
+		batchSize:   batchSize,
+		subscribers: make(map[int]chan store.Query),
+		stop:        make(chan struct{}),
+		wake:        make(chan struct{}, 1),
 	}
 }
 
@@ -48,11 +46,9 @@ func (h *queryStreamHub) startLocked() {
 }
 
 func (h *queryStreamHub) run() {
-	ticker := time.NewTicker(h.pollInterval)
-	defer ticker.Stop()
 	for {
 		select {
-		case <-ticker.C:
+		case <-h.wake:
 			h.pollOnce()
 		case <-h.stop:
 			h.closeAllSubscribers()
@@ -110,6 +106,18 @@ func (h *queryStreamHub) AdvanceCursor(id int64) {
 	defer h.mu.Unlock()
 	if id > h.lastID {
 		h.lastID = id
+	}
+}
+
+func (h *queryStreamHub) NotifyNewQueries() {
+	select {
+	case <-h.stop:
+		return
+	default:
+	}
+	select {
+	case h.wake <- struct{}{}:
+	default:
 	}
 }
 

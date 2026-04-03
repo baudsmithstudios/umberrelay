@@ -103,6 +103,9 @@ func main() {
 		go mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour)
 	}
 
+	// Web server
+	srv := web.NewServer(db, mgr)
+
 	// DNS listener + async writer
 	records := make(chan dns.QueryRecord, 4096)
 	if !*demoData {
@@ -120,6 +123,7 @@ func main() {
 	writer := pipeline.NewWriter(records, db, tracker, mgr, pipeline.Config{
 		BatchSize:     100,
 		FlushInterval: 1 * time.Second,
+		OnFlush:       srv.NotifyNewQueries,
 	})
 	if !*demoData {
 		go writer.Run(ctx)
@@ -130,8 +134,6 @@ func main() {
 		go runPurge(ctx, db)
 	}
 
-	// Web server
-	srv := web.NewServer(db, mgr)
 	go func() {
 		addr := fmt.Sprintf(":%d", cfg.HTTPPort)
 		log.Printf("web ui: http://0.0.0.0%s", addr)

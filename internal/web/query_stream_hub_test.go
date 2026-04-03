@@ -78,3 +78,37 @@ func TestQueryStreamHubAdvanceCursorSkipsOlderRows(t *testing.T) {
 		t.Fatalf("subscriber did not receive newer query")
 	}
 }
+
+func TestQueryStreamHubOnlyPollsAfterNotify(t *testing.T) {
+	var fetchCalls atomic.Int32
+	hub := newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
+		fetchCalls.Add(1)
+		return []store.Query{
+			{ID: 1, Domain: "ads.example.com"},
+		}, nil
+	}, 100*time.Millisecond, 100)
+	defer hub.Close()
+
+	stream, cancel := hub.Subscribe()
+	defer cancel()
+
+	time.Sleep(20 * time.Millisecond)
+	if fetchCalls.Load() != 0 {
+		t.Fatalf("fetch call count before notify = %d, want 0", fetchCalls.Load())
+	}
+
+	hub.NotifyNewQueries()
+
+	select {
+	case query := <-stream:
+		if query.ID != 1 {
+			t.Fatalf("query ID = %d, want 1", query.ID)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatalf("subscriber did not receive query after notify")
+	}
+
+	if fetchCalls.Load() != 1 {
+		t.Fatalf("fetch call count after notify = %d, want 1", fetchCalls.Load())
+	}
+}

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -110,5 +111,42 @@ func TestWriterDrainsOnShutdown(t *testing.T) {
 	queries, _ := db.QueryLog("", "", time.Time{}, time.Now().Add(time.Minute), 100, 0)
 	if len(queries) != 1 {
 		t.Fatalf("got %d queries after drain, want 1", len(queries))
+	}
+}
+
+func TestWriterCallsOnFlushHookAfterSuccessfulWrite(t *testing.T) {
+	db, tracker, mgr := testSetup(t)
+
+	db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:ff",
+		IP:        "192.168.1.10",
+		FirstSeen: time.Now(),
+		LastSeen:  time.Now(),
+	})
+
+	var flushCalls atomic.Int32
+	ch := make(chan dns.QueryRecord, 10)
+	w := NewWriter(ch, db, tracker, mgr, Config{
+		BatchSize:     1,
+		FlushInterval: 5 * time.Second,
+		OnFlush: func() {
+			flushCalls.Add(1)
+		},
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go w.Run(ctx)
+
+	ch <- dns.QueryRecord{
+		SourceIP:  "192.168.1.10",
+		Domain:    "flush-hook.test.",
+		QueryType: "A",
+		Timestamp: time.Now(),
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	if flushCalls.Load() != 1 {
+		t.Fatalf("flush hook calls = %d, want 1", flushCalls.Load())
 	}
 }

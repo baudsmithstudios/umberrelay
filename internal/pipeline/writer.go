@@ -15,6 +15,7 @@ import (
 type Config struct {
 	BatchSize     int
 	FlushInterval time.Duration
+	OnFlush       func()
 }
 
 // Writer reads DNS query records from a channel, enriches them, and writes to the store.
@@ -94,5 +95,9 @@ func (w *Writer) flush(buf []store.Query) {
 	}
 	if err := w.db.WriteQueries(buf); err != nil {
 		log.Printf("flush queries: %v", err)
+		return
+	}
+	if w.cfg.OnFlush != nil {
+		w.cfg.OnFlush()
 	}
 }

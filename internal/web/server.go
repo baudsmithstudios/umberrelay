@@ -107,6 +107,13 @@ func (s *Server) Close() {
 	}
 }
 
+// NotifyNewQueries wakes the live stream hub after successful query writes.
+func (s *Server) NotifyNewQueries() {
+	if s.queryHub != nil {
+		s.queryHub.NotifyNewQueries()
+	}
+}
+
 func (s *Server) httpServer(addr string) *http.Server {
 	return &http.Server{
 		Addr:              addr,
