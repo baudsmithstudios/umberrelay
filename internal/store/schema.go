@@ -24,6 +24,18 @@ CREATE INDEX IF NOT EXISTS idx_queries_device ON queries(device_mac, timestamp);
 CREATE INDEX IF NOT EXISTS idx_queries_domain ON queries(domain, timestamp);
 CREATE INDEX IF NOT EXISTS idx_queries_ts ON queries(timestamp);
 
+CREATE TABLE IF NOT EXISTS query_rollups_hourly (
+    bucket_start  INTEGER NOT NULL,
+    device_mac    TEXT    NOT NULL DEFAULT '',
+    source_ip     TEXT    NOT NULL DEFAULT '',
+    total_count   INTEGER NOT NULL,
+    tracker_count INTEGER NOT NULL,
+    PRIMARY KEY (bucket_start, device_mac, source_ip)
+);
+CREATE INDEX IF NOT EXISTS idx_rollups_bucket ON query_rollups_hourly(bucket_start);
+CREATE INDEX IF NOT EXISTS idx_rollups_device_bucket ON query_rollups_hourly(device_mac, bucket_start);
+CREATE INDEX IF NOT EXISTS idx_rollups_source_bucket ON query_rollups_hourly(source_ip, bucket_start);
+
 CREATE TABLE IF NOT EXISTS lists (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     url        TEXT    UNIQUE NOT NULL,

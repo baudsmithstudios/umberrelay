@@ -16,6 +16,47 @@ import (
 const trackingCategorySQL = "('tracking', 'advertising', 'malware')"
 const encryptedDNSBootstrapSQL = "('dns.google', 'cloudflare-dns.com', 'one.one.one.one', 'dns.quad9.net', 'doh.opendns.com', 'dns.nextdns.io', 'dns.adguard-dns.com')"
 
+func isTrackingCategory(cat string) bool {
+	switch cat {
+	case category.Tracking, category.Advertising, category.Malware:
+		return true
+	default:
+		return false
+	}
+}
+
+func backfillHourlyRollups(conn *sql.DB) error {
+	var rollupCount int
+	if err := conn.QueryRow(`SELECT COUNT(*) FROM query_rollups_hourly`).Scan(&rollupCount); err != nil {
+		return err
+	}
+	if rollupCount > 0 {
+		return nil
+	}
+
+	var queryCount int
+	if err := conn.QueryRow(`SELECT COUNT(*) FROM queries`).Scan(&queryCount); err != nil {
+		return err
+	}
+	if queryCount == 0 {
+		return nil
+	}
+
+	hourNS := int64(time.Hour)
+	_, err := conn.Exec(`
+		INSERT INTO query_rollups_hourly (bucket_start, device_mac, source_ip, total_count, tracker_count)
+		SELECT (timestamp / ?) * ? as bucket_start,
+		       device_mac,
+		       CASE WHEN device_mac = '' THEN source_ip ELSE '' END as source_key,
+		       COUNT(*) as total_count,
+		       COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0) as tracker_count
+		FROM queries
+		GROUP BY (timestamp / ?), device_mac, source_key`,
+		hourNS, hourNS, hourNS,
+	)
+	return err
+}
+
 // Device represents a discovered network device.
 type Device struct {
 	MAC       string
@@ -140,6 +181,10 @@ func Open(path string) (*DB, error) {
 		conn.Close()
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	if err := backfillHourlyRollups(conn); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("backfill rollups: %w", err)
+	}
 	return &DB{sql: conn}, nil
 }
 
@@ -239,8 +284,52 @@ func (d *DB) WriteQueries(queries []Query) error {
 	}
 	defer stmt.Close()
 
+	type rollupKey struct {
+		BucketStart int64
+		DeviceMAC   string
+		SourceIP    string
+	}
+	type rollupCount struct {
+		Total   int
+		Tracker int
+	}
+	rollups := make(map[rollupKey]rollupCount)
+
 	for _, q := range queries {
 		if _, err := stmt.Exec(q.DeviceMAC, q.SourceIP, q.Domain, q.QueryType, q.Category, q.Timestamp.UnixNano()); err != nil {
+			return err
+		}
+		bucketStart := q.Timestamp.UTC().Truncate(time.Hour).UnixNano()
+		sourceKey := ""
+		if q.DeviceMAC == "" {
+			sourceKey = q.SourceIP
+		}
+		key := rollupKey{
+			BucketStart: bucketStart,
+			DeviceMAC:   q.DeviceMAC,
+			SourceIP:    sourceKey,
+		}
+		count := rollups[key]
+		count.Total++
+		if isTrackingCategory(q.Category) {
+			count.Tracker++
+		}
+		rollups[key] = count
+	}
+
+	rollupStmt, err := tx.Prepare(`
+		INSERT INTO query_rollups_hourly (bucket_start, device_mac, source_ip, total_count, tracker_count)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(bucket_start, device_mac, source_ip) DO UPDATE SET
+		    total_count   = query_rollups_hourly.total_count + excluded.total_count,
+		    tracker_count = query_rollups_hourly.tracker_count + excluded.tracker_count`)
+	if err != nil {
+		return err
+	}
+	defer rollupStmt.Close()
+
+	for key, count := range rollups {
+		if _, err := rollupStmt.Exec(key.BucketStart, key.DeviceMAC, key.SourceIP, count.Total, count.Tracker); err != nil {
 			return err
 		}
 	}
@@ -403,20 +492,28 @@ func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
 
 	currentHour := time.Now().UTC().Truncate(time.Hour)
 	oldestHour := currentHour.Add(-(bucketCount - 1) * time.Hour)
-	hourNS := int64(time.Hour)
-
-	query := `
-		SELECT timestamp / ? AS hour_key,
-		       COUNT(*),
-		       COALESCE(SUM(CASE WHEN category IN ` + trackingCategorySQL + ` THEN 1 ELSE 0 END), 0)
-		FROM queries
-		WHERE timestamp >= ?`
-	args := []any{hourNS, oldestHour.UnixNano()}
+	var query string
+	args := []any{oldestHour.UnixNano()}
 	if mac != "" {
-		query += ` AND device_mac = ?`
+		query = `
+			SELECT bucket_start,
+			       SUM(total_count),
+			       SUM(tracker_count)
+			FROM query_rollups_hourly
+			WHERE bucket_start >= ? AND device_mac = ?
+			GROUP BY bucket_start
+			ORDER BY bucket_start`
 		args = append(args, mac)
+	} else {
+		query = `
+			SELECT bucket_start,
+			       SUM(total_count),
+			       SUM(tracker_count)
+			FROM query_rollups_hourly
+			WHERE bucket_start >= ?
+			GROUP BY bucket_start
+			ORDER BY bucket_start`
 	}
-	query += ` GROUP BY hour_key ORDER BY hour_key`
 
 	rows, err := d.sql.Query(query, args...)
 	if err != nil {
@@ -426,12 +523,12 @@ func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
 
 	countsByHour := make(map[int64]HourlyBucket, bucketCount)
 	for rows.Next() {
-		var hourKey int64
+		var bucketStart int64
 		var bucket HourlyBucket
-		if err := rows.Scan(&hourKey, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
+		if err := rows.Scan(&bucketStart, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
 			return nil, err
 		}
-		countsByHour[hourKey] = bucket
+		countsByHour[bucketStart] = bucket
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -440,8 +537,7 @@ func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
 	buckets := make([]HourlyBucket, 0, bucketCount)
 	for i := 0; i < bucketCount; i++ {
 		ts := oldestHour.Add(time.Duration(i) * time.Hour)
-		hourKey := ts.UnixNano() / hourNS
-		bucket := countsByHour[hourKey]
+		bucket := countsByHour[ts.UnixNano()]
 		bucket.Timestamp = ts
 		buckets = append(buckets, bucket)
 	}
@@ -455,16 +551,14 @@ func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
 
 	currentHour := time.Now().UTC().Truncate(time.Hour)
 	oldestHour := currentHour.Add(-(bucketCount - 1) * time.Hour)
-	hourNS := int64(time.Hour)
-
 	rows, err := d.sql.Query(`
-		SELECT timestamp / ? AS hour_key,
-		       COUNT(*),
-		       COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0)
-		FROM queries
-		WHERE timestamp >= ? AND device_mac = '' AND source_ip = ?
-		GROUP BY hour_key
-		ORDER BY hour_key`, hourNS, oldestHour.UnixNano(), sourceIP)
+		SELECT bucket_start,
+		       SUM(total_count),
+		       SUM(tracker_count)
+		FROM query_rollups_hourly
+		WHERE bucket_start >= ? AND device_mac = '' AND source_ip = ?
+		GROUP BY bucket_start
+		ORDER BY bucket_start`, oldestHour.UnixNano(), sourceIP)
 	if err != nil {
 		return nil, err
 	}
@@ -472,12 +566,12 @@ func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
 
 	countsByHour := make(map[int64]HourlyBucket, bucketCount)
 	for rows.Next() {
-		var hourKey int64
+		var bucketStart int64
 		var bucket HourlyBucket
-		if err := rows.Scan(&hourKey, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
+		if err := rows.Scan(&bucketStart, &bucket.TotalCount, &bucket.TrackerCount); err != nil {
 			return nil, err
 		}
-		countsByHour[hourKey] = bucket
+		countsByHour[bucketStart] = bucket
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -486,8 +580,7 @@ func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
 	buckets := make([]HourlyBucket, 0, bucketCount)
 	for i := 0; i < bucketCount; i++ {
 		ts := oldestHour.Add(time.Duration(i) * time.Hour)
-		hourKey := ts.UnixNano() / hourNS
-		bucket := countsByHour[hourKey]
+		bucket := countsByHour[ts.UnixNano()]
 		bucket.Timestamp = ts
 		buckets = append(buckets, bucket)
 	}
@@ -497,8 +590,15 @@ func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
 
 // PurgeQueriesOlderThan deletes query records older than cutoff.
 func (d *DB) PurgeQueriesOlderThan(cutoff time.Time) error {
-	_, err := d.sql.Exec(`DELETE FROM queries WHERE timestamp < ?`, cutoff.UnixNano())
-	return err
+	for {
+		deleted, err := d.PurgeQueriesOlderThanChunk(cutoff, 500)
+		if err != nil {
+			return err
+		}
+		if deleted == 0 {
+			return nil
+		}
+	}
 }
 
 // PurgeQueriesOlderThanChunk deletes up to limit query records older than cutoff.
@@ -506,23 +606,91 @@ func (d *DB) PurgeQueriesOlderThanChunk(cutoff time.Time, limit int) (int64, err
 	if limit <= 0 {
 		return 0, nil
 	}
-	result, err := d.sql.Exec(`
-		DELETE FROM queries
-		WHERE id IN (
-			SELECT id
-			FROM queries
-			WHERE timestamp < ?
-			ORDER BY timestamp ASC
-			LIMIT ?
-		)`, cutoff.UnixNano(), limit)
+	if limit > 900 {
+		limit = 900
+	}
+
+	tx, err := d.sql.Begin()
 	if err != nil {
 		return 0, err
 	}
-	rowsAffected, err := result.RowsAffected()
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`
+		SELECT id, timestamp
+		FROM queries
+		WHERE timestamp < ?
+		ORDER BY timestamp ASC
+		LIMIT ?`, cutoff.UnixNano(), limit)
 	if err != nil {
 		return 0, err
 	}
-	return rowsAffected, nil
+
+	ids := make([]int64, 0, limit)
+	buckets := make(map[int64]struct{})
+	for rows.Next() {
+		var id int64
+		var ts int64
+		if err := rows.Scan(&id, &ts); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		ids = append(ids, id)
+		bucketStart := time.Unix(0, ts).UTC().Truncate(time.Hour).UnixNano()
+		buckets[bucketStart] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, err
+	}
+	rows.Close()
+
+	if len(ids) == 0 {
+		if err := tx.Commit(); err != nil {
+			return 0, err
+		}
+		return 0, nil
+	}
+
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	if _, err := tx.Exec(`DELETE FROM queries WHERE id IN (`+placeholders+`)`, args...); err != nil {
+		return 0, err
+	}
+
+	for bucketStart := range buckets {
+		if err := rebuildHourlyRollupBucketTx(tx, bucketStart); err != nil {
+			return 0, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return int64(len(ids)), nil
+}
+
+func rebuildHourlyRollupBucketTx(tx *sql.Tx, bucketStart int64) error {
+	if _, err := tx.Exec(`DELETE FROM query_rollups_hourly WHERE bucket_start = ?`, bucketStart); err != nil {
+		return err
+	}
+	bucketEnd := bucketStart + int64(time.Hour)
+	_, err := tx.Exec(`
+		INSERT INTO query_rollups_hourly (bucket_start, device_mac, source_ip, total_count, tracker_count)
+		SELECT ? as bucket_start,
+		       device_mac,
+		       CASE WHEN device_mac = '' THEN source_ip ELSE '' END as source_key,
+		       COUNT(*) as total_count,
+		       COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0) as tracker_count
+		FROM queries
+		WHERE timestamp >= ? AND timestamp < ?
+		GROUP BY device_mac, source_key`,
+		bucketStart, bucketStart, bucketEnd,
+	)
+	return err
 }
 
 // SetConfig inserts or updates a config key-value pair.
@@ -1302,18 +1470,28 @@ func (d *DB) dailyActivity(deviceMAC string, bucketCount int) ([]HourlyBucket, e
 	oldestDay := currentDay.AddDate(0, 0, -(bucketCount - 1))
 	dayNS := int64(24 * time.Hour)
 
-	query := `
-		SELECT timestamp / ? AS day_key,
-		       COUNT(*),
-		       COALESCE(SUM(CASE WHEN category IN ` + trackingCategorySQL + ` THEN 1 ELSE 0 END), 0)
-		FROM queries
-		WHERE timestamp >= ?`
+	var query string
 	args := []any{dayNS, oldestDay.UnixNano()}
 	if deviceMAC != "" {
-		query += ` AND device_mac = ?`
+		query = `
+			SELECT bucket_start / ? AS day_key,
+			       SUM(total_count),
+			       SUM(tracker_count)
+			FROM query_rollups_hourly
+			WHERE bucket_start >= ? AND device_mac = ?
+			GROUP BY day_key
+			ORDER BY day_key`
 		args = append(args, deviceMAC)
+	} else {
+		query = `
+			SELECT bucket_start / ? AS day_key,
+			       SUM(total_count),
+			       SUM(tracker_count)
+			FROM query_rollups_hourly
+			WHERE bucket_start >= ?
+			GROUP BY day_key
+			ORDER BY day_key`
 	}
-	query += ` GROUP BY day_key ORDER BY day_key`
 
 	rows, err := d.sql.Query(query, args...)
 	if err != nil {
@@ -1352,11 +1530,11 @@ func (d *DB) dailyActivitySource(sourceIP string, bucketCount int) ([]HourlyBuck
 	dayNS := int64(24 * time.Hour)
 
 	rows, err := d.sql.Query(`
-		SELECT timestamp / ? AS day_key,
-		       COUNT(*),
-		       COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0)
-		FROM queries
-		WHERE timestamp >= ? AND device_mac = '' AND source_ip = ?
+		SELECT bucket_start / ? AS day_key,
+		       SUM(total_count),
+		       SUM(tracker_count)
+		FROM query_rollups_hourly
+		WHERE bucket_start >= ? AND device_mac = '' AND source_ip = ?
 		GROUP BY day_key
 		ORDER BY day_key`, dayNS, oldestDay.UnixNano(), sourceIP)
 	if err != nil {

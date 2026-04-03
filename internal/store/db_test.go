@@ -152,6 +152,110 @@ func TestWriteAndQueryQueriesPreservesSourceIP(t *testing.T) {
 	}
 }
 
+func TestWriteQueriesUpdatesHourlyRollups(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC().Truncate(time.Hour)
+
+	if err := db.WriteQueries([]Query{
+		{
+			DeviceMAC: "aa:bb:cc:dd:ee:ff",
+			SourceIP:  "192.168.1.10",
+			Domain:    "ads.example.com",
+			QueryType: "A",
+			Category:  "tracking",
+			Timestamp: now.Add(5 * time.Minute),
+		},
+		{
+			DeviceMAC: "aa:bb:cc:dd:ee:ff",
+			SourceIP:  "192.168.1.10",
+			Domain:    "api.example.com",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(10 * time.Minute),
+		},
+		{
+			DeviceMAC: "",
+			SourceIP:  "10.44.0.7",
+			Domain:    "unknown.example.com",
+			QueryType: "A",
+			Category:  "advertising",
+			Timestamp: now.Add(15 * time.Minute),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	var deviceTotal, deviceTracker int
+	if err := db.sql.QueryRow(`
+		SELECT total_count, tracker_count
+		FROM query_rollups_hourly
+		WHERE bucket_start = ? AND device_mac = ? AND source_ip = ''`,
+		now.UnixNano(),
+		"aa:bb:cc:dd:ee:ff",
+	).Scan(&deviceTotal, &deviceTracker); err != nil {
+		t.Fatalf("query device rollup: %v", err)
+	}
+	if deviceTotal != 2 || deviceTracker != 1 {
+		t.Fatalf("device rollup total/tracker = %d/%d, want 2/1", deviceTotal, deviceTracker)
+	}
+
+	var sourceTotal, sourceTracker int
+	if err := db.sql.QueryRow(`
+		SELECT total_count, tracker_count
+		FROM query_rollups_hourly
+		WHERE bucket_start = ? AND device_mac = '' AND source_ip = ?`,
+		now.UnixNano(),
+		"10.44.0.7",
+	).Scan(&sourceTotal, &sourceTracker); err != nil {
+		t.Fatalf("query source rollup: %v", err)
+	}
+	if sourceTotal != 1 || sourceTracker != 1 {
+		t.Fatalf("source rollup total/tracker = %d/%d, want 1/1", sourceTotal, sourceTracker)
+	}
+}
+
+func TestOpenBackfillsHourlyRollupsWhenEmpty(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open(initial): %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Hour)
+	if err := db.WriteQueries([]Query{
+		{
+			DeviceMAC: "aa:bb:cc:dd:ee:ff",
+			SourceIP:  "192.168.1.10",
+			Domain:    "ads.example.com",
+			QueryType: "A",
+			Category:  "tracking",
+			Timestamp: now.Add(10 * time.Minute),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	if _, err := db.sql.Exec(`DELETE FROM query_rollups_hourly`); err != nil {
+		t.Fatalf("DELETE rollups: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close(initial): %v", err)
+	}
+
+	reopened, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open(reopen): %v", err)
+	}
+	t.Cleanup(func() { reopened.Close() })
+
+	var count int
+	if err := reopened.sql.QueryRow(`SELECT COUNT(*) FROM query_rollups_hourly`).Scan(&count); err != nil {
+		t.Fatalf("count rollups: %v", err)
+	}
+	if count == 0 {
+		t.Fatalf("rollups not backfilled on reopen")
+	}
+}
+
 func TestQueryLogFilters(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -1101,15 +1205,15 @@ func TestHourlyActivityUsesExpectedIndex(t *testing.T) {
 	}{
 		{
 			name:     "global activity",
-			query:    "EXPLAIN QUERY PLAN SELECT timestamp / ? AS hour_key, COUNT(*), COALESCE(SUM(CASE WHEN category IN ('tracking', 'advertising', 'malware') THEN 1 ELSE 0 END), 0) FROM queries WHERE timestamp >= ? GROUP BY hour_key ORDER BY hour_key",
-			args:     []any{int64(time.Hour), time.Now().Add(-24 * time.Hour).UnixNano()},
-			wantPlan: "idx_queries_ts",
+			query:    "EXPLAIN QUERY PLAN SELECT bucket_start, SUM(total_count), SUM(tracker_count) FROM query_rollups_hourly WHERE bucket_start >= ? GROUP BY bucket_start ORDER BY bucket_start",
+			args:     []any{time.Now().Add(-24 * time.Hour).UnixNano()},
+			wantPlan: "idx_rollups_bucket",
 		},
 		{
 			name:     "device activity",
-			query:    "EXPLAIN QUERY PLAN SELECT timestamp / ? AS hour_key, COUNT(*), COALESCE(SUM(CASE WHEN category IN ('tracking', 'advertising', 'malware') THEN 1 ELSE 0 END), 0) FROM queries WHERE timestamp >= ? AND device_mac = ? GROUP BY hour_key ORDER BY hour_key",
-			args:     []any{int64(time.Hour), time.Now().Add(-24 * time.Hour).UnixNano(), "aa:bb:cc:dd:ee:ff"},
-			wantPlan: "idx_queries_device",
+			query:    "EXPLAIN QUERY PLAN SELECT bucket_start, SUM(total_count), SUM(tracker_count) FROM query_rollups_hourly WHERE bucket_start >= ? AND device_mac = ? GROUP BY bucket_start ORDER BY bucket_start",
+			args:     []any{time.Now().Add(-24 * time.Hour).UnixNano(), "aa:bb:cc:dd:ee:ff"},
+			wantPlan: "idx_rollups_device_bucket",
 		},
 	}
 
