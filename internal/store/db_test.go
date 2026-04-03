@@ -97,6 +97,34 @@ func TestWriteAndQueryQueries(t *testing.T) {
 	}
 }
 
+func TestWriteAndQueryQueriesPreservesSourceIP(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+
+	err := db.WriteQueries([]Query{{
+		DeviceMAC: "",
+		SourceIP:  "192.168.50.23",
+		Domain:    "unmapped.example.com",
+		QueryType: "A",
+		Category:  "",
+		Timestamp: now,
+	}})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	results, err := db.QueryLog("", "", time.Time{}, now.Add(time.Minute), 100, 0)
+	if err != nil {
+		t.Fatalf("QueryLog: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("got %d results, want 1", len(results))
+	}
+	if results[0].SourceIP != "192.168.50.23" {
+		t.Fatalf("SourceIP = %q, want %q", results[0].SourceIP, "192.168.50.23")
+	}
+}
+
 func TestQueryLogFilters(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

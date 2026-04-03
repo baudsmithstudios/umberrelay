@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS devices (
 CREATE TABLE IF NOT EXISTS queries (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     device_mac TEXT REFERENCES devices(mac),
+    source_ip  TEXT    NOT NULL DEFAULT '',
     domain     TEXT    NOT NULL,
     query_type TEXT    NOT NULL,
     category   TEXT    NOT NULL DEFAULT '',

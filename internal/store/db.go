@@ -27,6 +27,7 @@ type Device struct {
 type Query struct {
 	ID        int64
 	DeviceMAC string
+	SourceIP  string
 	Domain    string
 	QueryType string
 	Category  string
@@ -181,14 +182,14 @@ func (d *DB) WriteQueries(queries []Query) error {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(`INSERT INTO queries (device_mac, domain, query_type, category, timestamp) VALUES (?, ?, ?, ?, ?)`)
+	stmt, err := tx.Prepare(`INSERT INTO queries (device_mac, source_ip, domain, query_type, category, timestamp) VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, q := range queries {
-		if _, err := stmt.Exec(q.DeviceMAC, q.Domain, q.QueryType, q.Category, q.Timestamp.UnixNano()); err != nil {
+		if _, err := stmt.Exec(q.DeviceMAC, q.SourceIP, q.Domain, q.QueryType, q.Category, q.Timestamp.UnixNano()); err != nil {
 			return err
 		}
 	}
@@ -217,7 +218,7 @@ func (d *DB) QueryLog(deviceMAC, domain string, from, to time.Time, limit, offse
 		args = append(args, to.UnixNano())
 	}
 
-	query := `SELECT id, device_mac, domain, query_type, category, timestamp FROM queries`
+	query := `SELECT id, device_mac, source_ip, domain, query_type, category, timestamp FROM queries`
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
@@ -234,7 +235,7 @@ func (d *DB) QueryLog(deviceMAC, domain string, from, to time.Time, limit, offse
 	for rows.Next() {
 		var q Query
 		var ts int64
-		if err := rows.Scan(&q.ID, &q.DeviceMAC, &q.Domain, &q.QueryType, &q.Category, &ts); err != nil {
+		if err := rows.Scan(&q.ID, &q.DeviceMAC, &q.SourceIP, &q.Domain, &q.QueryType, &q.Category, &ts); err != nil {
 			return nil, err
 		}
 		q.Timestamp = time.Unix(0, ts)

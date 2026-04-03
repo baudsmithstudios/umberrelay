@@ -80,6 +80,7 @@ func (w *Writer) enrich(rec dns.QueryRecord) store.Query {
 	category := w.classify.Classify(rec.Domain)
 	return store.Query{
 		DeviceMAC: mac,
+		SourceIP:  rec.SourceIP,
 		Domain:    rec.Domain,
 		QueryType: rec.QueryType,
 		Category:  category,

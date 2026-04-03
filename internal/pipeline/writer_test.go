@@ -71,6 +71,9 @@ func TestWriterProcessesRecords(t *testing.T) {
 	if queries[0].DeviceMAC != "aa:bb:cc:dd:ee:ff" {
 		t.Errorf("device_mac = %q, want aa:bb:cc:dd:ee:ff", queries[0].DeviceMAC)
 	}
+	if queries[0].SourceIP != "192.168.1.10" {
+		t.Errorf("source_ip = %q, want 192.168.1.10", queries[0].SourceIP)
+	}
 }
 
 func TestWriterDrainsOnShutdown(t *testing.T) {
