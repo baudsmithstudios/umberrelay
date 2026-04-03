@@ -322,6 +322,73 @@ func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
 	}
 }
 
+func TestPrivacyPageDataIncludesBypassSignals(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       mac,
+		IP:        "192.168.1.10",
+		Hostname:  "living-room-tv",
+		FirstSeen: now.Add(-7 * 24 * time.Hour),
+		LastSeen:  now.Add(-5 * time.Minute),
+	}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: mac,
+			Domain:    "dns.google.",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-3 * 24 * time.Hour),
+		},
+		{
+			DeviceMAC: mac,
+			Domain:    "example.com.",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-26 * time.Hour),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	view, err := s.privacyPageData(now, "")
+	if err != nil {
+		t.Fatalf("privacyPageData: %v", err)
+	}
+
+	foundAttention := false
+	for _, anomaly := range view.Anomalies {
+		if anomaly.DeviceMAC == mac {
+			foundAttention = true
+			if anomaly.Class != "anomaly-bypass" {
+				t.Fatalf("anomaly class = %q, want %q", anomaly.Class, "anomaly-bypass")
+			}
+		}
+	}
+	if !foundAttention {
+		t.Fatalf("expected bypass signal in attention feed: %#v", view.Anomalies)
+	}
+
+	foundRow := false
+	for _, device := range view.Devices {
+		if device.MAC == mac {
+			foundRow = true
+			if device.AnomalyClass != "anomaly-bypass" {
+				t.Fatalf("device anomaly class = %q, want %q", device.AnomalyClass, "anomaly-bypass")
+			}
+		}
+	}
+	if !foundRow {
+		t.Fatalf("expected device row for %s", mac)
+	}
+}
+
 func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()

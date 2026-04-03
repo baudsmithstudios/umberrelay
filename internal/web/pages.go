@@ -322,6 +322,8 @@ func anomalyClass(anomalyType string) string {
 	switch anomalyType {
 	case "tracker_spike":
 		return "anomaly-tracker"
+	case "dns_bypass_likely", "dns_bypass_suspected":
+		return "anomaly-bypass"
 	default:
 		return "anomaly-volume"
 	}
@@ -331,6 +333,10 @@ func anomalyBadge(anomaly store.Anomaly) string {
 	switch anomaly.Type {
 	case "tracker_spike":
 		return fmt.Sprintf("+%.0fpp", anomaly.Delta)
+	case "dns_bypass_likely":
+		return "Likely"
+	case "dns_bypass_suspected":
+		return "Suspected"
 	default:
 		if anomaly.AverageValue <= 0 {
 			return fmt.Sprintf("+%.0f", anomaly.Delta)
@@ -343,6 +349,10 @@ func anomalyExplanation(anomaly store.Anomaly) string {
 	switch anomaly.Type {
 	case "tracker_spike":
 		return fmt.Sprintf("%s jumped above its usual tracker rate, led by %s from %s.", anomaly.DeviceName, anomaly.TopDomain, anomaly.TopDomainSourceList)
+	case "dns_bypass_likely":
+		return fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes. Earlier queries included %s, which suggests encrypted DNS usage.", anomaly.DeviceName, int(anomaly.Delta), anomaly.TopDomain)
+	case "dns_bypass_suspected":
+		return fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes despite prior DNS activity, so visibility may be bypassed.", anomaly.DeviceName, int(anomaly.Delta))
 	default:
 		return fmt.Sprintf("%s is making far more requests than usual, with %s contributing the largest spike from %s.", anomaly.DeviceName, anomaly.TopDomain, anomaly.TopDomainSourceList)
 	}
@@ -362,15 +372,43 @@ func makeAnomalyRows(anomalies []store.Anomaly) []anomalyRow {
 	return rows
 }
 
+func anomalyPriority(className string) int {
+	switch className {
+	case "anomaly-tracker":
+		return 3
+	case "anomaly-bypass":
+		return 2
+	default:
+		return 1
+	}
+}
+
 func selectedDeviceAnomalies(anomalies []store.Anomaly) map[string]string {
 	out := make(map[string]string, len(anomalies))
 	for _, anomaly := range anomalies {
-		if out[anomaly.DeviceMAC] == "anomaly-tracker" {
+		className := anomalyClass(anomaly.Type)
+		existing, ok := out[anomaly.DeviceMAC]
+		if ok && anomalyPriority(existing) >= anomalyPriority(className) {
 			continue
 		}
-		out[anomaly.DeviceMAC] = anomalyClass(anomaly.Type)
+		out[anomaly.DeviceMAC] = className
 	}
 	return out
+}
+
+func bypassSignalAsAnomaly(signal store.BypassSignal) store.Anomaly {
+	anomalyType := "dns_bypass_suspected"
+	if signal.Confidence == "likely" {
+		anomalyType = "dns_bypass_likely"
+	}
+	return store.Anomaly{
+		DeviceMAC:    signal.DeviceMAC,
+		DeviceName:   signal.DeviceName,
+		Type:         anomalyType,
+		CurrentValue: float64(signal.SilentMinutes),
+		Delta:        float64(signal.SilentMinutes),
+		TopDomain:    signal.HintDomain,
+	}
 }
 
 func findDevice(devices []store.DeviceWithTrends, mac string) *store.DeviceWithTrends {
@@ -519,6 +557,13 @@ func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPage
 	anomalies, err := s.db.DeviceAnomalies()
 	if err != nil {
 		return privacyPageView{}, err
+	}
+	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
+	if err != nil {
+		return privacyPageView{}, err
+	}
+	for _, signal := range bypassSignals {
+		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
 	}
 
 	rows := makeDeviceTrendRows(devices, sources)

@@ -1418,3 +1418,114 @@ func TestDeviceAnomalies(t *testing.T) {
 		t.Fatalf("volume delta = %v, want > 0", volume.Delta)
 	}
 }
+
+func TestDeviceBypassSignals(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+
+	likelyMAC := "aa:bb:cc:dd:ee:01"
+	suspectedMAC := "aa:bb:cc:dd:ee:02"
+	activeMAC := "aa:bb:cc:dd:ee:03"
+
+	for _, dev := range []Device{
+		{
+			MAC:       likelyMAC,
+			Hostname:  "living-room-tv",
+			Vendor:    "TV Vendor",
+			FirstSeen: now.Add(-5 * 24 * time.Hour),
+			LastSeen:  now.Add(-5 * time.Minute),
+		},
+		{
+			MAC:       suspectedMAC,
+			Hostname:  "kitchen-speaker",
+			Vendor:    "Speaker Vendor",
+			FirstSeen: now.Add(-5 * 24 * time.Hour),
+			LastSeen:  now.Add(-6 * time.Minute),
+		},
+		{
+			MAC:       activeMAC,
+			Hostname:  "office-laptop",
+			Vendor:    "Laptop Vendor",
+			FirstSeen: now.Add(-5 * 24 * time.Hour),
+			LastSeen:  now.Add(-4 * time.Minute),
+		},
+	} {
+		if err := db.UpsertDevice(dev); err != nil {
+			t.Fatalf("UpsertDevice(%s): %v", dev.MAC, err)
+		}
+	}
+
+	err := db.WriteQueries([]Query{
+		{
+			DeviceMAC: likelyMAC,
+			Domain:    "dns.google.",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-3 * 24 * time.Hour),
+		},
+		{
+			DeviceMAC: likelyMAC,
+			Domain:    "example.com.",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-2 * time.Hour),
+		},
+		{
+			DeviceMAC: suspectedMAC,
+			Domain:    "example.org.",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-2 * time.Hour),
+		},
+		{
+			DeviceMAC: activeMAC,
+			Domain:    "api.example.net.",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-15 * time.Minute),
+		},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	signals, err := db.DeviceBypassSignalsAt(now)
+	if err != nil {
+		t.Fatalf("DeviceBypassSignalsAt: %v", err)
+	}
+
+	if len(signals) != 2 {
+		t.Fatalf("got %d bypass signals, want 2", len(signals))
+	}
+
+	byMAC := make(map[string]BypassSignal, len(signals))
+	for _, signal := range signals {
+		byMAC[signal.DeviceMAC] = signal
+	}
+
+	likely, ok := byMAC[likelyMAC]
+	if !ok {
+		t.Fatalf("missing likely signal for %s", likelyMAC)
+	}
+	if likely.Confidence != "likely" {
+		t.Fatalf("likely confidence = %q, want %q", likely.Confidence, "likely")
+	}
+	if likely.HintDomain != "dns.google" {
+		t.Fatalf("likely hint domain = %q, want %q", likely.HintDomain, "dns.google")
+	}
+
+	suspected, ok := byMAC[suspectedMAC]
+	if !ok {
+		t.Fatalf("missing suspected signal for %s", suspectedMAC)
+	}
+	if suspected.Confidence != "suspected" {
+		t.Fatalf("suspected confidence = %q, want %q", suspected.Confidence, "suspected")
+	}
+	if suspected.HintDomain != "" {
+		t.Fatalf("suspected hint domain = %q, want empty", suspected.HintDomain)
+	}
+
+	if _, ok := byMAC[activeMAC]; ok {
+		t.Fatalf("active device %s should not be flagged", activeMAC)
+	}
+}

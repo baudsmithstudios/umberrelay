@@ -938,6 +938,106 @@ func TestAPIAnomalies(t *testing.T) {
 	}
 }
 
+func TestAPIBypassSignals(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:01",
+		Hostname:  "living-room-tv",
+		FirstSeen: now.Add(-3 * 24 * time.Hour),
+		LastSeen:  now.Add(-5 * time.Minute),
+	}); err != nil {
+		t.Fatalf("UpsertDevice(likely): %v", err)
+	}
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:02",
+		Hostname:  "kitchen-speaker",
+		FirstSeen: now.Add(-3 * 24 * time.Hour),
+		LastSeen:  now.Add(-6 * time.Minute),
+	}); err != nil {
+		t.Fatalf("UpsertDevice(suspected): %v", err)
+	}
+	if err := s.db.UpsertDevice(store.Device{
+		MAC:       "aa:bb:cc:dd:ee:03",
+		Hostname:  "office-laptop",
+		FirstSeen: now.Add(-3 * 24 * time.Hour),
+		LastSeen:  now.Add(-4 * time.Minute),
+	}); err != nil {
+		t.Fatalf("UpsertDevice(active): %v", err)
+	}
+
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:01", Domain: "dns.google.", QueryType: "A", Timestamp: now.Add(-2 * 24 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:01", Domain: "example.com.", QueryType: "A", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:02", Domain: "example.org.", QueryType: "A", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:03", Domain: "active.example.net.", QueryType: "A", Timestamp: now.Add(-15 * time.Minute)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/bypass", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response []struct {
+		DeviceMAC       string `json:"device_mac"`
+		DeviceName      string `json:"device_name"`
+		Confidence      string `json:"confidence"`
+		HintDomain      string `json:"hint_domain"`
+		SilentMinutes   int    `json:"silent_minutes"`
+		PriorQueryCount int    `json:"prior_query_count"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+
+	if len(response) != 2 {
+		t.Fatalf("bypass signal count = %d, want 2", len(response))
+	}
+	if response[0].DeviceMAC != "aa:bb:cc:dd:ee:01" {
+		t.Fatalf("first device_mac = %q, want aa:bb:cc:dd:ee:01", response[0].DeviceMAC)
+	}
+	if response[0].Confidence != "likely" {
+		t.Fatalf("first confidence = %q, want likely", response[0].Confidence)
+	}
+	if response[0].HintDomain != "dns.google" {
+		t.Fatalf("first hint_domain = %q, want dns.google", response[0].HintDomain)
+	}
+	if response[0].SilentMinutes <= 0 {
+		t.Fatalf("first silent_minutes = %d, want > 0", response[0].SilentMinutes)
+	}
+	if response[1].DeviceMAC != "aa:bb:cc:dd:ee:02" {
+		t.Fatalf("second device_mac = %q, want aa:bb:cc:dd:ee:02", response[1].DeviceMAC)
+	}
+	if response[1].Confidence != "suspected" {
+		t.Fatalf("second confidence = %q, want suspected", response[1].Confidence)
+	}
+	if response[1].HintDomain != "" {
+		t.Fatalf("second hint_domain = %q, want empty", response[1].HintDomain)
+	}
+	if response[1].PriorQueryCount == 0 {
+		t.Fatalf("second prior_query_count = %d, want > 0", response[1].PriorQueryCount)
+	}
+}
+
+func TestAPIBypassReturnsInternalErrorForStoreFailures(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/bypass", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
 func deviceFixture() store.Device {
 	now := time.Now()
 	return store.Device{

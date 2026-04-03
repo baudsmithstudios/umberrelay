@@ -13,7 +13,7 @@ Priorities may change as Umberrelay matures. This roadmap reflects current produ
    Surface source IP clearly when MAC attribution is unavailable so routed multi-VLAN deployments remain understandable without router-specific integrations. This closes a practical visibility gap exposed by real Pi testing.
 
 2. **DoH/DoT detection**
-   Identify devices bypassing local DNS. This is the highest-impact trust feature: if a device uses encrypted DNS, Umberrelay is blind to it, and users should know that immediately.
+   Identify devices bypassing local DNS. Start with a best-effort signal based on existing DNS and passive discovery data so users get immediate visibility into likely blind spots without requiring packet capture. This is the highest-impact trust feature: if a device uses encrypted DNS, Umberrelay is blind to it, and users should know that immediately.
 
 3. **Live query stream**
    Add a real-time DNS query feed in the web UI, likely via SSE or WebSockets, with filtering by device, domain, and classification. This has immediate debugging value, strong demo value, and makes "what is this device doing right now?" easy to answer.
@@ -56,31 +56,34 @@ Priorities may change as Umberrelay matures. This roadmap reflects current produ
 8. **Router flow export**
    Accept NetFlow or IPFIX from capable routers as an alternative to local packet capture in managed router environments.
 
-9. **DHCP fingerprinting**
+9. **High-confidence encrypted DNS detection**
+   Add higher-confidence DoH/DoT attribution using flow metadata once packet capture or router flow export is available. This is the follow-on enhancement to the MVP best-effort bypass signal.
+
+10. **DHCP fingerprinting**
    Improve device identification using DHCP option ordering and vendor class information. Helpful for attribution, but less important than making device behavior and privacy impact clear.
 
-10. **Statistical behavioral baselines**
+11. **Statistical behavioral baselines**
     Add explainable per-device anomaly baselines using simple statistical methods over historical DNS/flow metadata. This should stay transparent and lightweight; avoid opaque ML until the core signal is mature.
 
 ### Nice To Have
 
-11. **Structured logging**
+12. **Structured logging**
     Move from `log` to `log/slog` for leveled, structured logs. Good operational hygiene, but mostly internal value rather than a major user-facing feature.
 
-12. **TLS fingerprinting**
+13. **TLS fingerprinting**
     Add JA3/JA4-style enrichment once packet capture exists. Useful, but not necessary to prove Umberrelay's core value.
 
-13. **Behavioral clustering**
+14. **Behavioral clustering**
     Infer device type from traffic patterns. This is interesting, but high-complexity, easy to overbuild, and should wait until simpler attribution and alerting work is strong.
 
-14. **Home Assistant integration**
+15. **Home Assistant integration**
     Expose device states, privacy summaries, and future privacy scores via MQTT or API for home automation workflows.
 
-15. **Interactive setup wizard**
+16. **Interactive setup wizard**
     Add `umberrelay init` for guided first-run configuration.
 
-16. **Pi-hole / AdGuard Home query import**
+17. **Pi-hole / AdGuard Home query import**
     Import historical query logs from existing DNS tools so users can migrate data instead of starting from zero.
 
-17. **OpenAPI schema and API versioning plan**
+18. **OpenAPI schema and API versioning plan**
     Add a machine-readable API contract and a clearer path for long-term client compatibility.

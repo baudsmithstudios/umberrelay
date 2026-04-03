@@ -27,6 +27,7 @@ DNS is an intentionally narrow lens, but it is still a useful one: it is cheap t
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
 - **Privacy UI** — Privacy and Settings pages for query volume, tracker percentage, actor breakdown (device or source fallback), domain rankings, and runtime configuration
+- **Best-effort DoH/DoT bypass signal** — flags devices that appear active on LAN but stop using local DNS, with higher confidence when encrypted-DNS bootstrap domains were seen
 - **REST API** — JSON API for actors, devices, queries, activity, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
@@ -174,6 +175,7 @@ The API is unauthenticated — bind to localhost or a trusted network.
 | `GET` | `/api/queries` | Query log (filterable by actor, device, domain, time range) |
 | `GET` | `/api/activity` | Activity buckets for `24h`, `7d`, or `30d` (optionally filter by actor, device, or source) |
 | `GET` | `/api/anomalies` | Known devices with unusual tracker rate or query volume spikes |
+| `GET` | `/api/bypass` | Best-effort signals for devices that may be bypassing local DNS visibility |
 | `GET` | `/api/domains` | Top domains with source list attribution and attribution-actor counts (last 24h) |
 | `GET` | `/api/settings` | Current settings |
 | `PUT` | `/api/settings` | Update settings |
@@ -207,6 +209,7 @@ Selected read endpoints return these JSON shapes:
 | `GET /api/actors` | `[{"key":"device:aa:bb:cc:dd:ee:ff","type":"device","name":"Living Room TV","device_mac":"aa:bb:cc:dd:ee:ff","source_ip":"","query_count":120,"tracker_percent":47.5},{"key":"source:10.0.0.7","type":"source","name":"Unattributed · 10.0.0.7","device_mac":"","source_ip":"10.0.0.7","query_count":25,"tracker_percent":12}]` |
 | `GET /api/activity` | `[{"timestamp": 1711670400, "total": 42, "tracker": 18}]` |
 | `GET /api/anomalies` | `[{"device_mac": "aa:bb:cc:dd:ee:ff", "device_name": "Living Room TV", "type": "tracker_spike", "current_value": 75, "average_value": 20, "delta": 55, "top_domain": "ads.example.com", "top_domain_category": "tracking", "top_domain_source_list": "Tracking List"}]` |
+| `GET /api/bypass` | `[{"device_mac":"aa:bb:cc:dd:ee:ff","device_name":"Living Room TV","confidence":"likely","hint_domain":"dns.google","silent_minutes":180,"prior_query_count":42,"last_seen":1711670400,"last_query":1711659600}]` |
 | `GET /api/domains` | `{ "total_devices": 12, "domains": [{"domain": "ads.example.com", "category": "tracking", "query_count": 120, "device_count": 4, "source_list": "Tracking List"}] }` |
 | `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
 
@@ -289,6 +292,7 @@ The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `
 ## Troubleshooting
 
 - **A device is missing** — confirm the device is actually using Umberrelay for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
+- **A bypass signal is unexpected** — `/api/bypass` is best-effort, not packet-level proof; validate with direct DNS tests (`dig @<umberrelay-ip> ...`) and your router DNS policy
 - **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears as a source fallback actor in the Privacy page or `/api/actors`
 - **Queries are visible but device names are weak** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices simply do not advertise much
 - **Tracker labels look wrong** — classifications come from community blocklists; use domain overrides when a list is too broad or out of date
