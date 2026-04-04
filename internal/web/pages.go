@@ -770,7 +770,7 @@ func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "privacy", "label-edit", struct {
+		s.renderFragment(w, "fragments", "label-edit", struct {
 			Device     store.Device
 			DeviceName string
 		}{
@@ -801,7 +801,7 @@ func (s *Server) handleUIUpdateSourceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "privacy", "source-label-edit", struct {
+		s.renderFragment(w, "fragments", "source-label-edit", struct {
 			DeviceName  string
 			SourceIP    string
 			SourceLabel string
@@ -900,7 +900,7 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	row.SourceList = "manual"
 	row.ClassificationLabel = fmt.Sprintf("%s · manual", row.CategoryLabel)
 
-	s.renderFragment(w, "privacy", "domain-row", row)
+	s.renderFragment(w, "fragments", "domain-row", row)
 }
 
 func (s *Server) handleUIAddList(w http.ResponseWriter, r *http.Request) {

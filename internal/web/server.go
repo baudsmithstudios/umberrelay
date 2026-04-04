@@ -40,13 +40,14 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 
 // parsePages builds a per-page template map: layout + one page template each.
 func parsePages() map[string]*template.Template {
-	layout := template.Must(template.ParseFS(static.FS, "templates/layout.html"))
+	base := template.Must(template.ParseFS(static.FS, "templates/layout.html", "templates/components.html"))
 	pageFiles := []string{"privacy", "settings"}
-	pages := make(map[string]*template.Template, len(pageFiles))
+	pages := make(map[string]*template.Template, len(pageFiles)+1)
 	for _, name := range pageFiles {
-		t := template.Must(template.Must(layout.Clone()).ParseFS(static.FS, "templates/"+name+".html"))
+		t := template.Must(template.Must(base.Clone()).ParseFS(static.FS, "templates/"+name+".html"))
 		pages[name] = t
 	}
+	pages["fragments"] = template.Must(base.Clone())
 	return pages
 }
 

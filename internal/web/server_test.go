@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -55,5 +56,31 @@ func TestHTTPServerDisablesWriteTimeoutForStreaming(t *testing.T) {
 	httpServer := s.httpServer(":8080")
 	if httpServer.WriteTimeout != 0 {
 		t.Fatalf("WriteTimeout = %s, want 0", httpServer.WriteTimeout)
+	}
+}
+
+func TestParsePagesIncludesFragmentsTemplateSet(t *testing.T) {
+	pages := parsePages()
+	fragments, ok := pages["fragments"]
+	if !ok {
+		t.Fatalf("missing fragments template set")
+	}
+
+	var out bytes.Buffer
+	err := fragments.ExecuteTemplate(&out, "label-edit", struct {
+		Device     store.Device
+		DeviceName string
+	}{
+		Device: store.Device{
+			MAC:   "aa:bb:cc:dd:ee:ff",
+			Label: "Living Room TV",
+		},
+		DeviceName: "Living Room TV",
+	})
+	if err != nil {
+		t.Fatalf("ExecuteTemplate(label-edit): %v", err)
+	}
+	if out.Len() == 0 {
+		t.Fatalf("label-edit fragment rendered empty output")
 	}
 }
