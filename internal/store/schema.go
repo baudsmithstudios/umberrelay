@@ -11,6 +11,11 @@ CREATE TABLE IF NOT EXISTS devices (
     last_seen  INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS source_labels (
+    source_ip TEXT PRIMARY KEY,
+    label     TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS queries (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     device_mac TEXT REFERENCES devices(mac),

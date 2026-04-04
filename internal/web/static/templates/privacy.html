@@ -154,12 +154,22 @@
 </div>
 {{end}}
 
+{{define "source-label-edit"}}
+<div class="device-label-block" id="device-label-editor">
+    <h3 class="detail-device-name">{{.DeviceName}}</h3>
+    <form class="label-form" hx-post="/ui/sources/{{.SourceIP}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
+        <input type="text" name="label" value="{{.SourceLabel}}" maxlength="128" placeholder="Edit Label">
+        <button type="submit" class="secondary">Save Label</button>
+    </form>
+</div>
+{{end}}
+
 {{define "source-detail"}}
 <section class="detail-view detail-device">
     <header class="detail-header">
         <div class="detail-header-left">
             <p class="eyebrow">Source Detail</p>
-            <h3 class="detail-device-name">{{.DeviceName}}</h3>
+            {{template "source-label-edit" .}}
             <p class="detail-subtitle">{{.Subtitle}}</p>
         </div>
     </header>

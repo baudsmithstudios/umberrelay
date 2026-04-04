@@ -101,6 +101,51 @@ func TestUpdateDeviceLabel(t *testing.T) {
 	}
 }
 
+func TestSetAndGetSourceLabel(t *testing.T) {
+	db := testDB(t)
+
+	if err := db.SetSourceLabel("10.44.0.7", "Living Room TV"); err != nil {
+		t.Fatalf("SetSourceLabel(set): %v", err)
+	}
+	label, err := db.GetSourceLabel("10.44.0.7")
+	if err != nil {
+		t.Fatalf("GetSourceLabel(after set): %v", err)
+	}
+	if label != "Living Room TV" {
+		t.Fatalf("label after set = %q, want %q", label, "Living Room TV")
+	}
+
+	if err := db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
+		t.Fatalf("SetSourceLabel(update): %v", err)
+	}
+	label, err = db.GetSourceLabel("10.44.0.7")
+	if err != nil {
+		t.Fatalf("GetSourceLabel(after update): %v", err)
+	}
+	if label != "Kitchen Display" {
+		t.Fatalf("label after update = %q, want %q", label, "Kitchen Display")
+	}
+
+	if err := db.SetSourceLabel("10.44.0.7", ""); err != nil {
+		t.Fatalf("SetSourceLabel(clear): %v", err)
+	}
+	label, err = db.GetSourceLabel("10.44.0.7")
+	if err != nil {
+		t.Fatalf("GetSourceLabel(after clear): %v", err)
+	}
+	if label != "" {
+		t.Fatalf("label after clear = %q, want empty", label)
+	}
+
+	label, err = db.GetSourceLabel("10.44.0.8")
+	if err != nil {
+		t.Fatalf("GetSourceLabel(nonexistent): %v", err)
+	}
+	if label != "" {
+		t.Fatalf("label for nonexistent source = %q, want empty", label)
+	}
+}
+
 func TestWriteAndQueryQueries(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

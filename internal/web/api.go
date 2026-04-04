@@ -78,7 +78,7 @@ func (s *Server) handleAPIActors(w http.ResponseWriter, r *http.Request) {
 		actors = append(actors, actorResponse{
 			Key:            actorKeyForSource(source.SourceIP),
 			Type:           actorTypeSource,
-			Name:           sourceActorDisplayName(source.SourceIP),
+			Name:           sourceActorDisplayName(source.SourceIP, ""),
 			SourceIP:       source.SourceIP,
 			QueryCount:     source.QueryCount,
 			TrackerPercent: source.TrackerPercent,

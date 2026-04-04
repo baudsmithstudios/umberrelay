@@ -226,6 +226,29 @@ func (d *DB) UpdateDeviceLabel(mac, label string) error {
 	return nil
 }
 
+// SetSourceLabel upserts a user-assigned label for an unattributed source IP.
+func (d *DB) SetSourceLabel(sourceIP, label string) error {
+	if label == "" {
+		_, err := d.sql.Exec(`DELETE FROM source_labels WHERE source_ip = ?`, sourceIP)
+		return err
+	}
+	_, err := d.sql.Exec(
+		`INSERT INTO source_labels (source_ip, label) VALUES (?, ?) ON CONFLICT(source_ip) DO UPDATE SET label = excluded.label`,
+		sourceIP, label,
+	)
+	return err
+}
+
+// GetSourceLabel returns the label for a source IP, or empty string if none is set.
+func (d *DB) GetSourceLabel(sourceIP string) (string, error) {
+	var label string
+	err := d.sql.QueryRow(`SELECT label FROM source_labels WHERE source_ip = ?`, sourceIP).Scan(&label)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return label, err
+}
+
 // ListDevices returns all known devices.
 func (d *DB) ListDevices() ([]Device, error) {
 	rows, err := d.sql.Query(`SELECT mac, ip, hostname, vendor, label, first_seen, last_seen FROM devices ORDER BY last_seen DESC`)

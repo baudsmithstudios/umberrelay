@@ -43,9 +43,12 @@ func normalizeActorSelection(raw string) (string, string, string, bool) {
 	return actorKeyForDevice(raw), actorTypeDevice, raw, true
 }
 
-func sourceActorDisplayName(sourceIP string) string {
+func sourceActorDisplayName(sourceIP, label string) string {
 	if sourceIP == "" {
 		return "Unattributed"
+	}
+	if label != "" {
+		return label + " · " + sourceIP
 	}
 	return "Unattributed · " + sourceIP
 }

@@ -456,6 +456,9 @@ func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("WriteQueries: %v", err)
 	}
+	if err := s.db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
+		t.Fatalf("SetSourceLabel: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
 	w := httptest.NewRecorder()
@@ -468,11 +471,14 @@ func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
 	for _, want := range []string{
 		"Source Detail",
 		"10.44.0.7",
-		"Unattributed source",
+		"Kitchen Display · 10.44.0.7",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
 		}
+	}
+	if strings.Contains(body, "Unattributed source · 10.44.0.7") {
+		t.Fatalf("response should not include unattributed subtitle when label is set")
 	}
 }
 
@@ -766,6 +772,53 @@ func TestUIUpdateDeviceLabelReturnsFragmentForHTMX(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "Living Room TV") {
 		t.Fatalf("fragment response should include updated label")
+	}
+}
+
+func TestUIUpdateSourceLabelRedirectsBackToPrivacyPage(t *testing.T) {
+	s := testServer(t)
+
+	form := url.Values{"label": {"Kitchen Display"}}
+	req := httptest.NewRequest("POST", "/ui/sources/10.44.0.7/label", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if location := w.Header().Get("Location"); location != "/devices/source:10.44.0.7" {
+		t.Fatalf("Location = %q, want %q", location, "/devices/source:10.44.0.7")
+	}
+
+	label, err := s.db.GetSourceLabel("10.44.0.7")
+	if err != nil {
+		t.Fatalf("GetSourceLabel: %v", err)
+	}
+	if label != "Kitchen Display" {
+		t.Fatalf("label = %q, want %q", label, "Kitchen Display")
+	}
+}
+
+func TestUIUpdateSourceLabelReturnsFragmentForHTMX(t *testing.T) {
+	s := testServer(t)
+
+	form := url.Values{"label": {"Kitchen Display"}}
+	req := httptest.NewRequest("POST", "/ui/sources/10.44.0.7/label", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if strings.Contains(w.Body.String(), "<html") {
+		t.Fatalf("fragment response should not include layout")
+	}
+	if !strings.Contains(w.Body.String(), "Kitchen Display · 10.44.0.7") {
+		t.Fatalf("fragment response should include updated source display name")
+	}
+	if !strings.Contains(w.Body.String(), `hx-post="/ui/sources/10.44.0.7/label"`) {
+		t.Fatalf("fragment response should include source label form action")
 	}
 }
 

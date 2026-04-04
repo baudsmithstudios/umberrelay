@@ -31,3 +31,19 @@ func TestUpdateDeviceLabelReturnsNotFoundForMissingDevice(t *testing.T) {
 		t.Fatalf("error = %q, want %q", err.Error(), "device not found")
 	}
 }
+
+func TestUpdateSourceLabel(t *testing.T) {
+	db := testDB(t)
+
+	if err := UpdateSourceLabel(db, "10.44.0.7", "Kitchen Display"); err != nil {
+		t.Fatalf("UpdateSourceLabel: %v", err)
+	}
+
+	label, err := db.GetSourceLabel("10.44.0.7")
+	if err != nil {
+		t.Fatalf("GetSourceLabel: %v", err)
+	}
+	if label != "Kitchen Display" {
+		t.Fatalf("label = %q, want %q", label, "Kitchen Display")
+	}
+}

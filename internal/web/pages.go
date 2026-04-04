@@ -83,6 +83,7 @@ type privacyDetail struct {
 	Device           store.Device
 	DeviceName       string
 	SourceIP         string
+	SourceLabel      string
 	PrivacySummary   store.DevicePrivacySummary
 	QueryTrend       TrendDisplay
 	TrackerTrend     TrendDisplay
@@ -156,7 +157,7 @@ func makeDeviceTrendRows(devices []store.DeviceWithTrends, sources []store.Sourc
 			ActorKey:       actorKeyForSource(source.SourceIP),
 			ActorType:      actorTypeSource,
 			SourceIP:       source.SourceIP,
-			Label:          sourceActorDisplayName(source.SourceIP),
+			Label:          sourceActorDisplayName(source.SourceIP, ""),
 			IP:             source.SourceIP,
 			QueryCount:     source.QueryCount,
 			TrackerPercent: source.TrackerPercent,
@@ -210,7 +211,7 @@ func deviceDisplayName(device store.Device) string {
 
 func deviceTrendDisplayName(device deviceTrendRow) string {
 	if device.ActorType == actorTypeSource {
-		return sourceActorDisplayName(device.SourceIP)
+		return sourceActorDisplayName(device.SourceIP, "")
 	}
 	switch {
 	case device.Label != "":
@@ -483,6 +484,10 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 	if err != nil {
 		return privacyDetail{}, err
 	}
+	label, err := s.db.GetSourceLabel(sourceIP)
+	if err != nil {
+		return privacyDetail{}, err
+	}
 	queryTrend, trackerTrend, err := s.db.LoadTrendsAt(now, "device_mac = '' AND source_ip = ?", sourceIP)
 	if err != nil {
 		return privacyDetail{}, err
@@ -501,14 +506,21 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		domains = append(domains, makePrivacyDomainRow(domain, totalActors, actorKeyForSource(sourceIP)))
 	}
 
+	deviceName := sourceActorDisplayName(sourceIP, label)
+	subtitle := "Unattributed source · " + sourceIP
+	if label != "" {
+		subtitle = sourceIP
+	}
+
 	return privacyDetail{
 		Mode:             "source",
 		Title:            "Source Detail",
-		Subtitle:         "Unattributed source · " + sourceIP,
+		Subtitle:         subtitle,
 		LiveActorKey:     actorKeyForSource(sourceIP),
 		CategoryOptions:  category.Options(),
-		DeviceName:       sourceActorDisplayName(sourceIP),
+		DeviceName:       deviceName,
 		SourceIP:         sourceIP,
+		SourceLabel:      label,
 		PrivacySummary:   privacySummary,
 		QueryTrend:       formatTrend(queryTrend, false),
 		TrackerTrend:     formatTrend(trackerTrend, true),
@@ -628,9 +640,12 @@ func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPage
 			return view, err
 		}
 		view.SelectedActorKey = selectedKey
-		view.SelectedDeviceName = sourceActorDisplayName(selected.SourceIP)
-		view.pageData.Title = view.SelectedDeviceName
 		view.Detail, err = s.loadSourceDetail(now, selected.SourceIP, len(rows))
+		if err != nil {
+			return view, err
+		}
+		view.SelectedDeviceName = view.Detail.DeviceName
+		view.pageData.Title = view.SelectedDeviceName
 		return view, err
 	default:
 		view.Detail, err = s.loadNetworkDetail(stats, len(rows))
@@ -766,6 +781,39 @@ func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Reques
 	}
 
 	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+}
+
+func (s *Server) handleUIUpdateSourceLabel(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	sourceIP := r.PathValue("ip")
+	if err := app.UpdateSourceLabel(s.db, sourceIP, r.FormValue("label")); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if isHXRequest(r) {
+		label, err := s.db.GetSourceLabel(sourceIP)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		s.renderFragment(w, "privacy", "source-label-edit", struct {
+			DeviceName  string
+			SourceIP    string
+			SourceLabel string
+		}{
+			DeviceName:  sourceActorDisplayName(sourceIP, label),
+			SourceIP:    sourceIP,
+			SourceLabel: label,
+		})
+		return
+	}
+
+	http.Redirect(w, r, "/devices/"+actorKeyForSource(sourceIP), http.StatusSeeOther)
 }
 
 func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {

@@ -88,6 +88,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /ui/privacy/device-all", s.handlePrivacyDeviceAll)
 	s.mux.HandleFunc("POST /ui/settings", s.handleUIUpdateSettings)
 	s.mux.HandleFunc("POST /ui/devices/{mac}/label", s.handleUIUpdateDeviceLabel)
+	s.mux.HandleFunc("POST /ui/sources/{ip}/label", s.handleUIUpdateSourceLabel)
 	s.mux.HandleFunc("POST /ui/overrides/{domain}", s.handleUISetOverride)
 	s.mux.HandleFunc("POST /ui/lists", s.handleUIAddList)
 	s.mux.HandleFunc("POST /ui/lists/{id}/enabled", s.handleUIUpdateList)
