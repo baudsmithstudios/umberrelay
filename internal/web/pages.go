@@ -96,17 +96,26 @@ type privacyDetail struct {
 	EmptyMessage     string
 }
 
-type privacyPageView struct {
+type homePageView struct {
 	pageData
-	Stats              store.DashboardStats
-	TrackerRate        float64
-	OverviewBreakdown  []categoryRow
-	Devices            []deviceTrendRow
-	Anomalies          []anomalyRow
+	Stats             store.DashboardStats
+	TrackerRate       float64
+	OverviewBreakdown []categoryRow
+	Anomalies         []anomalyRow
+	TopDomains        []privacyDomainRow
+	TotalActors       int
+}
+
+type devicesListView struct {
+	pageData
+	Devices     []deviceTrendRow
+	TotalActors int
+}
+
+type deviceDetailView struct {
+	pageData
 	Detail             privacyDetail
-	SelectedActorKey   string
 	SelectedDeviceName string
-	TotalActors        int
 }
 
 func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
@@ -417,6 +426,33 @@ func bypassSignalAsAnomaly(signal store.BypassSignal) store.Anomaly {
 	}
 }
 
+func (s *Server) loadActorsWithTrends(now time.Time) ([]store.DeviceWithTrends, []store.SourceWithTrends, error) {
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		return nil, nil, err
+	}
+	sources, err := s.db.ListSourceWithTrendsAt(now)
+	if err != nil {
+		return nil, nil, err
+	}
+	return devices, sources, nil
+}
+
+func (s *Server) loadAttentionAnomalies(now time.Time) ([]store.Anomaly, error) {
+	anomalies, err := s.db.DeviceAnomalies()
+	if err != nil {
+		return nil, err
+	}
+	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
+	if err != nil {
+		return nil, err
+	}
+	for _, signal := range bypassSignals {
+		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
+	}
+	return anomalies, nil
+}
+
 func findDevice(devices []store.DeviceWithTrends, mac string) *store.DeviceWithTrends {
 	for i := range devices {
 		if devices[i].MAC == mac {
@@ -534,59 +570,68 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 	}, nil
 }
 
-func (s *Server) loadNetworkDetail(stats store.DashboardStats, totalActors int) (privacyDetail, error) {
-	topDomains, err := s.db.TopDomainsWithSource(20)
-	if err != nil {
-		return privacyDetail{}, err
-	}
-
-	domains := make([]privacyDomainRow, 0, len(topDomains))
-	for _, domain := range topDomains {
-		domains = append(domains, makePrivacyDomainRow(domain, totalActors, ""))
-	}
-
-	return privacyDetail{
-		Mode:             "network",
-		Title:            "Network Domains",
-		Subtitle:         fmt.Sprintf("%d distinct domains in the last 24 hours", stats.UniqueDomainCount),
-		LiveActorKey:     "",
-		CategoryOptions:  category.Options(),
-		Domains:          domains,
-		RangeQuery:       "",
-		ChartID:          "network-detail-chart",
-		ChartTitle:       "Network Trend",
-		ChartDescription: "Tracker rate and volume across the whole network",
-		EmptyMessage:     "No domains in the last 24 hours.",
-	}, nil
-}
-
-func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPageView, error) {
+func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
 	stats, err := s.db.DashboardSummaryAt(now)
 	if err != nil {
-		return privacyPageView{}, err
-	}
-	devices, err := s.db.ListDevicesWithTrendsAt(now)
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	sources, err := s.db.ListSourceWithTrendsAt(now)
-	if err != nil {
-		return privacyPageView{}, err
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 	breakdownCounts, err := s.db.NetworkCategoryBreakdown()
 	if err != nil {
-		return privacyPageView{}, err
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-	anomalies, err := s.db.DeviceAnomalies()
+	anomalies, err := s.loadAttentionAnomalies(now)
 	if err != nil {
-		return privacyPageView{}, err
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
+	topDomains, err := s.db.TopDomainsWithSource(10)
 	if err != nil {
-		return privacyPageView{}, err
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-	for _, signal := range bypassSignals {
-		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
+
+	devices, sources, err := s.loadActorsWithTrends(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	totalActors := len(devices) + len(sources)
+
+	domainRows := make([]privacyDomainRow, 0, len(topDomains))
+	for _, domain := range topDomains {
+		domainRows = append(domainRows, makePrivacyDomainRow(domain, totalActors, ""))
+	}
+
+	view := homePageView{
+		pageData: pageData{
+			Title:  "Home",
+			Active: "home",
+		},
+		Stats:             stats,
+		TrackerRate:       stats.TrackerPercent,
+		OverviewBreakdown: makeBreakdownRows(stats.TotalQueries, breakdownCounts),
+		Anomalies:         makeAnomalyRows(anomalies),
+		TopDomains:        domainRows,
+		TotalActors:       totalActors,
+	}
+
+	s.renderPage(w, "home", view)
+}
+
+func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
+	devices, sources, err := s.loadActorsWithTrends(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	anomalies, err := s.loadAttentionAnomalies(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
 	rows := makeDeviceTrendRows(devices, sources)
@@ -597,109 +642,81 @@ func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPage
 		}
 		return rows[i].TrackerPercent > rows[j].TrackerPercent
 	})
-
 	for i := range rows {
 		rows[i].AnomalyClass = flags[rows[i].MAC]
 	}
 
-	view := privacyPageView{
+	view := devicesListView{
 		pageData: pageData{
-			Title:  "Privacy",
-			Active: "privacy",
+			Title:  "Devices",
+			Active: "devices",
 		},
-		Stats:             stats,
-		TrackerRate:       stats.TrackerPercent,
-		OverviewBreakdown: makeBreakdownRows(stats.TotalQueries, breakdownCounts),
-		Devices:           rows,
-		Anomalies:         makeAnomalyRows(anomalies),
-		TotalActors:       len(rows),
+		Devices:     rows,
+		TotalActors: len(rows),
+	}
+	s.renderPage(w, "devices", view)
+}
+
+func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
+	selectedRaw := r.PathValue("mac")
+	_, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
+	if !hasSelected {
+		http.Redirect(w, r, "/devices", http.StatusSeeOther)
+		return
 	}
 
-	selectedKey, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
-	if !hasSelected {
-		view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-		return view, err
+	devices, sources, err := s.loadActorsWithTrends(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	totalActors := len(devices) + len(sources)
+
+	view := deviceDetailView{
+		pageData: pageData{
+			Active: "devices",
+		},
 	}
 
 	switch selectedType {
 	case actorTypeDevice:
 		selected := findDevice(devices, selectedValue)
 		if selected == nil {
-			view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-			return view, err
+			http.Redirect(w, r, "/devices", http.StatusSeeOther)
+			return
 		}
-		view.SelectedActorKey = selectedKey
+		view.Detail, err = s.loadDeviceDetail(now, selected.Device, totalActors)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		view.SelectedDeviceName = deviceDisplayName(selected.Device)
 		view.pageData.Title = view.SelectedDeviceName
-		view.Detail, err = s.loadDeviceDetail(now, selected.Device, len(rows))
-		return view, err
 	case actorTypeSource:
 		selected := findSource(sources, selectedValue)
 		if selected == nil {
-			view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-			return view, err
+			http.Redirect(w, r, "/devices", http.StatusSeeOther)
+			return
 		}
-		view.SelectedActorKey = selectedKey
-		view.Detail, err = s.loadSourceDetail(now, selected.SourceIP, len(rows))
+		view.Detail, err = s.loadSourceDetail(now, selected.SourceIP, totalActors)
 		if err != nil {
-			return view, err
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
 		}
 		view.SelectedDeviceName = view.Detail.DeviceName
 		view.pageData.Title = view.SelectedDeviceName
-		return view, err
 	default:
-		view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-		return view, err
-	}
-}
-
-func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
-	view, err := s.privacyPageData(s.now(), r.PathValue("mac"))
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/devices", http.StatusSeeOther)
 		return
 	}
 
 	if isHXRequest(r) {
-		if view.Detail.Mode == "device" {
-			s.renderFragment(w, "privacy", "device-detail", view.Detail)
-			return
-		}
-		if view.Detail.Mode == "source" {
-			s.renderFragment(w, "privacy", "source-detail", view.Detail)
-			return
-		}
-		s.renderFragment(w, "privacy", "network-detail", view.Detail)
+		s.renderFragment(w, "device_detail", "detail-content", view)
 		return
 	}
 
-	s.renderPage(w, "privacy", view)
-}
-
-func (s *Server) handlePrivacyDevice(w http.ResponseWriter, r *http.Request) {
-	view, err := s.privacyPageData(s.now(), r.PathValue("mac"))
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if view.Detail.Mode == "source" {
-		s.renderFragment(w, "privacy", "source-detail", view.Detail)
-		return
-	}
-	if view.Detail.Mode != "device" {
-		s.renderFragment(w, "privacy", "network-detail", view.Detail)
-		return
-	}
-	s.renderFragment(w, "privacy", "device-detail", view.Detail)
-}
-
-func (s *Server) handlePrivacyDeviceAll(w http.ResponseWriter, r *http.Request) {
-	view, err := s.privacyPageData(s.now(), "")
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	s.renderFragment(w, "privacy", "network-detail", view.Detail)
+	s.renderPage(w, "device_detail", view)
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -770,7 +787,7 @@ func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "privacy", "label-edit", struct {
+		s.renderFragment(w, "fragments", "label-edit", struct {
 			Device     store.Device
 			DeviceName string
 		}{
@@ -801,7 +818,7 @@ func (s *Server) handleUIUpdateSourceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "privacy", "source-label-edit", struct {
+		s.renderFragment(w, "fragments", "source-label-edit", struct {
 			DeviceName  string
 			SourceIP    string
 			SourceLabel string
@@ -900,7 +917,7 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	row.SourceList = "manual"
 	row.ClassificationLabel = fmt.Sprintf("%s · manual", row.CategoryLabel)
 
-	s.renderFragment(w, "privacy", "domain-row", row)
+	s.renderFragment(w, "fragments", "domain-row", row)
 }
 
 func (s *Server) handleUIAddList(w http.ResponseWriter, r *http.Request) {

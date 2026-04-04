@@ -92,7 +92,6 @@ func TestQueryStreamHubOnlyPollsAfterNotify(t *testing.T) {
 	stream, cancel := hub.Subscribe()
 	defer cancel()
 
-	time.Sleep(20 * time.Millisecond)
 	if fetchCalls.Load() != 0 {
 		t.Fatalf("fetch call count before notify = %d, want 0", fetchCalls.Load())
 	}

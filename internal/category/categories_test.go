@@ -21,3 +21,27 @@ func TestNormalize(t *testing.T) {
 		}
 	}
 }
+
+func TestOptionsReturnsCopy(t *testing.T) {
+	got := Options()
+	if len(got) != 6 {
+		t.Fatalf("len(Options()) = %d, want 6", len(got))
+	}
+	got[0].Label = "changed"
+	again := Options()
+	if again[0].Label == "changed" {
+		t.Fatal("Options() returned shared slice; expected copy")
+	}
+}
+
+func TestIsAllowed(t *testing.T) {
+	if !IsAllowed("tracking") {
+		t.Fatal("IsAllowed(tracking) = false, want true")
+	}
+	if !IsAllowed("unclassified") {
+		t.Fatal("IsAllowed(unclassified) = false, want true")
+	}
+	if IsAllowed("bogus") {
+		t.Fatal("IsAllowed(bogus) = true, want false")
+	}
+}

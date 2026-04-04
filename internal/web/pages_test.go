@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/json"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -140,7 +139,49 @@ func TestFormatTrend(t *testing.T) {
 	}
 }
 
-func TestPrivacyPage(t *testing.T) {
+func TestDeviceTrendDisplayName(t *testing.T) {
+	tests := []struct {
+		name string
+		row  deviceTrendRow
+		want string
+	}{
+		{
+			name: "source actor",
+			row: deviceTrendRow{
+				ActorType: actorTypeSource,
+				SourceIP:  "10.55.0.17",
+			},
+			want: "Unattributed \u00b7 10.55.0.17",
+		},
+		{
+			name: "device label",
+			row: deviceTrendRow{
+				ActorType: actorTypeDevice,
+				Label:     "Living Room TV",
+				MAC:       "aa:bb:cc:dd:ee:ff",
+			},
+			want: "Living Room TV",
+		},
+		{
+			name: "device fallback mac",
+			row: deviceTrendRow{
+				ActorType: actorTypeDevice,
+				MAC:       "aa:bb:cc:dd:ee:ff",
+			},
+			want: "aa:bb:cc:dd:ee:ff",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := deviceTrendDisplayName(tt.row); got != tt.want {
+				t.Fatalf("deviceTrendDisplayName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHomePage(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -158,55 +199,157 @@ func TestPrivacyPage(t *testing.T) {
 		"<title>Umberrelay",
 		`class="umberrelay-brand" href="/">`,
 		`class="umberrelay-brand-umber">Umber</span><span class="umberrelay-brand-relay">relay</span>`,
-		"Privacy",
+		"Home",
+		"Devices",
 		"Settings",
-		"/static/css/privacy.css",
-		"Tracker Rate",
+		"/static/css/home.css",
+		"/static/js/charts.js",
+		"Network Privacy",
+		"Tracker Rate Over Time",
 		"Needs Attention",
-		"Investigate",
-		"Living Room TV",
-		"All Devices",
-		"Network Domains",
+		"Top Domains",
 		"ads.example.com",
-		"tracking · Tracking List",
-		"manual.example.com",
-		"telemetry · manual",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
 		}
 	}
+	for _, avoid := range []string{
+		"/static/css/devices.css",
+		"/static/css/device_detail.css",
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("response should not include %q", avoid)
+		}
+	}
 }
 
-func TestPrivacyPageRoutesWithoutSelectionRenderNetworkView(t *testing.T) {
+func TestHomePageTopDomainsShowReach(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
-	for _, path := range []string{"/devices", "/domains"} {
-		t.Run(path, func(t *testing.T) {
-			req := httptest.NewRequest("GET", path, nil)
-			w := httptest.NewRecorder()
-			s.Handler().ServeHTTP(w, req)
-			if w.Code != http.StatusOK {
-				t.Fatalf("status = %d, want 200", w.Code)
-			}
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
 
-			body := html.UnescapeString(w.Body.String())
-			for _, want := range []string{"Overview", "Investigation", "Network Domains"} {
-				if !strings.Contains(body, want) {
-					t.Fatalf("response missing %q", want)
-				}
-			}
-			if strings.Contains(body, "Device Detail") {
-				t.Fatalf("response should render the network view for %s", path)
-			}
-		})
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		`data-label="Domain"`,
+		`data-label="Classification"`,
+		`data-label="Queries"`,
+		`data-label="Reach"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing mobile cell label %q", want)
+		}
 	}
 }
 
-func TestPrivacyPageDataSortsDevicesByTrackerPercentDescending(t *testing.T) {
+func TestHomePageAnomalyLinksToDeviceDetail(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `href="/devices/`) {
+		t.Fatalf("anomaly items should link to device detail pages")
+	}
+	if !strings.Contains(body, "Investigate") {
+		t.Fatalf("response missing investigate link text")
+	}
+}
+
+func TestDevicesListPage(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		"<title>Umberrelay",
+		"Devices",
+		"/static/css/devices.css",
+		"/static/js/devices.js",
+		`id="device-search"`,
+		`id="device-sort"`,
+		`id="device-list"`,
+		"Living Room TV",
+		`data-tracker-percent=`,
+		`data-query-count=`,
+		`href="/devices/`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+	for _, avoid := range []string{
+		"/static/css/home.css",
+		"/static/css/device_detail.css",
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("response should not include %q", avoid)
+		}
+	}
+}
+
+func TestDevicesListPageSortsDevicesByTrackerRate(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	// Both devices should appear with links to their detail pages
+	if !strings.Contains(body, `href="/devices/device:aa:bb:cc:dd:ee:ff"`) {
+		t.Fatalf("response missing link to first device")
+	}
+	if !strings.Contains(body, `href="/devices/device:11:22:33:44:55:66"`) {
+		t.Fatalf("response missing link to second device")
+	}
+}
+
+func TestDomainsRouteRedirectsToDevices(t *testing.T) {
+	s := testServer(t)
+	req := httptest.NewRequest("GET", "/domains", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusMovedPermanently {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusMovedPermanently)
+	}
+	if location := w.Header().Get("Location"); location != "/devices" {
+		t.Fatalf("Location = %q, want %q", location, "/devices")
+	}
+}
+
+func TestDevicesListSortsDevicesByTrackerPercentDescending(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -245,15 +388,104 @@ func TestPrivacyPageDataSortsDevicesByTrackerPercentDescending(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	view, err := s.privacyPageData(now, "")
-	if err != nil {
-		t.Fatalf("privacyPageData: %v", err)
+	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
 	}
-	if len(view.Devices) != 2 {
-		t.Fatalf("len(view.Devices) = %d, want 2", len(view.Devices))
+
+	body := w.Body.String()
+	// high-rate device (100% tracker) should appear before low-rate (20% tracker)
+	highIdx := strings.Index(body, "high-rate")
+	lowIdx := strings.Index(body, "low-rate")
+	if highIdx < 0 || lowIdx < 0 {
+		t.Fatalf("response missing expected device names")
 	}
-	if got := view.Devices[0].MAC; got != "bb:bb:bb:bb:bb:bb" {
-		t.Fatalf("first device MAC = %q, want %q", got, "bb:bb:bb:bb:bb:bb")
+	if highIdx > lowIdx {
+		t.Fatalf("high-rate device should appear before low-rate device (sorted by tracker %%)")
+	}
+}
+
+func TestDeviceDetailPageRendersAllSections(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/devices/aa:bb:cc:dd:ee:ff", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		"Device Detail",
+		"Living Room TV",
+		"All Devices",
+		"/static/js/charts.js",
+		"/static/js/feed.js",
+		"/static/css/device_detail.css",
+		"device-detail-page",
+		"Domains",
+		"Live Query Stream",
+		`data-actor-key="device:aa:bb:cc:dd:ee:ff"`,
+		"ads.example.com",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+	for _, avoid := range []string{
+		"/static/css/home.css",
+		"/static/css/devices.css",
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("response should not include %q", avoid)
+		}
+	}
+}
+
+func TestDeviceDetailPageSourceRoute(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: "",
+			SourceIP:  "10.44.0.7",
+			Domain:    "unknown.example.com",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-5 * time.Minute),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	if err := s.db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
+		t.Fatalf("SetSourceLabel: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		"Source Detail",
+		"10.44.0.7",
+		"Kitchen Display",
+		"device-detail-page",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
 	}
 }
 
@@ -284,7 +516,7 @@ func TestPrivacyPageDeviceDeepLinkSelectsDevice(t *testing.T) {
 	}
 }
 
-func TestPrivacyPageDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
+func TestDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -303,7 +535,8 @@ func TestPrivacyPageDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 		`id="live-query-domain-filter"`,
 		`id="live-query-category-filter"`,
 		`id="live-query-feed"`,
-		`/static/js/privacy.js`,
+		`/static/js/feed.js`,
+		`/static/js/charts.js`,
 		`data-actor-key="device:aa:bb:cc:dd:ee:ff"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -312,7 +545,7 @@ func TestPrivacyPageDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 	}
 }
 
-func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
+func TestDevicesListIncludesSourceFallbackActors(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -330,33 +563,7 @@ func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	view, err := s.privacyPageData(now, "")
-	if err != nil {
-		t.Fatalf("privacyPageData: %v", err)
-	}
-
-	found := false
-	for _, actor := range view.Devices {
-		if actor.ActorType == "source" && actor.SourceIP == "10.44.0.7" {
-			found = true
-			if actor.MAC != "" {
-				t.Fatalf("source actor MAC = %q, want empty", actor.MAC)
-			}
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected source fallback actor in privacy view: %#v", view.Devices)
-	}
-}
-
-func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/devices", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -364,15 +571,15 @@ func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	if !strings.Contains(body, `/static/js/privacy.js`) {
-		t.Fatalf("response missing external privacy script reference")
+	if !strings.Contains(body, "10.44.0.7") {
+		t.Fatalf("devices list should include source fallback actor")
 	}
-	if strings.Contains(body, "function chartColor(") {
-		t.Fatalf("privacy page should not inline large script logic")
+	if !strings.Contains(body, "Unattributed") {
+		t.Fatalf("devices list should show unattributed label for source actor")
 	}
 }
 
-func TestPrivacyPageDataIncludesBypassSignals(t *testing.T) {
+func TestDevicesListIncludesBypassSignals(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -407,60 +614,7 @@ func TestPrivacyPageDataIncludesBypassSignals(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	view, err := s.privacyPageData(now, "")
-	if err != nil {
-		t.Fatalf("privacyPageData: %v", err)
-	}
-
-	foundAttention := false
-	for _, anomaly := range view.Anomalies {
-		if anomaly.DeviceMAC == mac {
-			foundAttention = true
-			if anomaly.Class != "anomaly-bypass" {
-				t.Fatalf("anomaly class = %q, want %q", anomaly.Class, "anomaly-bypass")
-			}
-		}
-	}
-	if !foundAttention {
-		t.Fatalf("expected bypass signal in attention feed: %#v", view.Anomalies)
-	}
-
-	foundRow := false
-	for _, device := range view.Devices {
-		if device.MAC == mac {
-			foundRow = true
-			if device.AnomalyClass != "anomaly-bypass" {
-				t.Fatalf("device anomaly class = %q, want %q", device.AnomalyClass, "anomaly-bypass")
-			}
-		}
-	}
-	if !foundRow {
-		t.Fatalf("expected device row for %s", mac)
-	}
-}
-
-func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-
-	if err := s.db.WriteQueries([]store.Query{
-		{
-			DeviceMAC: "",
-			SourceIP:  "10.44.0.7",
-			Domain:    "unknown.example.com",
-			QueryType: "A",
-			Category:  "",
-			Timestamp: now.Add(-5 * time.Minute),
-		},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-	if err := s.db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
-		t.Fatalf("SetSourceLabel: %v", err)
-	}
-
-	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
+	req := httptest.NewRequest("GET", "/devices", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -468,21 +622,12 @@ func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	for _, want := range []string{
-		"Source Detail",
-		"10.44.0.7",
-		"Kitchen Display · 10.44.0.7",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
-	}
-	if strings.Contains(body, "Unattributed source · 10.44.0.7") {
-		t.Fatalf("response should not include unattributed subtitle when label is set")
+	if !strings.Contains(body, "anomaly-bypass") {
+		t.Fatalf("devices list should show bypass anomaly badge")
 	}
 }
 
-func TestPrivacyPageUnknownDeviceFallsBackToNetworkView(t *testing.T) {
+func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -491,16 +636,11 @@ func TestPrivacyPageUnknownDeviceFallsBackToNetworkView(t *testing.T) {
 	req := httptest.NewRequest("GET", "/devices/ff:ee:dd:cc:bb:aa", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
 	}
-
-	body := w.Body.String()
-	if !strings.Contains(body, "Network Domains") {
-		t.Fatalf("response should fall back to network view: %s", body)
-	}
-	if strings.Contains(body, "Device Detail") {
-		t.Fatalf("response should not render a missing device detail view")
+	if location := w.Header().Get("Location"); location != "/devices" {
+		t.Fatalf("Location = %q, want %q", location, "/devices")
 	}
 }
 
@@ -629,70 +769,87 @@ func TestUIAddListRedirectsBackToSettings(t *testing.T) {
 	}
 }
 
-func TestUIToggleListRedirectsBackToSettings(t *testing.T) {
-	s := testServer(t)
-	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
-	if err != nil {
-		t.Fatal(err)
+func TestUIListActionsRedirectBackToSettings(t *testing.T) {
+	tests := []struct {
+		name       string
+		withClassy bool
+		makeReq    func(t *testing.T, s *Server) *http.Request
+		assertDB   func(t *testing.T, s *Server)
+	}{
+		{
+			name: "toggle enabled",
+			makeReq: func(t *testing.T, s *Server) *http.Request {
+				t.Helper()
+				id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+				if err != nil {
+					t.Fatalf("AddList: %v", err)
+				}
+				form := url.Values{"enabled": {"false"}}
+				req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/enabled", strings.NewReader(form.Encode()))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				return req
+			},
+			assertDB: func(t *testing.T, s *Server) {
+				t.Helper()
+				lists, err := s.db.ListLists()
+				if err != nil {
+					t.Fatalf("ListLists: %v", err)
+				}
+				if len(lists) != 1 || lists[0].Enabled {
+					t.Fatalf("enabled = %v, want false", lists[0].Enabled)
+				}
+			},
+		},
+		{
+			name: "delete list",
+			makeReq: func(t *testing.T, s *Server) *http.Request {
+				t.Helper()
+				id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+				if err != nil {
+					t.Fatalf("AddList: %v", err)
+				}
+				return httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/delete", nil)
+			},
+			assertDB: func(t *testing.T, s *Server) {
+				t.Helper()
+				lists, err := s.db.ListLists()
+				if err != nil {
+					t.Fatalf("ListLists: %v", err)
+				}
+				if len(lists) != 0 {
+					t.Fatalf("lists = %#v, want empty", lists)
+				}
+			},
+		},
+		{
+			name:       "refresh lists",
+			withClassy: true,
+			makeReq: func(_ *testing.T, _ *Server) *http.Request {
+				return httptest.NewRequest("POST", "/ui/lists/refresh", nil)
+			},
+			assertDB: func(_ *testing.T, _ *Server) {},
+		},
 	}
 
-	form := url.Values{"enabled": {"false"}}
-	req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/enabled", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/settings" {
-		t.Fatalf("Location = %q, want %q", location, "/settings")
-	}
-
-	lists, err := s.db.ListLists()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lists) != 1 || lists[0].Enabled {
-		t.Fatalf("enabled = %v, want false", lists[0].Enabled)
-	}
-}
-
-func TestUIDeleteListRedirectsBackToSettings(t *testing.T) {
-	s := testServer(t)
-	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/delete", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/settings" {
-		t.Fatalf("Location = %q, want %q", location, "/settings")
-	}
-
-	lists, err := s.db.ListLists()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lists) != 0 {
-		t.Fatalf("lists = %#v, want empty", lists)
-	}
-}
-
-func TestUIRefreshListsRedirectsBackToSettings(t *testing.T) {
-	s := testServerWithClassify(t)
-	req := httptest.NewRequest("POST", "/ui/lists/refresh", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/settings" {
-		t.Fatalf("Location = %q, want %q", location, "/settings")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s *Server
+			if tt.withClassy {
+				s = testServerWithClassify(t)
+			} else {
+				s = testServer(t)
+			}
+			req := tt.makeReq(t, s)
+			w := httptest.NewRecorder()
+			s.Handler().ServeHTTP(w, req)
+			if w.Code != http.StatusSeeOther {
+				t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+			}
+			if location := w.Header().Get("Location"); location != "/settings" {
+				t.Fatalf("Location = %q, want %q", location, "/settings")
+			}
+			tt.assertDB(t, s)
+		})
 	}
 }
 
@@ -822,7 +979,7 @@ func TestUIUpdateSourceLabelReturnsFragmentForHTMX(t *testing.T) {
 	}
 }
 
-func TestHandlePrivacyReturnsFragmentForHTMXDeviceRequest(t *testing.T) {
+func TestDeviceDetailReturnsFragmentForHTMXRequest(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -840,87 +997,6 @@ func TestHandlePrivacyReturnsFragmentForHTMXDeviceRequest(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "Device Detail") {
 		t.Fatalf("fragment response should include device detail")
-	}
-}
-
-func TestPrivacyDevicePartial(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/ui/privacy/device/aa:bb:cc:dd:ee:ff", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if strings.Contains(body, "<html") {
-		t.Fatalf("fragment response should not include layout")
-	}
-	for _, want := range []string{
-		"Device Detail",
-		"Living Room TV",
-		"ads.example.com",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
-	}
-}
-
-func TestPrivacyDeviceAllPartial(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/ui/privacy/device-all", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if strings.Contains(body, "<html") {
-		t.Fatalf("fragment response should not include layout")
-	}
-	for _, want := range []string{
-		"Network Domains",
-		"ads.example.com",
-		"2 of 2",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
-	}
-}
-
-func TestPrivacyDomainRowsIncludeMobileCellLabels(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-
-	body := w.Body.String()
-	for _, want := range []string{
-		`data-label="Domain"`,
-		`data-label="Classification"`,
-		`data-label="Queries"`,
-		`data-label="Reach"`,
-		`data-label="Actions"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing mobile cell label %q", want)
-		}
 	}
 }
 
@@ -978,108 +1054,4 @@ func TestUIOverrideAcceptsUncategorizedValue(t *testing.T) {
 	if !strings.Contains(body, "uncategorized · manual") {
 		t.Fatalf("response missing updated uncategorized override: %s", body)
 	}
-}
-
-func TestAPIActivity(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	currentHour := now.Truncate(time.Hour)
-	macA := "aa:bb:cc:dd:ee:ff"
-	macB := "11:22:33:44:55:66"
-
-	for _, mac := range []string{macA, macB} {
-		if err := s.db.UpsertDevice(store.Device{
-			MAC:       mac,
-			IP:        "192.168.1.10",
-			FirstSeen: now,
-			LastSeen:  now,
-		}); err != nil {
-			t.Fatalf("UpsertDevice(%s): %v", mac, err)
-		}
-	}
-
-	if err := s.db.WriteQueries([]store.Query{
-		{DeviceMAC: macA, Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: currentHour.Add(-2 * time.Hour).Add(5 * time.Minute)},
-		{DeviceMAC: macA, Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: currentHour},
-		{DeviceMAC: macB, Domain: "other.example.com", QueryType: "A", Category: "analytics", Timestamp: currentHour.Add(-2 * time.Hour).Add(10 * time.Minute)},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	t.Run("all devices", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/activity", nil)
-		w := httptest.NewRecorder()
-		s.Handler().ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", w.Code)
-		}
-
-		var buckets []struct {
-			Timestamp int64 `json:"timestamp"`
-			Total     int   `json:"total"`
-			Tracker   int   `json:"tracker"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &buckets); err != nil {
-			t.Fatalf("json.Unmarshal: %v", err)
-		}
-		if len(buckets) != 24 {
-			t.Fatalf("got %d buckets, want 24", len(buckets))
-		}
-
-		targetHour := currentHour.Add(-2 * time.Hour).Unix()
-		currentBucket := currentHour.Unix()
-		var foundTarget, foundCurrent bool
-		for _, bucket := range buckets {
-			switch bucket.Timestamp {
-			case targetHour:
-				foundTarget = true
-				if bucket.Total != 2 || bucket.Tracker != 1 {
-					t.Fatalf("target bucket = %+v, want total=2 tracker=1", bucket)
-				}
-			case currentBucket:
-				foundCurrent = true
-				if bucket.Total != 1 || bucket.Tracker != 0 {
-					t.Fatalf("current bucket = %+v, want total=1 tracker=0", bucket)
-				}
-			}
-		}
-		if !foundTarget || !foundCurrent {
-			t.Fatalf("missing expected buckets in response")
-		}
-	})
-
-	t.Run("filtered device", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/activity?device="+macA, nil)
-		w := httptest.NewRecorder()
-		s.Handler().ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", w.Code)
-		}
-
-		var buckets []struct {
-			Timestamp int64 `json:"timestamp"`
-			Total     int   `json:"total"`
-			Tracker   int   `json:"tracker"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &buckets); err != nil {
-			t.Fatalf("json.Unmarshal: %v", err)
-		}
-		if len(buckets) != 24 {
-			t.Fatalf("got %d buckets, want 24", len(buckets))
-		}
-
-		targetHour := currentHour.Add(-2 * time.Hour).Unix()
-		var foundTarget bool
-		for _, bucket := range buckets {
-			if bucket.Timestamp == targetHour {
-				foundTarget = true
-				if bucket.Total != 1 || bucket.Tracker != 1 {
-					t.Fatalf("filtered bucket = %+v, want total=1 tracker=1", bucket)
-				}
-			}
-		}
-		if !foundTarget {
-			t.Fatalf("target bucket at %d not found in filtered response", targetHour)
-		}
-	})
 }

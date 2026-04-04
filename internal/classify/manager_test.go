@@ -2,8 +2,11 @@ package classify
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"umberrelay/internal/store"
 )
 
 func TestParseHostsFile(t *testing.T) {
@@ -121,4 +124,150 @@ func TestRefreshKeepsExistingDomainsWhenAllSourcesFail(t *testing.T) {
 	if got := m.Classify("ads.example.com."); got != "tracking" {
 		t.Fatalf("Classify after failed refresh = %q, want %q", got, "tracking")
 	}
+}
+
+func TestManagerRemoveOverride(t *testing.T) {
+	m := NewManager(nil)
+	if err := m.SetOverride("ads.example.com", "tracking"); err != nil {
+		t.Fatalf("SetOverride: %v", err)
+	}
+	if err := m.RemoveOverride("ads.example.com"); err != nil {
+		t.Fatalf("RemoveOverride: %v", err)
+	}
+	if got := m.Classify("ads.example.com."); got != "" {
+		t.Fatalf("Classify after RemoveOverride = %q, want empty", got)
+	}
+}
+
+func TestManagerLoadOverridesFromStore(t *testing.T) {
+	db := testDB(t)
+	if err := db.SetDomainOverride("ads.example.com", "tracking"); err != nil {
+		t.Fatalf("SetDomainOverride: %v", err)
+	}
+
+	m := NewManager(db)
+	if err := m.LoadOverrides(); err != nil {
+		t.Fatalf("LoadOverrides: %v", err)
+	}
+	if got := m.Classify("ads.example.com."); got != "tracking" {
+		t.Fatalf("Classify override = %q, want tracking", got)
+	}
+}
+
+func TestManagerLoadFromCache(t *testing.T) {
+	db := testDB(t)
+	listID, err := db.AddList("https://example.com/list.txt", "Example", "tracking")
+	if err != nil {
+		t.Fatalf("AddList: %v", err)
+	}
+	if err := db.WriteListDomains(listID, map[string]string{
+		"ads.example.com": "tracking",
+		"metrics.example.com": "analytics",
+	}); err != nil {
+		t.Fatalf("WriteListDomains: %v", err)
+	}
+
+	m := NewManager(db)
+	count, err := m.LoadFromCache()
+	if err != nil {
+		t.Fatalf("LoadFromCache: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("count = %d, want 2", count)
+	}
+	if got := m.Classify("ads.example.com."); got != "tracking" {
+		t.Fatalf("Classify ads = %q, want tracking", got)
+	}
+}
+
+func TestManagerRefreshIntervalReadsConfig(t *testing.T) {
+	db := testDB(t)
+	if err := db.SetConfig("list_refresh_hours", "6"); err != nil {
+		t.Fatalf("SetConfig: %v", err)
+	}
+	m := NewManager(db)
+	if got := m.refreshInterval(24 * time.Hour); got != 6*time.Hour {
+		t.Fatalf("refreshInterval = %s, want 6h", got)
+	}
+}
+
+func TestManagerLoadSourcesFromDBReturnsEnabledOnly(t *testing.T) {
+	db := testDB(t)
+	firstID, err := db.AddList("https://example.com/one.txt", "One", "tracking")
+	if err != nil {
+		t.Fatalf("AddList(one): %v", err)
+	}
+	secondID, err := db.AddList("https://example.com/two.txt", "Two", "analytics")
+	if err != nil {
+		t.Fatalf("AddList(two): %v", err)
+	}
+	if err := db.UpdateListEnabled(secondID, false); err != nil {
+		t.Fatalf("UpdateListEnabled: %v", err)
+	}
+
+	m := NewManager(db)
+	sources := m.loadSourcesFromDB()
+	if len(sources) != 1 {
+		t.Fatalf("len(sources) = %d, want 1", len(sources))
+	}
+	if sources[0].ID != firstID || sources[0].Name != "One" {
+		t.Fatalf("sources[0] = %#v, want enabled list only", sources[0])
+	}
+}
+
+func TestManagerNotifyConfigChangedDoesNotBlock(t *testing.T) {
+	m := NewManager(nil)
+	m.NotifyConfigChanged()
+	m.NotifyConfigChanged()
+}
+
+func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
+	m := NewManager(nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		m.Run(ctx, nil, time.Millisecond)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Run did not return after context cancellation")
+	}
+}
+
+func TestManagerRunHandlesWakeSignal(t *testing.T) {
+	m := NewManager(nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		m.Run(ctx, nil, time.Millisecond)
+		close(done)
+	}()
+
+	m.NotifyConfigChanged()
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Run did not stop")
+	}
+}
+
+func testDB(t *testing.T) *store.DB {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
 }

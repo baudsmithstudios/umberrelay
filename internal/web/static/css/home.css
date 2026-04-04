@@ -1,0 +1,117 @@
+/* ── Home page layout ── */
+
+.home-page {
+    display: grid;
+    gap: 1.5rem;
+    max-width: 960px;
+    padding-bottom: 3rem;
+}
+
+.home-page article {
+    margin-bottom: 0;
+}
+
+/* ── Headline card ── */
+
+.home-page .headline-card {
+    padding: 1.25rem;
+}
+
+.home-page .headline-row {
+    align-items: center;
+    display: flex;
+    gap: 1.5rem;
+}
+
+.home-page .headline-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.home-page .headline-title {
+    color: var(--pico-color);
+    display: block;
+    font-size: 1.05rem;
+}
+
+.home-page .headline-subtitle {
+    color: var(--pico-muted-color);
+    font-size: 0.8rem;
+    margin: 0.15rem 0 0.35rem;
+}
+
+.home-page .headline-bar {
+    height: 8px;
+}
+
+.home-page .headline-stats {
+    display: grid;
+    gap: 0.4rem;
+    grid-template-columns: 1fr 1fr;
+    width: 156px;
+}
+
+/* ── Chart card ── */
+
+.home-page .chart-card {
+    padding: 0.75rem;
+}
+
+/* ── Attention feed ── */
+
+.home-page .attention-feed {
+    display: grid;
+    gap: 0.5rem;
+}
+
+
+/* ── Responsive: mobile ── */
+
+@media (max-width: 767px) {
+    .home-page .headline-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .home-page .headline-stats {
+        width: 100%;
+    }
+
+    .home-page .attention-item {
+        align-items: stretch;
+        display: grid;
+    }
+
+    .home-page .domain-table thead {
+        display: none;
+    }
+
+    .home-page .domain-table,
+    .home-page .domain-table tbody,
+    .home-page .domain-table tr,
+    .home-page .domain-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .home-page .domain-table tr {
+        border-bottom: 1px solid var(--pico-table-border-color);
+        padding: 0.6rem 0;
+    }
+
+    .home-page .domain-table td {
+        border: 0;
+        padding: 0.15rem 0;
+    }
+
+    .home-page .domain-table td::before {
+        color: var(--pico-muted-color);
+        content: attr(data-label);
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.1rem;
+        text-transform: uppercase;
+    }
+}
