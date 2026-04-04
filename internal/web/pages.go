@@ -605,7 +605,7 @@ func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPage
 	view := privacyPageView{
 		pageData: pageData{
 			Title:  "Privacy",
-			Active: "privacy",
+			Active: "home",
 		},
 		Stats:             stats,
 		TrackerRate:       stats.TrackerPercent,

@@ -13,20 +13,6 @@
     <link rel="stylesheet" href="/static/css/privacy.css">
     <link rel="stylesheet" href="/static/css/uplot.min.css">
     <script src="/static/js/uplot.min.js" defer></script>
-    <style>
-        .tracker-pct { color: var(--umberrelay-critical); }
-        nav ul { list-style: none; }
-        small:empty { display: none; }
-        .value small,
-        td small,
-        article small {
-            display: block;
-            color: var(--pico-muted-color);
-        }
-        .trend-flat { color: var(--pico-muted-color); }
-        .tracker-pct .trend-up { color: var(--umberrelay-critical); }
-        .tracker-pct .trend-down { color: var(--umberrelay-positive); }
-    </style>
 </head>
 <body>
     <header class="umberrelay-shell-header">
@@ -39,7 +25,8 @@
                 </li>
             </ul>
             <ul>
-                <li><a class="umberrelay-toplink" href="/"{{if eq .Active "privacy"}} aria-current="page"{{end}}>Privacy</a></li>
+                <li><a class="umberrelay-toplink" href="/"{{if eq .Active "home"}} aria-current="page"{{end}}>Home</a></li>
+                <li><a class="umberrelay-toplink" href="/devices"{{if eq .Active "devices"}} aria-current="page"{{end}}>Devices</a></li>
                 <li><a class="umberrelay-toplink" href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a></li>
             </ul>
         </nav>

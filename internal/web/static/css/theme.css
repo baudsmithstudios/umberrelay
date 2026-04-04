@@ -204,3 +204,17 @@ nav a,
     font-family: 'VT323', monospace;
     letter-spacing: 0.08em;
 }
+
+/* ── Global utility rules (moved from layout inline styles) ── */
+
+.tracker-pct { color: var(--umberrelay-critical); }
+nav ul { list-style: none; }
+small:empty { display: none; }
+.value small,
+td small,
+article small {
+    display: block;
+    color: var(--pico-muted-color);
+}
+.tracker-pct .trend-up { color: var(--umberrelay-critical); }
+.tracker-pct .trend-down { color: var(--umberrelay-positive); }
