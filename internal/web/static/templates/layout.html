@@ -10,12 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/pico.min.css">
     <link rel="stylesheet" href="/static/css/theme.css">
-    <link rel="stylesheet" href="/static/css/home.css">
-    <link rel="stylesheet" href="/static/css/devices.css">
     <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/device_detail.css">
-    <link rel="stylesheet" href="/static/css/uplot.min.css">
-    <script src="/static/js/uplot.min.js" defer></script>
+    {{block "page_styles" .}}{{end}}
 </head>
 <body>
     <header class="umberrelay-shell-header">
@@ -38,6 +34,7 @@
         {{template "content" .}}
     </main>
     <script src="/static/js/htmx.min.js"></script>
+    {{block "page_scripts" .}}{{end}}
 </body>
 </html>
 {{end}}

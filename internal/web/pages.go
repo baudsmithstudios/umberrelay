@@ -426,6 +426,33 @@ func bypassSignalAsAnomaly(signal store.BypassSignal) store.Anomaly {
 	}
 }
 
+func (s *Server) loadActorsWithTrends(now time.Time) ([]store.DeviceWithTrends, []store.SourceWithTrends, error) {
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		return nil, nil, err
+	}
+	sources, err := s.db.ListSourceWithTrendsAt(now)
+	if err != nil {
+		return nil, nil, err
+	}
+	return devices, sources, nil
+}
+
+func (s *Server) loadAttentionAnomalies(now time.Time) ([]store.Anomaly, error) {
+	anomalies, err := s.db.DeviceAnomalies()
+	if err != nil {
+		return nil, err
+	}
+	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
+	if err != nil {
+		return nil, err
+	}
+	for _, signal := range bypassSignals {
+		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
+	}
+	return anomalies, nil
+}
+
 func findDevice(devices []store.DeviceWithTrends, mac string) *store.DeviceWithTrends {
 	for i := range devices {
 		if devices[i].MAC == mac {
@@ -543,8 +570,6 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 	}, nil
 }
 
-
-
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
 	stats, err := s.db.DashboardSummaryAt(now)
@@ -557,18 +582,10 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	anomalies, err := s.db.DeviceAnomalies()
+	anomalies, err := s.loadAttentionAnomalies(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
-	}
-	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	for _, signal := range bypassSignals {
-		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
 	}
 	topDomains, err := s.db.TopDomainsWithSource(10)
 	if err != nil {
@@ -576,12 +593,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	devices, err := s.db.ListDevicesWithTrendsAt(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	sources, err := s.db.ListSourceWithTrendsAt(now)
+	devices, sources, err := s.loadActorsWithTrends(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -611,28 +623,15 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
-	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	devices, sources, err := s.loadActorsWithTrends(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	sources, err := s.db.ListSourceWithTrendsAt(now)
+	anomalies, err := s.loadAttentionAnomalies(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
-	}
-	anomalies, err := s.db.DeviceAnomalies()
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	for _, signal := range bypassSignals {
-		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
 	}
 
 	rows := makeDeviceTrendRows(devices, sources)
@@ -667,12 +666,7 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	devices, err := s.db.ListDevicesWithTrendsAt(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	sources, err := s.db.ListSourceWithTrendsAt(now)
+	devices, sources, err := s.loadActorsWithTrends(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -718,11 +712,7 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isHXRequest(r) {
-		if view.Detail.Mode == "device" {
-			s.renderFragment(w, "device_detail", "device-detail-content", view)
-			return
-		}
-		s.renderFragment(w, "device_detail", "source-detail-content", view)
+		s.renderFragment(w, "device_detail", "detail-content", view)
 		return
 	}
 

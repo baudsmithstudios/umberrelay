@@ -173,6 +173,14 @@ func TestHomePage(t *testing.T) {
 			t.Fatalf("response missing %q", want)
 		}
 	}
+	for _, avoid := range []string{
+		"/static/css/devices.css",
+		"/static/css/device_detail.css",
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("response should not include %q", avoid)
+		}
+	}
 }
 
 func TestHomePageTopDomainsShowReach(t *testing.T) {
@@ -252,6 +260,14 @@ func TestDevicesListPage(t *testing.T) {
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
+		}
+	}
+	for _, avoid := range []string{
+		"/static/css/home.css",
+		"/static/css/device_detail.css",
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("response should not include %q", avoid)
 		}
 	}
 }
@@ -379,6 +395,14 @@ func TestDeviceDetailPageRendersAllSections(t *testing.T) {
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
+		}
+	}
+	for _, avoid := range []string{
+		"/static/css/home.css",
+		"/static/css/devices.css",
+	} {
+		if strings.Contains(body, avoid) {
+			t.Fatalf("response should not include %q", avoid)
 		}
 	}
 }

@@ -1,96 +1,31 @@
+{{define "page_styles"}}
+<link rel="stylesheet" href="/static/css/device_detail.css">
+<link rel="stylesheet" href="/static/css/uplot.min.css">
+{{end}}
+
 {{define "content"}}
 <section class="device-detail-page">
 
     <a href="/devices" class="back-link">&larr; All Devices</a>
-
-    {{if eq .Detail.Mode "device"}}
-    {{template "device-detail-content" .}}
-    {{else}}
-    {{template "source-detail-content" .}}
-    {{end}}
+    {{template "detail-content" .}}
 
 </section>
+{{end}}
+
+{{define "page_scripts"}}
+<script src="/static/js/uplot.min.js"></script>
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/feed.js"></script>
 {{end}}
 
-{{define "device-detail-content"}}
+{{define "detail-content"}}
     <article class="detail-card">
-        <p class="eyebrow">Device Detail</p>
-        {{template "label-edit" .Detail}}
-        <p class="detail-subtitle">{{.Detail.Subtitle}}</p>
-    </article>
-
-    <article class="detail-card">
-        <div class="device-privacy-row">
-            <div class="device-privacy-bar-wrap">
-                <div class="breakdown-bar">
-                    {{range .Detail.Breakdown}}
-                    <span class="breakdown-segment {{.Class}}" style="width: {{printf "%.2f" .Percent}}%"></span>
-                    {{end}}
-                </div>
-                <div class="breakdown-legend">
-                    {{range .Detail.Breakdown}}
-                    <span><i class="legend-swatch {{.Class}}"></i>{{.Label}} {{printf "%.0f" .Percent}}%</span>
-                    {{end}}
-                </div>
-            </div>
-            <div class="device-query-stat">
-                <span class="stat-num">{{.Detail.PrivacySummary.QueryCount}}</span>
-                <span class="stat-detail">queries (24h){{if .Detail.TrackerTrend.Text}} · <span class="{{.Detail.TrackerTrend.Class}}">{{.Detail.TrackerTrend.Text}}</span>{{end}}</span>
-            </div>
-        </div>
-    </article>
-
-    <article class="detail-card chart-card">
-        <div class="chart-header">
-            <span class="chart-label">{{.Detail.ChartTitle}}</span>
-            <div class="range-controls" data-chart-id="{{.Detail.ChartID}}">
-                <button type="button" class="outline" data-range="24h">24h</button>
-                <button type="button" data-range="7d">7d</button>
-                <button type="button" class="outline" data-range="30d">30d</button>
-            </div>
-        </div>
-        <div id="{{.Detail.ChartID}}" class="privacy-chart" data-chart-query="{{.Detail.RangeQuery}}" data-chart-title="{{.Detail.ChartTitle}}"></div>
-    </article>
-
-    <article class="detail-card">
-        <div class="section-title">
-            <span>Domains</span>
-            <span class="section-note">{{.Detail.PrivacySummary.UniqueDomains}} unique · showing top 20</span>
-        </div>
-        <div class="domain-table-wrap">
-            <table class="domain-table" role="grid">
-                <thead>
-                    <tr>
-                        <th scope="col">Domain</th>
-                        <th scope="col">Classification</th>
-                        <th scope="col">Queries</th>
-                        <th scope="col">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{if .Detail.Domains}}
-                    {{range .Detail.Domains}}
-                    {{template "domain-row" .}}
-                    {{end}}
-                    {{else}}
-                    <tr>
-                        <td colspan="4">{{.Detail.EmptyMessage}}</td>
-                    </tr>
-                    {{end}}
-                </tbody>
-            </table>
-        </div>
-    </article>
-
-    {{template "live-query-stream" .Detail}}
-{{end}}
-
-{{define "source-detail-content"}}
-    <article class="detail-card">
-        <p class="eyebrow">Source Detail</p>
+        <p class="eyebrow">{{if eq .Detail.Mode "source"}}Source Detail{{else}}Device Detail{{end}}</p>
+        {{if eq .Detail.Mode "source"}}
         {{template "source-label-edit" .Detail}}
+        {{else}}
+        {{template "label-edit" .Detail}}
+        {{end}}
         <p class="detail-subtitle">{{.Detail.Subtitle}}</p>
     </article>
 
