@@ -96,6 +96,16 @@ type privacyDetail struct {
 	EmptyMessage     string
 }
 
+type homePageView struct {
+	pageData
+	Stats             store.DashboardStats
+	TrackerRate       float64
+	OverviewBreakdown []categoryRow
+	Anomalies         []anomalyRow
+	TopDomains        []privacyDomainRow
+	TotalActors       int
+}
+
 type privacyPageView struct {
 	pageData
 	Stats              store.DashboardStats
@@ -651,6 +661,70 @@ func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPage
 		view.Detail, err = s.loadNetworkDetail(stats, len(rows))
 		return view, err
 	}
+}
+
+func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
+	stats, err := s.db.DashboardSummaryAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	breakdownCounts, err := s.db.NetworkCategoryBreakdown()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	anomalies, err := s.db.DeviceAnomalies()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	for _, signal := range bypassSignals {
+		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
+	}
+	topDomains, err := s.db.TopDomainsWithSource(10)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	sources, err := s.db.ListSourceWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	totalActors := len(devices) + len(sources)
+
+	domainRows := make([]privacyDomainRow, 0, len(topDomains))
+	for _, domain := range topDomains {
+		domainRows = append(domainRows, makePrivacyDomainRow(domain, totalActors, ""))
+	}
+
+	view := homePageView{
+		pageData: pageData{
+			Title:  "Home",
+			Active: "home",
+		},
+		Stats:             stats,
+		TrackerRate:       stats.TrackerPercent,
+		OverviewBreakdown: makeBreakdownRows(stats.TotalQueries, breakdownCounts),
+		Anomalies:         makeAnomalyRows(anomalies),
+		TopDomains:        domainRows,
+		TotalActors:       totalActors,
+	}
+
+	s.renderPage(w, "home", view)
 }
 
 func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {

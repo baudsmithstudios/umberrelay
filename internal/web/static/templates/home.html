@@ -1,0 +1,103 @@
+{{define "content"}}
+<section class="home-page">
+
+    <article class="headline-card">
+        <div class="headline-row">
+            <div class="headline-body">
+                <strong class="headline-title">Network Privacy</strong>
+                <p class="headline-subtitle">{{printf "%.0f" .TrackerRate}}% of DNS queries hit known trackers across {{.Stats.DeviceCount}} devices</p>
+                <div class="breakdown-bar headline-bar">
+                    {{range .OverviewBreakdown}}
+                    <span class="breakdown-segment {{.Class}}" style="width: {{printf "%.2f" .Percent}}%"></span>
+                    {{end}}
+                </div>
+                <div class="breakdown-legend">
+                    {{range .OverviewBreakdown}}
+                    <span><i class="legend-swatch {{.Class}}"></i>{{.Label}} <strong>{{.Count}}</strong></span>
+                    {{end}}
+                </div>
+            </div>
+            <div class="headline-stats">
+                <div class="stat-box">
+                    <span class="stat-num">{{.Stats.DeviceCount}}</span>
+                    <span class="stat-lbl">Devices</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num">{{.Stats.UniqueDomainCount}}</span>
+                    <span class="stat-lbl">Domains</span>
+                </div>
+            </div>
+        </div>
+    </article>
+
+    <article class="chart-card">
+        <div class="chart-header">
+            <span class="chart-label">Tracker Rate Over Time</span>
+            <div class="range-controls" data-chart-id="overview-trend-chart">
+                <button type="button" class="outline" data-range="24h">24h</button>
+                <button type="button" data-range="7d">7d</button>
+                <button type="button" class="outline" data-range="30d">30d</button>
+            </div>
+        </div>
+        <div id="overview-trend-chart" class="privacy-chart" data-chart-query="" data-chart-title="Network Trend"></div>
+    </article>
+
+    {{if .TopDomains}}
+    <article>
+        <div class="section-title">
+            <span>Top Domains</span>
+            <span class="section-note">sorted by reach and volume</span>
+        </div>
+        <div class="domain-table-wrap">
+            <table class="domain-table" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Domain</th>
+                        <th scope="col">Classification</th>
+                        <th scope="col">Queries</th>
+                        <th scope="col">Reach</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .TopDomains}}
+                    <tr>
+                        <td data-label="Domain">{{.Domain}}</td>
+                        <td data-label="Classification"><span class="classification-pill">{{.ClassificationLabel}}</span></td>
+                        <td data-label="Queries">{{.QueryCount}}</td>
+                        <td data-label="Reach">{{.DeviceCountLabel}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </article>
+    {{end}}
+
+    <article>
+        <div class="section-title">
+            <span>Needs Attention</span>
+            <span class="section-note">vs previous period</span>
+        </div>
+        {{if .Anomalies}}
+        <div class="attention-feed">
+            {{range .Anomalies}}
+            <div class="attention-item {{.Class}}">
+                <div class="att-body">
+                    <div class="att-heading">
+                        <strong class="att-device">{{.DeviceName}}</strong>
+                        <span class="attention-badge {{.Class}}">{{.Badge}}</span>
+                    </div>
+                    <p class="att-detail">{{.Explanation}}</p>
+                </div>
+                <a href="/devices/{{.DeviceMAC}}" class="investigate-btn">Investigate →</a>
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <p class="empty-state">No unusual activity.</p>
+        {{end}}
+    </article>
+
+</section>
+<script src="/static/js/charts.js"></script>
+{{end}}

@@ -140,7 +140,7 @@ func TestFormatTrend(t *testing.T) {
 	}
 }
 
-func TestPrivacyPage(t *testing.T) {
+func TestHomePage(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -158,13 +158,88 @@ func TestPrivacyPage(t *testing.T) {
 		"<title>Umberrelay",
 		`class="umberrelay-brand" href="/">`,
 		`class="umberrelay-brand-umber">Umber</span><span class="umberrelay-brand-relay">relay</span>`,
-		"Privacy",
+		"Home",
+		"Devices",
 		"Settings",
-		"/static/css/privacy.css",
-		"Tracker Rate",
+		"/static/css/home.css",
+		"/static/js/charts.js",
+		"Network Privacy",
+		"Tracker Rate Over Time",
 		"Needs Attention",
-		"Investigate",
-		"Living Room TV",
+		"Top Domains",
+		"ads.example.com",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+}
+
+func TestHomePageTopDomainsShowReach(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		`data-label="Domain"`,
+		`data-label="Classification"`,
+		`data-label="Queries"`,
+		`data-label="Reach"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing mobile cell label %q", want)
+		}
+	}
+}
+
+func TestHomePageAnomalyLinksToDeviceDetail(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `href="/devices/`) {
+		t.Fatalf("anomaly items should link to device detail pages")
+	}
+	if !strings.Contains(body, "Investigate") {
+		t.Fatalf("response missing investigate link text")
+	}
+}
+
+func TestPrivacyPage(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		"<title>Umberrelay",
+		"/static/css/privacy.css",
 		"All Devices",
 		"Network Domains",
 		"ads.example.com",
@@ -356,7 +431,7 @@ func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/devices", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -903,7 +978,7 @@ func TestPrivacyDomainRowsIncludeMobileCellLabels(t *testing.T) {
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest("GET", "/devices", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
