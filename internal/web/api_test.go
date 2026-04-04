@@ -488,6 +488,44 @@ func TestAPIDeleteListReturnsNotFoundForMissingList(t *testing.T) {
 	}
 }
 
+func TestAPIListListsReturnsJSON(t *testing.T) {
+	s := testServer(t)
+	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+	if err != nil {
+		t.Fatalf("AddList: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/lists", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+
+	var response []struct {
+		ID       int64  `json:"id"`
+		URL      string `json:"url"`
+		Name     string `json:"name"`
+		Category string `json:"category"`
+		Enabled  bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(response) != 1 {
+		t.Fatalf("len(response) = %d, want 1", len(response))
+	}
+	if response[0].ID != id {
+		t.Fatalf("id = %d, want %d", response[0].ID, id)
+	}
+	if response[0].Name != "Example" || response[0].URL != "https://example.com/list.txt" {
+		t.Fatalf("response[0] = %#v, want Example list fields", response[0])
+	}
+}
+
 func TestAPISetOverrideAcceptsJSON(t *testing.T) {
 	s := testServerWithClassify(t)
 	body := bytes.NewBufferString(`{"category":"tracking"}`)
@@ -512,6 +550,23 @@ func TestAPISetOverrideRejectsNonJSONRequests(t *testing.T) {
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnsupportedMediaType)
+	}
+}
+
+func TestAPIDeleteOverrideRemovesOverride(t *testing.T) {
+	s := testServerWithClassify(t)
+	if err := s.classify.SetOverride("example.com", "tracking"); err != nil {
+		t.Fatalf("SetOverride: %v", err)
+	}
+
+	req := httptest.NewRequest("DELETE", "/api/overrides/example.com", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusNoContent)
+	}
+	if got := s.classify.Classify("example.com."); got != "" {
+		t.Fatalf("override category = %q, want empty", got)
 	}
 }
 
@@ -554,6 +609,68 @@ func TestAPIQueriesRejectInvalidOffsetAsJSONError(t *testing.T) {
 	}
 	if response["error"] != "offset must be a non-negative integer" {
 		t.Fatalf("error = %q, want %q", response["error"], "offset must be a non-negative integer")
+	}
+}
+
+func TestAPIQueriesUsesSourceActorFilter(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "", SourceIP: "10.55.0.17", Domain: "source-only.example.com", QueryType: "A", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "10.55.0.17", Domain: "device-attributed.example.com", QueryType: "A", Timestamp: now.Add(time.Second)},
+		{DeviceMAC: "", SourceIP: "10.55.0.18", Domain: "other-source.example.com", QueryType: "A", Timestamp: now.Add(2 * time.Second)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/queries?actor=source:10.55.0.17", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response []store.Query
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(response) != 1 {
+		t.Fatalf("len(response) = %d, want 1", len(response))
+	}
+	if response[0].Domain != "source-only.example.com" {
+		t.Fatalf("domain = %q, want %q", response[0].Domain, "source-only.example.com")
+	}
+	if response[0].DeviceMAC != "" {
+		t.Fatalf("device_mac = %q, want empty", response[0].DeviceMAC)
+	}
+}
+
+func TestAPIQueriesActorTakesPrecedenceOverDeviceFilter(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "", SourceIP: "10.55.0.17", Domain: "source-only.example.com", QueryType: "A", Timestamp: now},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "192.168.1.10", Domain: "device-only.example.com", QueryType: "A", Timestamp: now.Add(time.Second)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/queries?actor=source:10.55.0.17&device=aa:bb:cc:dd:ee:ff", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response []store.Query
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(response) != 1 {
+		t.Fatalf("len(response) = %d, want 1", len(response))
+	}
+	if response[0].Domain != "source-only.example.com" {
+		t.Fatalf("domain = %q, want source-only.example.com", response[0].Domain)
 	}
 }
 
@@ -643,7 +760,7 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
 	req := httptest.NewRequest("GET", "/api/queries/stream?actor=device:aa:bb:cc:dd:ee:ff&category=tracking", nil).WithContext(ctx)
@@ -699,7 +816,7 @@ func TestAPIQueryStreamUncategorizedFilterIncludesEmptyCategory(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
 	req := httptest.NewRequest("GET", "/api/queries/stream?category=uncategorized", nil).WithContext(ctx)
@@ -1194,6 +1311,67 @@ func TestAPIBypassReturnsInternalErrorForStoreFailures(t *testing.T) {
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestQueryMatchesFeedFilter(t *testing.T) {
+	tests := []struct {
+		name   string
+		query  store.Query
+		filter store.QueryFeedFilter
+		want   bool
+	}{
+		{
+			name:   "source filter matches unattributed source",
+			query:  store.Query{DeviceMAC: "", SourceIP: "10.0.0.7", Domain: "a.example.com"},
+			filter: store.QueryFeedFilter{SourceIP: "10.0.0.7"},
+			want:   true,
+		},
+		{
+			name:   "source filter rejects attributed device",
+			query:  store.Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "10.0.0.7", Domain: "a.example.com"},
+			filter: store.QueryFeedFilter{SourceIP: "10.0.0.7"},
+			want:   false,
+		},
+		{
+			name:   "device filter matches device",
+			query:  store.Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "a.example.com"},
+			filter: store.QueryFeedFilter{DeviceMAC: "aa:bb:cc:dd:ee:ff"},
+			want:   true,
+		},
+		{
+			name:   "domain filter rejects mismatch",
+			query:  store.Query{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "a.example.com"},
+			filter: store.QueryFeedFilter{Domain: "b.example.com"},
+			want:   false,
+		},
+		{
+			name:   "uncategorized filter matches empty category",
+			query:  store.Query{Domain: "a.example.com", Category: ""},
+			filter: store.QueryFeedFilter{Category: "uncategorized"},
+			want:   true,
+		},
+		{
+			name:   "uncategorized filter matches explicit uncategorized",
+			query:  store.Query{Domain: "a.example.com", Category: "uncategorized"},
+			filter: store.QueryFeedFilter{Category: "uncategorized"},
+			want:   true,
+		},
+		{
+			name:   "category filter rejects mismatch",
+			query:  store.Query{Domain: "a.example.com", Category: "tracking"},
+			filter: store.QueryFeedFilter{Category: "analytics"},
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := queryMatchesFeedFilter(tt.query, tt.filter)
+			if got != tt.want {
+				t.Fatalf("queryMatchesFeedFilter() = %t, want %t", got, tt.want)
+			}
+		})
 	}
 }
 

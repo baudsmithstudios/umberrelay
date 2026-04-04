@@ -2,8 +2,8 @@ package device
 
 import (
 	"bytes"
+	"context"
 	"log"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -41,11 +41,7 @@ func TestResolveIP(t *testing.T) {
 }
 
 func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "test.db")
-	db, err := store.Open(path)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	db := testDB(t)
 	if err := db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -67,5 +63,77 @@ func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
 
 	if !strings.Contains(logs.String(), "dhcp device save") {
 		t.Fatalf("expected device save error log, got %q", logs.String())
+	}
+}
+
+func TestRunStopsWhenContextCancelled(t *testing.T) {
+	tracker := NewTracker(testDB(t), nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		tracker.Run(ctx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after cancellation")
+	}
+}
+
+func TestRunDHCPReturnsWhenDoneClosed(t *testing.T) {
+	tracker := NewTracker(testDB(t), nil)
+	done := make(chan struct{})
+	close(done)
+
+	finished := make(chan struct{})
+	go func() {
+		tracker.RunDHCP(done)
+		close(finished)
+	}()
+
+	select {
+	case <-finished:
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunDHCP did not return")
+	}
+}
+
+func TestRunMDNSReturnsWhenDoneClosed(t *testing.T) {
+	tracker := NewTracker(testDB(t), nil)
+	done := make(chan struct{})
+	close(done)
+
+	finished := make(chan struct{})
+	go func() {
+		tracker.RunMDNS(done)
+		close(finished)
+	}()
+
+	select {
+	case <-finished:
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunMDNS did not return")
+	}
+}
+
+func TestRunSSDPReturnsWhenDoneClosed(t *testing.T) {
+	tracker := NewTracker(testDB(t), nil)
+	done := make(chan struct{})
+	close(done)
+
+	finished := make(chan struct{})
+	go func() {
+		tracker.RunSSDP(done)
+		close(finished)
+	}()
+
+	select {
+	case <-finished:
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunSSDP did not return")
 	}
 }

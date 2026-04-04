@@ -40,9 +40,16 @@ func TestWriterProcessesRecords(t *testing.T) {
 	})
 
 	ch := make(chan dns.QueryRecord, 10)
+	flushed := make(chan struct{}, 1)
 	w := NewWriter(ch, db, tracker, mgr, Config{
-		BatchSize:     10,
-		FlushInterval: 100 * time.Millisecond,
+		BatchSize:     1,
+		FlushInterval: 10 * time.Second,
+		OnFlush: func() {
+			select {
+			case flushed <- struct{}{}:
+			default:
+			}
+		},
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,8 +62,11 @@ func TestWriterProcessesRecords(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	// Wait for flush
-	time.Sleep(300 * time.Millisecond)
+	select {
+	case <-flushed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for flush")
+	}
 	cancel()
 
 	queries, err := db.QueryLog("", "", time.Time{}, time.Now().Add(time.Minute), 100, 0)
@@ -86,9 +96,16 @@ func TestWriterDrainsOnShutdown(t *testing.T) {
 	})
 
 	ch := make(chan dns.QueryRecord, 10)
+	flushed := make(chan struct{}, 1)
 	w := NewWriter(ch, db, tracker, mgr, Config{
 		BatchSize:     100,
 		FlushInterval: 10 * time.Second, // Long interval so it doesn't auto-flush
+		OnFlush: func() {
+			select {
+			case flushed <- struct{}{}:
+			default:
+			}
+		},
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -104,8 +121,12 @@ func TestWriterDrainsOnShutdown(t *testing.T) {
 	}
 
 	// Cancel immediately — writer should drain
-	time.Sleep(50 * time.Millisecond)
 	cancel()
+	select {
+	case <-flushed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for drain flush")
+	}
 	<-done
 
 	queries, _ := db.QueryLog("", "", time.Time{}, time.Now().Add(time.Minute), 100, 0)
@@ -125,12 +146,17 @@ func TestWriterCallsOnFlushHookAfterSuccessfulWrite(t *testing.T) {
 	})
 
 	var flushCalls atomic.Int32
+	flushed := make(chan struct{}, 1)
 	ch := make(chan dns.QueryRecord, 10)
 	w := NewWriter(ch, db, tracker, mgr, Config{
 		BatchSize:     1,
 		FlushInterval: 5 * time.Second,
 		OnFlush: func() {
 			flushCalls.Add(1)
+			select {
+			case flushed <- struct{}{}:
+			default:
+			}
 		},
 	})
 
@@ -145,7 +171,11 @@ func TestWriterCallsOnFlushHookAfterSuccessfulWrite(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-flushed:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("flush hook calls = %d, want 1", flushCalls.Load())
+	}
 	if flushCalls.Load() != 1 {
 		t.Fatalf("flush hook calls = %d, want 1", flushCalls.Load())
 	}

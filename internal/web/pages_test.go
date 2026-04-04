@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/json"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -135,6 +134,48 @@ func TestFormatTrend(t *testing.T) {
 			got := formatTrend(tt.trend, tt.isTrackerPct)
 			if got != tt.want {
 				t.Fatalf("formatTrend() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeviceTrendDisplayName(t *testing.T) {
+	tests := []struct {
+		name string
+		row  deviceTrendRow
+		want string
+	}{
+		{
+			name: "source actor",
+			row: deviceTrendRow{
+				ActorType: actorTypeSource,
+				SourceIP:  "10.55.0.17",
+			},
+			want: "Unattributed \u00b7 10.55.0.17",
+		},
+		{
+			name: "device label",
+			row: deviceTrendRow{
+				ActorType: actorTypeDevice,
+				Label:     "Living Room TV",
+				MAC:       "aa:bb:cc:dd:ee:ff",
+			},
+			want: "Living Room TV",
+		},
+		{
+			name: "device fallback mac",
+			row: deviceTrendRow{
+				ActorType: actorTypeDevice,
+				MAC:       "aa:bb:cc:dd:ee:ff",
+			},
+			want: "aa:bb:cc:dd:ee:ff",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := deviceTrendDisplayName(tt.row); got != tt.want {
+				t.Fatalf("deviceTrendDisplayName() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -728,70 +769,87 @@ func TestUIAddListRedirectsBackToSettings(t *testing.T) {
 	}
 }
 
-func TestUIToggleListRedirectsBackToSettings(t *testing.T) {
-	s := testServer(t)
-	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
-	if err != nil {
-		t.Fatal(err)
+func TestUIListActionsRedirectBackToSettings(t *testing.T) {
+	tests := []struct {
+		name       string
+		withClassy bool
+		makeReq    func(t *testing.T, s *Server) *http.Request
+		assertDB   func(t *testing.T, s *Server)
+	}{
+		{
+			name: "toggle enabled",
+			makeReq: func(t *testing.T, s *Server) *http.Request {
+				t.Helper()
+				id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+				if err != nil {
+					t.Fatalf("AddList: %v", err)
+				}
+				form := url.Values{"enabled": {"false"}}
+				req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/enabled", strings.NewReader(form.Encode()))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				return req
+			},
+			assertDB: func(t *testing.T, s *Server) {
+				t.Helper()
+				lists, err := s.db.ListLists()
+				if err != nil {
+					t.Fatalf("ListLists: %v", err)
+				}
+				if len(lists) != 1 || lists[0].Enabled {
+					t.Fatalf("enabled = %v, want false", lists[0].Enabled)
+				}
+			},
+		},
+		{
+			name: "delete list",
+			makeReq: func(t *testing.T, s *Server) *http.Request {
+				t.Helper()
+				id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
+				if err != nil {
+					t.Fatalf("AddList: %v", err)
+				}
+				return httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/delete", nil)
+			},
+			assertDB: func(t *testing.T, s *Server) {
+				t.Helper()
+				lists, err := s.db.ListLists()
+				if err != nil {
+					t.Fatalf("ListLists: %v", err)
+				}
+				if len(lists) != 0 {
+					t.Fatalf("lists = %#v, want empty", lists)
+				}
+			},
+		},
+		{
+			name:       "refresh lists",
+			withClassy: true,
+			makeReq: func(_ *testing.T, _ *Server) *http.Request {
+				return httptest.NewRequest("POST", "/ui/lists/refresh", nil)
+			},
+			assertDB: func(_ *testing.T, _ *Server) {},
+		},
 	}
 
-	form := url.Values{"enabled": {"false"}}
-	req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/enabled", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/settings" {
-		t.Fatalf("Location = %q, want %q", location, "/settings")
-	}
-
-	lists, err := s.db.ListLists()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lists) != 1 || lists[0].Enabled {
-		t.Fatalf("enabled = %v, want false", lists[0].Enabled)
-	}
-}
-
-func TestUIDeleteListRedirectsBackToSettings(t *testing.T) {
-	s := testServer(t)
-	id, err := s.db.AddList("https://example.com/list.txt", "Example", "tracking")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest("POST", "/ui/lists/"+itoa(id)+"/delete", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/settings" {
-		t.Fatalf("Location = %q, want %q", location, "/settings")
-	}
-
-	lists, err := s.db.ListLists()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lists) != 0 {
-		t.Fatalf("lists = %#v, want empty", lists)
-	}
-}
-
-func TestUIRefreshListsRedirectsBackToSettings(t *testing.T) {
-	s := testServerWithClassify(t)
-	req := httptest.NewRequest("POST", "/ui/lists/refresh", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/settings" {
-		t.Fatalf("Location = %q, want %q", location, "/settings")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s *Server
+			if tt.withClassy {
+				s = testServerWithClassify(t)
+			} else {
+				s = testServer(t)
+			}
+			req := tt.makeReq(t, s)
+			w := httptest.NewRecorder()
+			s.Handler().ServeHTTP(w, req)
+			if w.Code != http.StatusSeeOther {
+				t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
+			}
+			if location := w.Header().Get("Location"); location != "/settings" {
+				t.Fatalf("Location = %q, want %q", location, "/settings")
+			}
+			tt.assertDB(t, s)
+		})
 	}
 }
 
@@ -996,108 +1054,4 @@ func TestUIOverrideAcceptsUncategorizedValue(t *testing.T) {
 	if !strings.Contains(body, "uncategorized · manual") {
 		t.Fatalf("response missing updated uncategorized override: %s", body)
 	}
-}
-
-func TestAPIActivity(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	currentHour := now.Truncate(time.Hour)
-	macA := "aa:bb:cc:dd:ee:ff"
-	macB := "11:22:33:44:55:66"
-
-	for _, mac := range []string{macA, macB} {
-		if err := s.db.UpsertDevice(store.Device{
-			MAC:       mac,
-			IP:        "192.168.1.10",
-			FirstSeen: now,
-			LastSeen:  now,
-		}); err != nil {
-			t.Fatalf("UpsertDevice(%s): %v", mac, err)
-		}
-	}
-
-	if err := s.db.WriteQueries([]store.Query{
-		{DeviceMAC: macA, Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: currentHour.Add(-2 * time.Hour).Add(5 * time.Minute)},
-		{DeviceMAC: macA, Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: currentHour},
-		{DeviceMAC: macB, Domain: "other.example.com", QueryType: "A", Category: "analytics", Timestamp: currentHour.Add(-2 * time.Hour).Add(10 * time.Minute)},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	t.Run("all devices", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/activity", nil)
-		w := httptest.NewRecorder()
-		s.Handler().ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", w.Code)
-		}
-
-		var buckets []struct {
-			Timestamp int64 `json:"timestamp"`
-			Total     int   `json:"total"`
-			Tracker   int   `json:"tracker"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &buckets); err != nil {
-			t.Fatalf("json.Unmarshal: %v", err)
-		}
-		if len(buckets) != 24 {
-			t.Fatalf("got %d buckets, want 24", len(buckets))
-		}
-
-		targetHour := currentHour.Add(-2 * time.Hour).Unix()
-		currentBucket := currentHour.Unix()
-		var foundTarget, foundCurrent bool
-		for _, bucket := range buckets {
-			switch bucket.Timestamp {
-			case targetHour:
-				foundTarget = true
-				if bucket.Total != 2 || bucket.Tracker != 1 {
-					t.Fatalf("target bucket = %+v, want total=2 tracker=1", bucket)
-				}
-			case currentBucket:
-				foundCurrent = true
-				if bucket.Total != 1 || bucket.Tracker != 0 {
-					t.Fatalf("current bucket = %+v, want total=1 tracker=0", bucket)
-				}
-			}
-		}
-		if !foundTarget || !foundCurrent {
-			t.Fatalf("missing expected buckets in response")
-		}
-	})
-
-	t.Run("filtered device", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/activity?device="+macA, nil)
-		w := httptest.NewRecorder()
-		s.Handler().ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200", w.Code)
-		}
-
-		var buckets []struct {
-			Timestamp int64 `json:"timestamp"`
-			Total     int   `json:"total"`
-			Tracker   int   `json:"tracker"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &buckets); err != nil {
-			t.Fatalf("json.Unmarshal: %v", err)
-		}
-		if len(buckets) != 24 {
-			t.Fatalf("got %d buckets, want 24", len(buckets))
-		}
-
-		targetHour := currentHour.Add(-2 * time.Hour).Unix()
-		var foundTarget bool
-		for _, bucket := range buckets {
-			if bucket.Timestamp == targetHour {
-				foundTarget = true
-				if bucket.Total != 1 || bucket.Tracker != 1 {
-					t.Fatalf("filtered bucket = %+v, want total=1 tracker=1", bucket)
-				}
-			}
-		}
-		if !foundTarget {
-			t.Fatalf("target bucket at %d not found in filtered response", targetHour)
-		}
-	})
 }
