@@ -307,16 +307,14 @@
 /* ── Zone divider ── */
 
 .zone-divider {
-    border-top: 1px solid var(--pico-muted-border-color);
     margin: 0.5rem 0;
-    padding-top: 0.5rem;
 }
 
 .zone-label {
     align-items: center;
     color: var(--pico-muted-border-color);
     display: flex;
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     gap: 0.5rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -327,7 +325,6 @@
     content: '';
     flex: 1;
     height: 1px;
-    opacity: 0.3;
 }
 
 /* ── Investigation grid ── */
