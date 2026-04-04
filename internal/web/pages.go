@@ -118,19 +118,6 @@ type deviceDetailView struct {
 	SelectedDeviceName string
 }
 
-type privacyPageView struct {
-	pageData
-	Stats              store.DashboardStats
-	TrackerRate        float64
-	OverviewBreakdown  []categoryRow
-	Devices            []deviceTrendRow
-	Anomalies          []anomalyRow
-	Detail             privacyDetail
-	SelectedActorKey   string
-	SelectedDeviceName string
-	TotalActors        int
-}
-
 func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
 	if !t.HasPrior {
 		return TrendDisplay{}
@@ -556,124 +543,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 	}, nil
 }
 
-func (s *Server) loadNetworkDetail(stats store.DashboardStats, totalActors int) (privacyDetail, error) {
-	topDomains, err := s.db.TopDomainsWithSource(20)
-	if err != nil {
-		return privacyDetail{}, err
-	}
 
-	domains := make([]privacyDomainRow, 0, len(topDomains))
-	for _, domain := range topDomains {
-		domains = append(domains, makePrivacyDomainRow(domain, totalActors, ""))
-	}
-
-	return privacyDetail{
-		Mode:             "network",
-		Title:            "Network Domains",
-		Subtitle:         fmt.Sprintf("%d distinct domains in the last 24 hours", stats.UniqueDomainCount),
-		LiveActorKey:     "",
-		CategoryOptions:  category.Options(),
-		Domains:          domains,
-		RangeQuery:       "",
-		ChartID:          "network-detail-chart",
-		ChartTitle:       "Network Trend",
-		ChartDescription: "Tracker rate and volume across the whole network",
-		EmptyMessage:     "No domains in the last 24 hours.",
-	}, nil
-}
-
-func (s *Server) privacyPageData(now time.Time, selectedRaw string) (privacyPageView, error) {
-	stats, err := s.db.DashboardSummaryAt(now)
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	devices, err := s.db.ListDevicesWithTrendsAt(now)
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	sources, err := s.db.ListSourceWithTrendsAt(now)
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	breakdownCounts, err := s.db.NetworkCategoryBreakdown()
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	anomalies, err := s.db.DeviceAnomalies()
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
-	if err != nil {
-		return privacyPageView{}, err
-	}
-	for _, signal := range bypassSignals {
-		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
-	}
-
-	rows := makeDeviceTrendRows(devices, sources)
-	flags := selectedDeviceAnomalies(anomalies)
-	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].TrackerPercent == rows[j].TrackerPercent {
-			return deviceTrendDisplayName(rows[i]) < deviceTrendDisplayName(rows[j])
-		}
-		return rows[i].TrackerPercent > rows[j].TrackerPercent
-	})
-
-	for i := range rows {
-		rows[i].AnomalyClass = flags[rows[i].MAC]
-	}
-
-	view := privacyPageView{
-		pageData: pageData{
-			Title:  "Privacy",
-			Active: "home",
-		},
-		Stats:             stats,
-		TrackerRate:       stats.TrackerPercent,
-		OverviewBreakdown: makeBreakdownRows(stats.TotalQueries, breakdownCounts),
-		Devices:           rows,
-		Anomalies:         makeAnomalyRows(anomalies),
-		TotalActors:       len(rows),
-	}
-
-	selectedKey, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
-	if !hasSelected {
-		view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-		return view, err
-	}
-
-	switch selectedType {
-	case actorTypeDevice:
-		selected := findDevice(devices, selectedValue)
-		if selected == nil {
-			view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-			return view, err
-		}
-		view.SelectedActorKey = selectedKey
-		view.SelectedDeviceName = deviceDisplayName(selected.Device)
-		view.pageData.Title = view.SelectedDeviceName
-		view.Detail, err = s.loadDeviceDetail(now, selected.Device, len(rows))
-		return view, err
-	case actorTypeSource:
-		selected := findSource(sources, selectedValue)
-		if selected == nil {
-			view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-			return view, err
-		}
-		view.SelectedActorKey = selectedKey
-		view.Detail, err = s.loadSourceDetail(now, selected.SourceIP, len(rows))
-		if err != nil {
-			return view, err
-		}
-		view.SelectedDeviceName = view.Detail.DeviceName
-		view.pageData.Title = view.SelectedDeviceName
-		return view, err
-	default:
-		view.Detail, err = s.loadNetworkDetail(stats, len(rows))
-		return view, err
-	}
-}
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
@@ -859,55 +729,6 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.renderPage(w, "device_detail", view)
-}
-
-func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
-	view, err := s.privacyPageData(s.now(), r.PathValue("mac"))
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	if isHXRequest(r) {
-		if view.Detail.Mode == "device" {
-			s.renderFragment(w, "privacy", "device-detail", view.Detail)
-			return
-		}
-		if view.Detail.Mode == "source" {
-			s.renderFragment(w, "privacy", "source-detail", view.Detail)
-			return
-		}
-		s.renderFragment(w, "privacy", "network-detail", view.Detail)
-		return
-	}
-
-	s.renderPage(w, "privacy", view)
-}
-
-func (s *Server) handlePrivacyDevice(w http.ResponseWriter, r *http.Request) {
-	view, err := s.privacyPageData(s.now(), r.PathValue("mac"))
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if view.Detail.Mode == "source" {
-		s.renderFragment(w, "privacy", "source-detail", view.Detail)
-		return
-	}
-	if view.Detail.Mode != "device" {
-		s.renderFragment(w, "privacy", "network-detail", view.Detail)
-		return
-	}
-	s.renderFragment(w, "privacy", "device-detail", view.Detail)
-}
-
-func (s *Server) handlePrivacyDeviceAll(w http.ResponseWriter, r *http.Request) {
-	view, err := s.privacyPageData(s.now(), "")
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	s.renderFragment(w, "privacy", "network-detail", view.Detail)
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {

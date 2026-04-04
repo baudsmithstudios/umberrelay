@@ -279,65 +279,20 @@ func TestDevicesListPageSortsDevicesByTrackerRate(t *testing.T) {
 	}
 }
 
-func TestPrivacyPage(t *testing.T) {
+func TestDomainsRouteRedirectsToDevices(t *testing.T) {
 	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
 	req := httptest.NewRequest("GET", "/domains", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+	if w.Code != http.StatusMovedPermanently {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusMovedPermanently)
 	}
-
-	body := html.UnescapeString(w.Body.String())
-	for _, want := range []string{
-		"<title>Umberrelay",
-		"/static/css/privacy.css",
-		"All Devices",
-		"Network Domains",
-		"ads.example.com",
-		"tracking · Tracking List",
-		"manual.example.com",
-		"telemetry · manual",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
+	if location := w.Header().Get("Location"); location != "/devices" {
+		t.Fatalf("Location = %q, want %q", location, "/devices")
 	}
 }
 
-func TestPrivacyPageRoutesWithoutSelectionRenderNetworkView(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	for _, path := range []string{"/domains"} {
-		t.Run(path, func(t *testing.T) {
-			req := httptest.NewRequest("GET", path, nil)
-			w := httptest.NewRecorder()
-			s.Handler().ServeHTTP(w, req)
-			if w.Code != http.StatusOK {
-				t.Fatalf("status = %d, want 200", w.Code)
-			}
-
-			body := html.UnescapeString(w.Body.String())
-			for _, want := range []string{"Overview", "Investigation", "Network Domains"} {
-				if !strings.Contains(body, want) {
-					t.Fatalf("response missing %q", want)
-				}
-			}
-			if strings.Contains(body, "Device Detail") {
-				t.Fatalf("response should render the network view for %s", path)
-			}
-		})
-	}
-}
-
-func TestPrivacyPageDataSortsDevicesByTrackerPercentDescending(t *testing.T) {
+func TestDevicesListSortsDevicesByTrackerPercentDescending(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -376,15 +331,22 @@ func TestPrivacyPageDataSortsDevicesByTrackerPercentDescending(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	view, err := s.privacyPageData(now, "")
-	if err != nil {
-		t.Fatalf("privacyPageData: %v", err)
+	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
 	}
-	if len(view.Devices) != 2 {
-		t.Fatalf("len(view.Devices) = %d, want 2", len(view.Devices))
+
+	body := w.Body.String()
+	// high-rate device (100% tracker) should appear before low-rate (20% tracker)
+	highIdx := strings.Index(body, "high-rate")
+	lowIdx := strings.Index(body, "low-rate")
+	if highIdx < 0 || lowIdx < 0 {
+		t.Fatalf("response missing expected device names")
 	}
-	if got := view.Devices[0].MAC; got != "bb:bb:bb:bb:bb:bb" {
-		t.Fatalf("first device MAC = %q, want %q", got, "bb:bb:bb:bb:bb:bb")
+	if highIdx > lowIdx {
+		t.Fatalf("high-rate device should appear before low-rate device (sorted by tracker %%)")
 	}
 }
 
@@ -518,7 +480,7 @@ func TestDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 	}
 }
 
-func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
+func TestDevicesListIncludesSourceFallbackActors(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -536,33 +498,7 @@ func TestPrivacyPageDataIncludesSourceFallbackActors(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	view, err := s.privacyPageData(now, "")
-	if err != nil {
-		t.Fatalf("privacyPageData: %v", err)
-	}
-
-	found := false
-	for _, actor := range view.Devices {
-		if actor.ActorType == "source" && actor.SourceIP == "10.44.0.7" {
-			found = true
-			if actor.MAC != "" {
-				t.Fatalf("source actor MAC = %q, want empty", actor.MAC)
-			}
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected source fallback actor in privacy view: %#v", view.Devices)
-	}
-}
-
-func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/domains", nil)
+	req := httptest.NewRequest("GET", "/devices", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -570,15 +506,15 @@ func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	if !strings.Contains(body, `/static/js/privacy.js`) {
-		t.Fatalf("response missing external privacy script reference")
+	if !strings.Contains(body, "10.44.0.7") {
+		t.Fatalf("devices list should include source fallback actor")
 	}
-	if strings.Contains(body, "function chartColor(") {
-		t.Fatalf("privacy page should not inline large script logic")
+	if !strings.Contains(body, "Unattributed") {
+		t.Fatalf("devices list should show unattributed label for source actor")
 	}
 }
 
-func TestPrivacyPageDataIncludesBypassSignals(t *testing.T) {
+func TestDevicesListIncludesBypassSignals(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -613,60 +549,7 @@ func TestPrivacyPageDataIncludesBypassSignals(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	view, err := s.privacyPageData(now, "")
-	if err != nil {
-		t.Fatalf("privacyPageData: %v", err)
-	}
-
-	foundAttention := false
-	for _, anomaly := range view.Anomalies {
-		if anomaly.DeviceMAC == mac {
-			foundAttention = true
-			if anomaly.Class != "anomaly-bypass" {
-				t.Fatalf("anomaly class = %q, want %q", anomaly.Class, "anomaly-bypass")
-			}
-		}
-	}
-	if !foundAttention {
-		t.Fatalf("expected bypass signal in attention feed: %#v", view.Anomalies)
-	}
-
-	foundRow := false
-	for _, device := range view.Devices {
-		if device.MAC == mac {
-			foundRow = true
-			if device.AnomalyClass != "anomaly-bypass" {
-				t.Fatalf("device anomaly class = %q, want %q", device.AnomalyClass, "anomaly-bypass")
-			}
-		}
-	}
-	if !foundRow {
-		t.Fatalf("expected device row for %s", mac)
-	}
-}
-
-func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-
-	if err := s.db.WriteQueries([]store.Query{
-		{
-			DeviceMAC: "",
-			SourceIP:  "10.44.0.7",
-			Domain:    "unknown.example.com",
-			QueryType: "A",
-			Category:  "",
-			Timestamp: now.Add(-5 * time.Minute),
-		},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-	if err := s.db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
-		t.Fatalf("SetSourceLabel: %v", err)
-	}
-
-	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
+	req := httptest.NewRequest("GET", "/devices", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -674,17 +557,8 @@ func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	for _, want := range []string{
-		"Source Detail",
-		"10.44.0.7",
-		"Kitchen Display · 10.44.0.7",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
-	}
-	if strings.Contains(body, "Unattributed source · 10.44.0.7") {
-		t.Fatalf("response should not include unattributed subtitle when label is set")
+	if !strings.Contains(body, "anomaly-bypass") {
+		t.Fatalf("devices list should show bypass anomaly badge")
 	}
 }
 
@@ -1023,7 +897,7 @@ func TestUIUpdateSourceLabelReturnsFragmentForHTMX(t *testing.T) {
 	}
 }
 
-func TestHandlePrivacyReturnsFragmentForHTMXDeviceRequest(t *testing.T) {
+func TestDeviceDetailReturnsFragmentForHTMXRequest(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -1041,87 +915,6 @@ func TestHandlePrivacyReturnsFragmentForHTMXDeviceRequest(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "Device Detail") {
 		t.Fatalf("fragment response should include device detail")
-	}
-}
-
-func TestPrivacyDevicePartial(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/ui/privacy/device/aa:bb:cc:dd:ee:ff", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if strings.Contains(body, "<html") {
-		t.Fatalf("fragment response should not include layout")
-	}
-	for _, want := range []string{
-		"Device Detail",
-		"Living Room TV",
-		"ads.example.com",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
-	}
-}
-
-func TestPrivacyDeviceAllPartial(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/ui/privacy/device-all", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if strings.Contains(body, "<html") {
-		t.Fatalf("fragment response should not include layout")
-	}
-	for _, want := range []string{
-		"Network Domains",
-		"ads.example.com",
-		"2 of 2",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
-		}
-	}
-}
-
-func TestPrivacyDomainRowsIncludeMobileCellLabels(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	req := httptest.NewRequest("GET", "/domains", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-
-	body := w.Body.String()
-	for _, want := range []string{
-		`data-label="Domain"`,
-		`data-label="Classification"`,
-		`data-label="Queries"`,
-		`data-label="Reach"`,
-		`data-label="Actions"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing mobile cell label %q", want)
-		}
 	}
 }
 
