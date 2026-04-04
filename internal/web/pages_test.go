@@ -223,13 +223,69 @@ func TestHomePageAnomalyLinksToDeviceDetail(t *testing.T) {
 	}
 }
 
-func TestPrivacyPage(t *testing.T) {
+func TestDevicesListPage(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
 	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		"<title>Umberrelay",
+		"Devices",
+		"/static/css/devices.css",
+		"/static/js/devices.js",
+		`id="device-search"`,
+		`id="device-sort"`,
+		`id="device-list"`,
+		"Living Room TV",
+		`data-tracker-percent=`,
+		`data-query-count=`,
+		`href="/devices/`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+}
+
+func TestDevicesListPageSortsDevicesByTrackerRate(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/devices", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	// Both devices should appear with links to their detail pages
+	if !strings.Contains(body, `href="/devices/device:aa:bb:cc:dd:ee:ff"`) {
+		t.Fatalf("response missing link to first device")
+	}
+	if !strings.Contains(body, `href="/devices/device:11:22:33:44:55:66"`) {
+		t.Fatalf("response missing link to second device")
+	}
+}
+
+func TestPrivacyPage(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/domains", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -259,7 +315,7 @@ func TestPrivacyPageRoutesWithoutSelectionRenderNetworkView(t *testing.T) {
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
-	for _, path := range []string{"/devices", "/domains"} {
+	for _, path := range []string{"/domains"} {
 		t.Run(path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", path, nil)
 			w := httptest.NewRecorder()
@@ -431,7 +487,7 @@ func TestPrivacyPageLoadsExternalPrivacyScript(t *testing.T) {
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
-	req := httptest.NewRequest("GET", "/devices", nil)
+	req := httptest.NewRequest("GET", "/domains", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -978,7 +1034,7 @@ func TestPrivacyDomainRowsIncludeMobileCellLabels(t *testing.T) {
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
-	req := httptest.NewRequest("GET", "/devices", nil)
+	req := httptest.NewRequest("GET", "/domains", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {

@@ -106,6 +106,12 @@ type homePageView struct {
 	TotalActors       int
 }
 
+type devicesListView struct {
+	pageData
+	Devices     []deviceTrendRow
+	TotalActors int
+}
+
 type privacyPageView struct {
 	pageData
 	Stats              store.DashboardStats
@@ -725,6 +731,55 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.renderPage(w, "home", view)
+}
+
+func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	sources, err := s.db.ListSourceWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	anomalies, err := s.db.DeviceAnomalies()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	bypassSignals, err := s.db.DeviceBypassSignalsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	for _, signal := range bypassSignals {
+		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
+	}
+
+	rows := makeDeviceTrendRows(devices, sources)
+	flags := selectedDeviceAnomalies(anomalies)
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].TrackerPercent == rows[j].TrackerPercent {
+			return deviceTrendDisplayName(rows[i]) < deviceTrendDisplayName(rows[j])
+		}
+		return rows[i].TrackerPercent > rows[j].TrackerPercent
+	})
+	for i := range rows {
+		rows[i].AnomalyClass = flags[rows[i].MAC]
+	}
+
+	view := devicesListView{
+		pageData: pageData{
+			Title:  "Devices",
+			Active: "devices",
+		},
+		Devices:     rows,
+		TotalActors: len(rows),
+	}
+	s.renderPage(w, "devices", view)
 }
 
 func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {

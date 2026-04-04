@@ -41,7 +41,7 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 // parsePages builds a per-page template map: layout + one page template each.
 func parsePages() map[string]*template.Template {
 	base := template.Must(template.ParseFS(static.FS, "templates/layout.html", "templates/components.html"))
-	pageFiles := []string{"home", "privacy", "settings"}
+	pageFiles := []string{"home", "devices", "privacy", "settings"}
 	pages := make(map[string]*template.Template, len(pageFiles)+1)
 	for _, name := range pageFiles {
 		t := template.Must(template.Must(base.Clone()).ParseFS(static.FS, "templates/"+name+".html"))
@@ -81,7 +81,7 @@ func (s *Server) registerRoutes() {
 
 	// Page routes
 	s.mux.HandleFunc("GET /{$}", s.handleHome)
-	s.mux.HandleFunc("GET /devices", s.handlePrivacy)
+	s.mux.HandleFunc("GET /devices", s.handleDevices)
 	s.mux.HandleFunc("GET /devices/{mac}", s.handlePrivacy)
 	s.mux.HandleFunc("GET /domains", s.handlePrivacy)
 	s.mux.HandleFunc("GET /settings", s.handleSettings)

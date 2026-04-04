@@ -1,0 +1,47 @@
+{{define "content"}}
+<section class="devices-page">
+
+    <article class="devices-header-card">
+        <div class="section-title">
+            <span>Devices</span>
+            <span class="section-note">{{.TotalActors}} total</span>
+        </div>
+        <div class="devices-controls">
+            <input type="search" id="device-search" class="device-search" placeholder="Filter devices...">
+            <select id="device-sort" class="device-sort" aria-label="Sort devices">
+                <option value="tracker">By Tracker Rate</option>
+                <option value="volume">By Volume</option>
+                <option value="name">By Name</option>
+            </select>
+        </div>
+    </article>
+
+    <div class="device-grid" id="device-list">
+        {{range .Devices}}
+        <a
+            href="/devices/{{.ActorKey}}"
+            class="device-card{{if .AnomalyClass}} {{.AnomalyClass}}{{end}}"
+            data-device-name="{{if eq .ActorType "source"}}Unattributed · {{.SourceIP}}{{else if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}"
+            data-tracker-percent="{{printf "%.2f" .TrackerPercent}}"
+            data-query-count="{{.QueryCount}}"
+        >
+            <div class="device-card-header">
+                <strong class="device-card-name">{{if eq .ActorType "source"}}Unattributed · {{.SourceIP}}{{else if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .Vendor}}{{.Vendor}}{{else}}{{.MAC}}{{end}}</strong>
+                <span class="device-pct-badge">{{printf "%.0f" .TrackerPercent}}%</span>
+            </div>
+            <div class="device-card-bar"><span style="width: {{printf "%.2f" .TrackerPercent}}%"></span></div>
+            <div class="device-card-meta">
+                <span class="device-card-info">{{if eq .ActorType "source"}}Unattributed source{{else if .Vendor}}{{.Vendor}}{{end}}{{if and (ne .ActorType "source") .IP}} · {{.IP}}{{end}}</span>
+                <span class="device-card-queries">{{.QueryCount}} queries</span>
+            </div>
+            <div class="device-card-trends">
+                {{if .TrackerTrend.Text}}<span class="tracker-pct {{.TrackerTrend.Class}}">{{.TrackerTrend.Text}}</span>{{end}}
+                {{if .QueryTrend.Text}}<span class="{{.QueryTrend.Class}}">{{.QueryTrend.Text}} vol</span>{{end}}
+            </div>
+        </a>
+        {{end}}
+    </div>
+
+</section>
+<script src="/static/js/devices.js"></script>
+{{end}}
