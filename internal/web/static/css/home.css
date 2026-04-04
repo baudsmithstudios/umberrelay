@@ -64,31 +64,6 @@
     gap: 0.5rem;
 }
 
-.home-page .attention-item {
-    align-items: center;
-    background: color-mix(in srgb, var(--pico-card-sectioning-background-color) 60%, transparent);
-    border-left: 3px solid var(--umberrelay-accent);
-    border-radius: 0 var(--pico-border-radius) var(--pico-border-radius) 0;
-    display: flex;
-    gap: 1rem;
-    justify-content: space-between;
-    padding: 0.6rem 0.8rem;
-}
-
-.home-page .attention-item.anomaly-tracker {
-    background: color-mix(in srgb, var(--umberrelay-critical) 6%, transparent);
-    border-left-color: var(--umberrelay-critical);
-}
-
-.home-page .attention-item.anomaly-volume {
-    background: color-mix(in srgb, var(--umberrelay-analytics) 6%, transparent);
-    border-left-color: var(--umberrelay-analytics);
-}
-
-.home-page .attention-item.anomaly-bypass {
-    background: color-mix(in srgb, var(--umberrelay-warn) 10%, transparent);
-    border-left-color: var(--umberrelay-warn);
-}
 
 /* ── Responsive: mobile ── */
 

@@ -661,7 +661,7 @@ func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
 	selectedRaw := r.PathValue("mac")
-	selectedKey, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
+	_, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
 	if !hasSelected {
 		http.Redirect(w, r, "/devices", http.StatusSeeOther)
 		return
@@ -716,8 +716,6 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/devices", http.StatusSeeOther)
 		return
 	}
-
-	_ = selectedKey
 
 	if isHXRequest(r) {
 		if view.Detail.Mode == "device" {
