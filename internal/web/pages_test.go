@@ -388,6 +388,80 @@ func TestPrivacyPageDataSortsDevicesByTrackerPercentDescending(t *testing.T) {
 	}
 }
 
+func TestDeviceDetailPageRendersAllSections(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/devices/aa:bb:cc:dd:ee:ff", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := html.UnescapeString(w.Body.String())
+	for _, want := range []string{
+		"Device Detail",
+		"Living Room TV",
+		"All Devices",
+		"/static/js/charts.js",
+		"/static/js/feed.js",
+		"/static/css/device_detail.css",
+		"device-detail-page",
+		"Domains",
+		"Live Query Stream",
+		`data-actor-key="device:aa:bb:cc:dd:ee:ff"`,
+		"ads.example.com",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+}
+
+func TestDeviceDetailPageSourceRoute(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+
+	if err := s.db.WriteQueries([]store.Query{
+		{
+			DeviceMAC: "",
+			SourceIP:  "10.44.0.7",
+			Domain:    "unknown.example.com",
+			QueryType: "A",
+			Category:  "",
+			Timestamp: now.Add(-5 * time.Minute),
+		},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	if err := s.db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
+		t.Fatalf("SetSourceLabel: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		"Source Detail",
+		"10.44.0.7",
+		"Kitchen Display",
+		"device-detail-page",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing %q", want)
+		}
+	}
+}
+
 func TestPrivacyPageDeviceDeepLinkSelectsDevice(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
@@ -415,7 +489,7 @@ func TestPrivacyPageDeviceDeepLinkSelectsDevice(t *testing.T) {
 	}
 }
 
-func TestPrivacyPageDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
+func TestDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -434,7 +508,8 @@ func TestPrivacyPageDeviceDetailIncludesLiveQueryStreamUI(t *testing.T) {
 		`id="live-query-domain-filter"`,
 		`id="live-query-category-filter"`,
 		`id="live-query-feed"`,
-		`/static/js/privacy.js`,
+		`/static/js/feed.js`,
+		`/static/js/charts.js`,
 		`data-actor-key="device:aa:bb:cc:dd:ee:ff"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -613,7 +688,7 @@ func TestPrivacyPageSourceDeepLinkSelectsSourceDetail(t *testing.T) {
 	}
 }
 
-func TestPrivacyPageUnknownDeviceFallsBackToNetworkView(t *testing.T) {
+func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -622,16 +697,11 @@ func TestPrivacyPageUnknownDeviceFallsBackToNetworkView(t *testing.T) {
 	req := httptest.NewRequest("GET", "/devices/ff:ee:dd:cc:bb:aa", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
 	}
-
-	body := w.Body.String()
-	if !strings.Contains(body, "Network Domains") {
-		t.Fatalf("response should fall back to network view: %s", body)
-	}
-	if strings.Contains(body, "Device Detail") {
-		t.Fatalf("response should not render a missing device detail view")
+	if location := w.Header().Get("Location"); location != "/devices" {
+		t.Fatalf("Location = %q, want %q", location, "/devices")
 	}
 }
 

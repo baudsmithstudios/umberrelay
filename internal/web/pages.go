@@ -112,6 +112,12 @@ type devicesListView struct {
 	TotalActors int
 }
 
+type deviceDetailView struct {
+	pageData
+	Detail             privacyDetail
+	SelectedDeviceName string
+}
+
 type privacyPageView struct {
 	pageData
 	Stats              store.DashboardStats
@@ -780,6 +786,79 @@ func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 		TotalActors: len(rows),
 	}
 	s.renderPage(w, "devices", view)
+}
+
+func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
+	selectedRaw := r.PathValue("mac")
+	selectedKey, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
+	if !hasSelected {
+		http.Redirect(w, r, "/devices", http.StatusSeeOther)
+		return
+	}
+
+	devices, err := s.db.ListDevicesWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	sources, err := s.db.ListSourceWithTrendsAt(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	totalActors := len(devices) + len(sources)
+
+	view := deviceDetailView{
+		pageData: pageData{
+			Active: "devices",
+		},
+	}
+
+	switch selectedType {
+	case actorTypeDevice:
+		selected := findDevice(devices, selectedValue)
+		if selected == nil {
+			http.Redirect(w, r, "/devices", http.StatusSeeOther)
+			return
+		}
+		view.Detail, err = s.loadDeviceDetail(now, selected.Device, totalActors)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		view.SelectedDeviceName = deviceDisplayName(selected.Device)
+		view.pageData.Title = view.SelectedDeviceName
+	case actorTypeSource:
+		selected := findSource(sources, selectedValue)
+		if selected == nil {
+			http.Redirect(w, r, "/devices", http.StatusSeeOther)
+			return
+		}
+		view.Detail, err = s.loadSourceDetail(now, selected.SourceIP, totalActors)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		view.SelectedDeviceName = view.Detail.DeviceName
+		view.pageData.Title = view.SelectedDeviceName
+	default:
+		http.Redirect(w, r, "/devices", http.StatusSeeOther)
+		return
+	}
+
+	_ = selectedKey
+
+	if isHXRequest(r) {
+		if view.Detail.Mode == "device" {
+			s.renderFragment(w, "device_detail", "device-detail-content", view)
+			return
+		}
+		s.renderFragment(w, "device_detail", "source-detail-content", view)
+		return
+	}
+
+	s.renderPage(w, "device_detail", view)
 }
 
 func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
