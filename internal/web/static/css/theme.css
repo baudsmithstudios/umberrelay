@@ -1,29 +1,29 @@
 /*
  * Umber Phosphor -- Umberrelay color theme
  *
- * A single dark theme inspired by vintage ham radio equipment:
- * walnut-brown backgrounds, amber phosphor accents, aged-paper text,
- * and phosphor green for secondary signals. Aligns with the "umber"
- * in Umberrelay.
+ * Terminal UI aesthetic: sharp corners, box-drawing borders,
+ * monospace throughout, dense spacing. Walnut-brown backgrounds,
+ * amber phosphor accents, aged-paper text, phosphor green for
+ * secondary signals.
  *
- * All foreground colors meet WCAG AA contrast against every background
- * they appear on.
+ * All foreground colors meet WCAG AA contrast against every
+ * background they appear on.
  */
 
 [data-theme="dark"] {
     color-scheme: dark;
 
-    /* Backgrounds — walnut + dark warm brown */
-    --pico-background-color: #1a1208;
-    --pico-card-background-color: #2a1f0e;
-    --pico-card-sectioning-background-color: #332712;
-    --pico-dropdown-background-color: #332712;
-    --pico-code-background-color: #332712;
-    --pico-form-element-background-color: #221a0a;
-    --pico-form-element-active-background-color: #2a1f0e;
-    --pico-form-element-selected-background-color: #3d2f18;
-    --pico-modal-overlay-background-color: rgba(26, 18, 8, 0.75);
-    --pico-progress-background-color: #332712;
+    /* Backgrounds — deep terminal dark with warm undertone */
+    --pico-background-color: #0e0b04;
+    --pico-card-background-color: #151006;
+    --pico-card-sectioning-background-color: #1a1408;
+    --pico-dropdown-background-color: #1a1408;
+    --pico-code-background-color: #1a1408;
+    --pico-form-element-background-color: #0e0b04;
+    --pico-form-element-active-background-color: #151006;
+    --pico-form-element-selected-background-color: #1a1408;
+    --pico-modal-overlay-background-color: rgba(14, 11, 4, 0.85);
+    --pico-progress-background-color: #1a1408;
 
     /* Text — aged paper */
     --pico-color: #f0e6c8;
@@ -46,16 +46,16 @@
     --pico-primary-hover-border: var(--pico-primary-hover-background);
     --pico-primary-hover-underline: var(--pico-primary-hover);
     --pico-primary-focus: rgba(245, 166, 35, 0.375);
-    --pico-primary-inverse: #1a1208;
+    --pico-primary-inverse: #0e0b04;
 
     /* Secondary */
     --pico-secondary: #b09470;
-    --pico-secondary-background: #3d2f18;
-    --pico-secondary-border: var(--pico-secondary-background);
+    --pico-secondary-background: #2a1f0e;
+    --pico-secondary-border: #5a4528;
     --pico-secondary-hover: #f0e6c8;
-    --pico-secondary-hover-background: #4a3820;
-    --pico-secondary-hover-border: var(--pico-secondary-hover-background);
-    --pico-secondary-focus: rgba(61, 47, 24, 0.25);
+    --pico-secondary-hover-background: #3a2c16;
+    --pico-secondary-hover-border: #6a5538;
+    --pico-secondary-focus: rgba(42, 31, 14, 0.25);
     --pico-secondary-inverse: #f0e6c8;
 
     /* Contrast */
@@ -66,19 +66,19 @@
     --pico-contrast-hover-background: #ffffff;
     --pico-contrast-hover-border: var(--pico-contrast-hover-background);
     --pico-contrast-focus: rgba(240, 230, 200, 0.25);
-    --pico-contrast-inverse: #1a1208;
+    --pico-contrast-inverse: #0e0b04;
 
-    /* Borders — aged brass */
-    --pico-muted-border-color: #a27f46;
-    --pico-card-border-color: #a27f46;
-    --pico-table-border-color: #a27f46;
-    --pico-form-element-border-color: #a27f46;
+    /* Borders — muted brass, thinner feel */
+    --pico-muted-border-color: #5a4528;
+    --pico-card-border-color: #5a4528;
+    --pico-table-border-color: #5a4528;
+    --pico-form-element-border-color: #5a4528;
     --pico-form-element-active-border-color: var(--pico-primary);
     --pico-form-element-focus-color: var(--pico-primary);
-    --pico-dropdown-border-color: #a27f46;
-    --pico-dropdown-hover-background-color: #332712;
-    --pico-blockquote-border-color: #a27f46;
-    --pico-accordion-border-color: #a27f46;
+    --pico-dropdown-border-color: #5a4528;
+    --pico-dropdown-hover-background-color: #1a1408;
+    --pico-blockquote-border-color: #5a4528;
+    --pico-accordion-border-color: #5a4528;
 
     /* Form validation */
     --pico-form-element-invalid-border-color: #ff4f4f;
@@ -93,14 +93,14 @@
     --pico-form-element-placeholder-color: #b09470;
     --pico-form-element-disabled-opacity: 0.5;
     --pico-text-selection-color: rgba(245, 166, 35, 0.25);
-    --pico-mark-background-color: #3d2f18;
+    --pico-mark-background-color: #2a1f0e;
     --pico-mark-color: #f0e6c8;
     --pico-ins-color: #1dbd5c;
     --pico-del-color: #ff4f4f;
-    --pico-switch-background-color: #a27f46;
+    --pico-switch-background-color: #5a4528;
     --pico-switch-checked-background-color: var(--pico-primary-background);
-    --pico-switch-color: #1a1208;
-    --pico-range-border-color: #a27f46;
+    --pico-switch-color: #0e0b04;
+    --pico-range-border-color: #5a4528;
     --pico-range-active-border-color: #f5a623;
     --pico-range-thumb-color: var(--pico-primary-background);
     --pico-range-thumb-active-color: var(--pico-primary-background);
@@ -108,13 +108,21 @@
     --pico-accordion-close-summary-color: var(--pico-color);
     --pico-accordion-open-summary-color: var(--pico-muted-color);
     --pico-loading-spinner-opacity: 0.5;
-    --pico-tooltip-background-color: #332712;
+    --pico-tooltip-background-color: #1a1408;
     --pico-tooltip-color: #f0e6c8;
     --pico-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 
-    /* Typography */
-    --pico-font-family: 'Courier Prime', 'Courier New', monospace;
-    --pico-font-size: 16px;
+    /* Typography — system monospace */
+    --pico-font-family: 'SFMono-Regular', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+    --pico-font-size: 14px;
+
+    /* Terminal: kill all border-radius */
+    --pico-border-radius: 0;
+
+    /* Terminal: tighter spacing for dense TUI feel */
+    --pico-spacing: 0.75rem;
+    --pico-block-spacing-vertical: 0.75rem;
+    --pico-block-spacing-horizontal: 1rem;
 
     /* Umberrelay semantic tokens */
     --umberrelay-warn: #d08a1b;
@@ -126,26 +134,42 @@
     --umberrelay-positive: #1dbd5c;
     --umberrelay-chart-total: #f5a623;
     --umberrelay-chart-tracker: #ff4f4f;
+
+    /* Terminal panel tokens */
+    --umberrelay-panel-border: #5a4528;
+    --umberrelay-panel-bg: #151006;
+}
+
+/* ── Global terminal overrides ─────────────────────────────── */
+
+*, *::before, *::after {
+    border-radius: 0 !important;
+}
+
+body {
+    font-variant-ligatures: none;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
 }
 
 /* ── Typography ─────────────────────────────────────────────── */
 
-h1, h2, h3 {
-    font-family: 'Orbitron', sans-serif;
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--pico-font-family);
+    font-weight: 700;
     letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
+
+/* ── Brand ─────────────────────────────────────────────────── */
 
 .umberrelay-brand {
     color: inherit;
-    font-family: 'Orbitron', sans-serif;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-decoration: none;
-    text-shadow:
-        0 0 0.4rem color-mix(in srgb, var(--umberrelay-accent) 70%, transparent),
-        0 0 1rem color-mix(in srgb, var(--umberrelay-accent) 55%, transparent),
-        0 0 1.8rem color-mix(in srgb, var(--umberrelay-accent) 40%, transparent);
     text-transform: uppercase;
+    font-size: 0.95rem;
 }
 
 .umberrelay-brand:hover,
@@ -161,51 +185,206 @@ h1, h2, h3 {
     color: var(--umberrelay-title-relay);
 }
 
-.umberrelay-shell-header {
-    background: color-mix(in srgb, var(--pico-background-color) 84%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--pico-card-border-color) 85%, transparent);
-    backdrop-filter: blur(2px);
+/* ── Navbar — bordered TUI box ─────────────────────────────── */
+/*
+ * ┌──────────────────────────────────────────────────────────┐
+ * │ Umberrelay 0.1.0                Home │ Devices │ Settings│
+ * └──────────────────────────────────────────────────────────┘
+ */
+
+.umberrelay-navbar {
+    align-items: center;
+    background: var(--pico-background-color);
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem auto 0;
+    max-width: 965px;
+    padding: 0.35rem 0.75rem;
     position: sticky;
     top: 0;
     z-index: 100;
 }
 
-.umberrelay-topbar {
-    --pico-nav-element-spacing-vertical: 0.25rem;
-    --pico-nav-link-spacing-vertical: 0.15rem;
-    margin-bottom: 0;
+.umberrelay-brand-group {
+    align-items: baseline;
+    display: flex;
+    gap: 0.5rem;
 }
 
-.umberrelay-toplink {
-    color: color-mix(in srgb, var(--pico-muted-color) 88%, var(--pico-color));
+.umberrelay-version {
+    color: var(--pico-muted-color);
+    font-size: 0.75rem;
+}
+
+.umberrelay-tabs {
+    align-items: center;
+    display: flex;
+    gap: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.umberrelay-tabs li {
+    align-items: center;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+/* Pipe separator between tabs */
+.umberrelay-tabs li + li::before {
+    color: var(--umberrelay-panel-border);
+    content: '│';
+    font-size: 0.85rem;
+}
+
+.umberrelay-tab {
+    color: var(--pico-muted-color);
+    display: block;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.6rem;
     text-decoration: none;
-    transition: color 120ms ease, text-shadow 120ms ease;
+    text-transform: uppercase;
+    transition: color 100ms ease;
 }
 
-.umberrelay-toplink:hover,
-.umberrelay-toplink:focus-visible {
+.umberrelay-tab:hover,
+.umberrelay-tab:focus-visible {
     color: var(--pico-color);
 }
 
-.umberrelay-toplink[aria-current="page"] {
-    color: var(--umberrelay-accent-soft);
-    text-shadow:
-        0 0 0.35rem color-mix(in srgb, var(--umberrelay-accent) 55%, transparent),
-        0 0 0.8rem color-mix(in srgb, var(--umberrelay-accent) 30%, transparent);
+.umberrelay-tab[aria-current="page"] {
+    color: var(--umberrelay-accent);
+    font-weight: 700;
 }
 
-nav a,
-.section-title,
-.zone-label,
-.eyebrow,
-.stat-lbl,
-.chart-label,
+/* ── Container width — match navbar ────────────────────────── */
+
+main.container {
+    max-width: 960px;
+}
+
+/* ── Terminal panel (replaces article/card) ─────────────────── */
+
+article,
+.live-query-stream {
+    border: 1px solid var(--umberrelay-panel-border);
+    border-radius: 0;
+    margin-bottom: 0;
+    position: relative;
+}
+
+/* Remove top border when a title element replaces it */
+article:has(> .section-title:first-child),
+article:has(> .chart-header:first-child),
+.live-query-stream:has(> .section-title:first-child) {
+    border-top: none;
+}
+
+/*
+ * TUI-style embedded title: ─ Title ───────────
+ *
+ * The .section-title replaces the article's top border.
+ * It stretches edge-to-edge with a flex layout: a short ─
+ * prefix, then the title text, then a flexible ─ line that
+ * fills the remaining width.
+ */
+
+.section-title {
+    align-items: center;
+    color: var(--umberrelay-accent);
+    display: flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    gap: 0;
+    letter-spacing: 0.08em;
+    margin: calc(var(--pico-block-spacing-vertical) * -1 - 1px) calc(var(--pico-block-spacing-horizontal) * -1 - 1px) 0.5rem;
+    padding: 0;
+    text-transform: uppercase;
+    transform: translateY(-50%);
+}
+
+/* Short ─ prefix before the title */
+.section-title::before {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex-shrink: 0;
+    width: 0.6rem;
+}
+
+/* ─ line fills remaining width after title */
+.section-title::after {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex: 1;
+}
+
+.section-title > span {
+    flex-shrink: 0;
+    padding: 0 0.4rem;
+}
+
 .section-note {
-    font-family: 'VT323', monospace;
+    color: var(--pico-muted-color);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+}
+
+/* Chart header uses same pattern — replaces article top border.
+   Layout: ─ LABEL ──────── 24h │ 7d │ 30d ─
+   The ::before/::after draw the border line, the label and range
+   controls sit inline. */
+.chart-header {
+    margin: calc(var(--pico-block-spacing-vertical) * -1 - 1px) calc(var(--pico-block-spacing-horizontal) * -1 - 1px) 0.5rem;
+    padding: 0;
+    transform: translateY(-50%);
+}
+
+.chart-label {
+    color: var(--umberrelay-accent);
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0 0.4rem;
+    text-transform: uppercase;
+}
+
+.chart-header::before {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex-shrink: 0;
+    width: 0.6rem;
+}
+
+.chart-header::after {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex-shrink: 0;
+    width: 0.6rem;
+}
+
+.eyebrow {
+    color: var(--umberrelay-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.stat-lbl,
+.zone-label {
     letter-spacing: 0.08em;
 }
 
-/* ── Global utility rules (moved from layout inline styles) ── */
+nav a {
+    letter-spacing: 0.06em;
+}
+
+/* ── Global utility rules ──────────────────────────────────── */
 
 .tracker-pct { color: var(--umberrelay-critical); }
 nav ul { list-style: none; }
@@ -218,3 +397,23 @@ article small {
 }
 .tracker-pct .trend-up { color: var(--umberrelay-critical); }
 .tracker-pct .trend-down { color: var(--umberrelay-positive); }
+
+/* ── Responsive: mobile nav ────────────────────────────────── */
+
+@media (max-width: 767px) {
+    .umberrelay-navbar {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        padding: 0.35rem 0.5rem;
+    }
+
+    .umberrelay-tabs {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .umberrelay-tab {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+    }
+}

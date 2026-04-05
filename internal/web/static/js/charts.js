@@ -32,26 +32,44 @@
                     container._uplot.destroy();
                 }
 
-                var axisStroke = chartColor('--pico-card-border-color') || '#a27f46';
+                var borderColor = chartColor('--umberrelay-panel-border') || '#5a4528';
+                var gridColor = 'rgba(90, 69, 40, 0.3)';
+                var font = '11px monospace';
+
                 var axisOpts = {
-                    stroke: axisStroke,
-                    grid: { show: false },
-                    ticks: { show: true, stroke: axisStroke, width: 1.25 / devicePixelRatio, size: 6 },
-                    font: '11px "Courier Prime", "Courier New", monospace',
-                    labelFont: '11px "Courier Prime", "Courier New", monospace',
+                    stroke: borderColor,
+                    grid: {
+                        show: true,
+                        stroke: gridColor,
+                        width: 1 / devicePixelRatio,
+                        dash: [2, 3],
+                    },
+                    ticks: {
+                        show: true,
+                        stroke: borderColor,
+                        width: 1 / devicePixelRatio,
+                        size: 4,
+                    },
+                    font: font,
+                    labelFont: font,
                     labelSize: 16,
                 };
 
                 container._uplot = new uPlot({
                     width: container.clientWidth || 720,
-                    height: 280,
+                    height: 240,
                     scales: {
                         x: { time: true },
                         rate: { auto: true },
                         volume: { auto: true },
                     },
                     legend: { show: true, live: false },
-                    cursor: { show: false },
+                    cursor: {
+                        show: true,
+                        x: true,
+                        y: false,
+                        points: { show: false },
+                    },
                     axes: [
                         Object.assign({}, axisOpts),
                         Object.assign({ scale: 'rate', label: 'Tracker %' }, axisOpts),
@@ -59,8 +77,34 @@
                     ],
                     series: [
                         {},
-                        { label: 'Tracker rate', scale: 'rate', stroke: chartColor('--umberrelay-chart-tracker'), width: 2, points: { show: false } },
-                        { label: 'Queries', scale: 'volume', stroke: chartColor('--umberrelay-chart-total'), width: 2, points: { show: false } },
+                        {
+                            label: 'Tracker rate',
+                            scale: 'rate',
+                            stroke: 'transparent',
+                            width: 0,
+                            paths: function () { return null; },
+                            points: {
+                                show: true,
+                                size: 4,
+                                width: 0,
+                                fill: chartColor('--umberrelay-chart-tracker'),
+                                stroke: chartColor('--umberrelay-chart-tracker'),
+                            },
+                        },
+                        {
+                            label: 'Queries',
+                            scale: 'volume',
+                            stroke: 'transparent',
+                            width: 0,
+                            paths: function () { return null; },
+                            points: {
+                                show: true,
+                                size: 4,
+                                width: 0,
+                                fill: chartColor('--umberrelay-chart-total'),
+                                stroke: chartColor('--umberrelay-chart-total'),
+                            },
+                        },
                     ],
                 }, [times, trackerRate, totals], container);
             })
@@ -105,7 +149,7 @@
             entries.forEach(function (entry) {
                 var container = entry.target;
                 if (container._uplot && container.clientWidth > 0) {
-                    container._uplot.setSize({ width: container.clientWidth, height: 280 });
+                    container._uplot.setSize({ width: container.clientWidth, height: 240 });
                 }
             });
         });

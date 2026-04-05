@@ -20,7 +20,7 @@
 
 {{define "detail-content"}}
     <article class="detail-card">
-        <p class="eyebrow">{{if eq .Detail.Mode "source"}}Source Detail{{else}}Device Detail{{end}}</p>
+        <div class="section-title"><span>{{if eq .Detail.Mode "source"}}Source Detail{{else}}Device Detail{{end}}</span></div>
         {{if eq .Detail.Mode "source"}}
         {{template "source-label-edit" .Detail}}
         {{else}}
@@ -30,6 +30,7 @@
     </article>
 
     <article class="detail-card">
+        <div class="section-title"><span>Privacy Breakdown</span></div>
         <div class="device-privacy-row">
             <div class="device-privacy-bar-wrap">
                 <div class="breakdown-bar">

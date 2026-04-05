@@ -1,25 +1,26 @@
 /* ── Device detail page ── */
 
 .device-detail-page {
-    max-width: 960px;
+    /* width constrained by main.container */
     padding-bottom: 3rem;
 }
 
 .device-detail-page .back-link {
     color: var(--pico-muted-color);
     display: inline-block;
-    font-size: 0.85rem;
-    margin-bottom: 1rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.75rem;
     text-decoration: none;
 }
 
 .device-detail-page .back-link:hover {
-    color: var(--pico-color);
+    color: var(--umberrelay-accent);
 }
 
 .device-detail-page .detail-card {
-    margin-bottom: 1.25rem;
-    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    padding: 1rem;
 }
 
 .device-detail-page .chart-card {
