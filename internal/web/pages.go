@@ -70,6 +70,7 @@ type privacyDomainRow struct {
 	DeviceCount         int
 	DeviceCountLabel    string
 	ClassificationLabel string
+	ClassificationClass string
 	ActorKey            string
 	Scope               string
 }
@@ -311,6 +312,10 @@ func classificationLabel(domain store.DomainWithSource) string {
 	return fmt.Sprintf("%s · %s", categoryLabel(domain.Category), domain.SourceList)
 }
 
+func classificationPillClass(category string) string {
+	return "classification-pill-" + groupCategory(category)
+}
+
 func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorKey string) privacyDomainRow {
 	row := privacyDomainRow{
 		Domain:              domain.Domain,
@@ -321,6 +326,7 @@ func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorK
 		QueryCount:          domain.QueryCount,
 		DeviceCount:         domain.DeviceCount,
 		ClassificationLabel: classificationLabel(domain),
+		ClassificationClass: classificationPillClass(domain.Category),
 		ActorKey:            actorKey,
 	}
 	if actorKey == "" {
@@ -916,6 +922,7 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	row.CategoryLabel = categoryLabel(category)
 	row.SourceList = "manual"
 	row.ClassificationLabel = fmt.Sprintf("%s · manual", row.CategoryLabel)
+	row.ClassificationClass = classificationPillClass(category)
 
 	s.renderFragment(w, "fragments", "domain-row", row)
 }

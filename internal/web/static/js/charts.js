@@ -3,6 +3,142 @@
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
+    function formatTimeLabel(timestamp, range) {
+        var d = new Date(timestamp * 1000);
+        if (range === '24h') {
+            return d.getHours().toString().padStart(2, '0') + ':00';
+        }
+        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return months[d.getMonth()] + ' ' + d.getDate();
+    }
+
+    function drawRetroChart(canvas, datasets, xlabels) {
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        var W = rect.width;
+        var H = rect.height;
+
+        var pad = { top: 16, right: 12, bottom: 26, left: 44 };
+        var plotW = W - pad.left - pad.right;
+        var plotH = H - pad.top - pad.bottom;
+
+        var bgColor = chartColor('--pico-background-color') || '#0e0b04';
+        var borderColor = chartColor('--umberrelay-panel-border') || '#5a4528';
+        var mutedColor = chartColor('--pico-muted-color') || '#b09470';
+        var textColor = chartColor('--pico-color') || '#f0e6c8';
+
+        // Background
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, W, H);
+
+        // Scanline overlay
+        ctx.fillStyle = 'rgba(240,230,200,0.015)';
+        for (var sy = 0; sy < H; sy += 3) {
+            ctx.fillRect(0, sy, W, 1);
+        }
+
+        // Value range across all datasets
+        var allVals = [];
+        for (var di = 0; di < datasets.length; di++) {
+            allVals = allVals.concat(datasets[di].values);
+        }
+        var maxVal = Math.max.apply(null, allVals) * 1.15;
+        if (maxVal === 0) { maxVal = 1; }
+        var minVal = 0;
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(90,69,40,0.4)';
+        ctx.lineWidth = 0.5;
+        var gridSteps = 4;
+        var font = '9px SFMono-Regular, Cascadia Code, Consolas, monospace';
+        ctx.font = font;
+        ctx.fillStyle = mutedColor;
+        ctx.textAlign = 'right';
+        for (var g = 0; g <= gridSteps; g++) {
+            var gy = pad.top + plotH - (g / gridSteps) * plotH;
+            ctx.beginPath();
+            ctx.setLineDash([2, 3]);
+            ctx.moveTo(pad.left, gy);
+            ctx.lineTo(pad.left + plotW, gy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            var label = Math.round(minVal + (g / gridSteps) * maxVal);
+            ctx.fillText(label.toString(), pad.left - 6, gy + 3);
+        }
+
+        // X-axis labels
+        ctx.textAlign = 'center';
+        ctx.fillStyle = mutedColor;
+        if (xlabels && xlabels.length > 0) {
+            var step = Math.max(1, Math.floor(xlabels.length / 7));
+            for (var xi = 0; xi < xlabels.length; xi += step) {
+                var lx = pad.left + (xi / Math.max(1, xlabels.length - 1)) * plotW;
+                ctx.fillText(xlabels[xi], lx, H - 6);
+            }
+        }
+
+        // Draw each dataset
+        for (var di = 0; di < datasets.length; di++) {
+            var ds = datasets[di];
+            var vals = ds.values;
+            var n = vals.length;
+            if (n === 0) { continue; }
+
+            var points = [];
+            for (var i = 0; i < n; i++) {
+                points.push({
+                    x: pad.left + (i / Math.max(1, n - 1)) * plotW,
+                    y: pad.top + plotH - ((vals[i] - minVal) / maxVal) * plotH,
+                });
+            }
+
+            // Glow effect
+            ctx.save();
+            ctx.shadowColor = ds.color;
+            ctx.shadowBlur = 6;
+            ctx.strokeStyle = ds.color;
+            ctx.lineWidth = 1.5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (var i = 1; i < points.length; i++) {
+                var prev = points[i - 1];
+                var curr = points[i];
+                var controlX = (prev.x + curr.x) / 2;
+                ctx.bezierCurveTo(controlX, prev.y, controlX, curr.y, curr.x, curr.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Square dot markers
+            ctx.fillStyle = ds.color;
+            for (var i = 0; i < points.length; i++) {
+                ctx.fillRect(points[i].x - 2, points[i].y - 2, 4, 4);
+            }
+        }
+
+        // Plot area border
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+        // Legend — bottom-right inside plot area
+        ctx.font = font;
+        ctx.textAlign = 'right';
+        var legendX = pad.left + plotW - 8;
+        var legendY = pad.top + 14;
+        for (var di = 0; di < datasets.length; di++) {
+            ctx.fillStyle = datasets[di].color;
+            ctx.fillRect(legendX - 50, legendY + di * 14 - 6, 6, 6);
+            ctx.fillText(datasets[di].label, legendX, legendY + di * 14);
+        }
+    }
+
     function renderChart(container, range) {
         var query = container.dataset.chartQuery || '';
         var url = '/api/activity?range=' + encodeURIComponent(range);
@@ -18,95 +154,28 @@
                 return response.json();
             })
             .then(function (buckets) {
-                var times = buckets.map(function (bucket) { return bucket.timestamp; });
                 var totals = buckets.map(function (bucket) { return bucket.total; });
-                var trackerRate = buckets.map(function (bucket) {
-                    if (!bucket.total) {
-                        return 0;
-                    }
-                    return bucket.tracker / bucket.total * 100;
+                var trackerVals = buckets.map(function (bucket) { return bucket.tracker; });
+                var xlabels = buckets.map(function (bucket) {
+                    return formatTimeLabel(bucket.timestamp, range);
                 });
 
                 container.innerHTML = '';
-                if (container._uplot) {
-                    container._uplot.destroy();
-                }
+                var canvas = document.createElement('canvas');
+                canvas.style.display = 'block';
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                container.appendChild(canvas);
+                container._canvas = canvas;
+                container._range = range;
 
-                var borderColor = chartColor('--umberrelay-panel-border') || '#5a4528';
-                var gridColor = 'rgba(90, 69, 40, 0.3)';
-                var font = '11px monospace';
+                var totalColor = chartColor('--umberrelay-chart-total') || '#f5a623';
+                var trackerColor = chartColor('--umberrelay-chart-tracker') || '#ff4f4f';
 
-                var axisOpts = {
-                    stroke: borderColor,
-                    grid: {
-                        show: true,
-                        stroke: gridColor,
-                        width: 1 / devicePixelRatio,
-                        dash: [2, 3],
-                    },
-                    ticks: {
-                        show: true,
-                        stroke: borderColor,
-                        width: 1 / devicePixelRatio,
-                        size: 4,
-                    },
-                    font: font,
-                    labelFont: font,
-                    labelSize: 16,
-                };
-
-                container._uplot = new uPlot({
-                    width: container.clientWidth || 720,
-                    height: 240,
-                    scales: {
-                        x: { time: true },
-                        rate: { auto: true },
-                        volume: { auto: true },
-                    },
-                    legend: { show: true, live: false },
-                    cursor: {
-                        show: true,
-                        x: true,
-                        y: false,
-                        points: { show: false },
-                    },
-                    axes: [
-                        Object.assign({}, axisOpts),
-                        Object.assign({ scale: 'rate', label: 'Tracker %' }, axisOpts),
-                        Object.assign({ scale: 'volume', label: 'Queries', side: 1 }, axisOpts),
-                    ],
-                    series: [
-                        {},
-                        {
-                            label: 'Tracker rate',
-                            scale: 'rate',
-                            stroke: 'transparent',
-                            width: 0,
-                            paths: function () { return null; },
-                            points: {
-                                show: true,
-                                size: 4,
-                                width: 0,
-                                fill: chartColor('--umberrelay-chart-tracker'),
-                                stroke: chartColor('--umberrelay-chart-tracker'),
-                            },
-                        },
-                        {
-                            label: 'Queries',
-                            scale: 'volume',
-                            stroke: 'transparent',
-                            width: 0,
-                            paths: function () { return null; },
-                            points: {
-                                show: true,
-                                size: 4,
-                                width: 0,
-                                fill: chartColor('--umberrelay-chart-total'),
-                                stroke: chartColor('--umberrelay-chart-total'),
-                            },
-                        },
-                    ],
-                }, [times, trackerRate, totals], container);
+                drawRetroChart(canvas, [
+                    { color: totalColor, values: totals, label: 'Queries' },
+                    { color: trackerColor, values: trackerVals, label: 'Tracker' },
+                ], xlabels);
             })
             .catch(function () {
                 container.textContent = 'Failed to load chart data';
@@ -148,8 +217,10 @@
         var resizeObserver = new ResizeObserver(function (entries) {
             entries.forEach(function (entry) {
                 var container = entry.target;
-                if (container._uplot && container.clientWidth > 0) {
-                    container._uplot.setSize({ width: container.clientWidth, height: 240 });
+                if (container._canvas && container.clientWidth > 0) {
+                    // Re-render on resize
+                    var range = container._range || '7d';
+                    renderChart(container, range);
                 }
             });
         });
@@ -157,7 +228,7 @@
         var originalBindChart = bindChart;
         bindChart = function (container) {
             originalBindChart(container);
-            if (container && container._uplot) {
+            if (container && container._canvas) {
                 resizeObserver.observe(container);
             }
         };

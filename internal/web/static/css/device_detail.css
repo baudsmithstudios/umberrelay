@@ -2,15 +2,14 @@
 
 .device-detail-page {
     /* width constrained by main.container */
-    padding-bottom: 3rem;
+    padding-bottom: 40px;
 }
 
 .device-detail-page .back-link {
     color: var(--pico-muted-color);
     display: inline-block;
-    font-size: 0.8rem;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.75rem;
+    font-size: 12px;
+    margin: 12px 0 4px;
     text-decoration: none;
 }
 
@@ -19,10 +18,10 @@
 }
 
 .device-detail-page .detail-card {
-    margin-bottom: 0.75rem;
-    padding: 1rem;
+    margin-bottom: 12px;
+    padding: 12px 14px;
 }
 
 .device-detail-page .chart-card {
-    padding: 0.75rem;
+    padding: 12px 14px;
 }

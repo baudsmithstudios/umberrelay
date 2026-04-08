@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umberrelay — Terminal UI Wireframe</title>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Umber Phosphor palette (unchanged) ── */
+:root {
+    --bg:            #0e0b04;
+    --panel-bg:      #151006;
+    --panel-bg-alt:  #1a1408;
+    --border:        #5a4528;
+    --text:          #f0e6c8;
+    --text-muted:    #b09470;
+    --accent:        #f5a623;
+    --accent-hover:  #ffbe4d;
+    --accent-deep:   #e08700;
+    --title-relay:   #c8b88a;
+    --critical:      #ff4f4f;
+    --positive:      #1dbd5c;
+    --analytics:     #1dbd5c;
+    --warn:          #d08a1b;
+
+    --font: 'SFMono-Regular','Cascadia Code','JetBrains Mono','Fira Code','Menlo','Consolas','DejaVu Sans Mono', monospace;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    font-variant-ligatures: none;
+    -webkit-font-smoothing: auto;
+}
+
+/* ── Wireframe page selector ── */
+.wireframe-nav {
+    background: var(--panel-bg-alt);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    text-align: center;
+    text-transform: uppercase;
+}
+.wireframe-nav button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    margin: 0 4px;
+    padding: 3px 12px;
+    text-transform: uppercase;
+}
+.wireframe-nav button:hover,
+.wireframe-nav button.active {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Container ── */
+.container {
+    margin: 0 auto;
+    max-width: 960px;
+    padding: 0 12px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   NAVBAR — top bar with brand + tabs
+   ════════════════════════════════════════════════════════════ */
+
+.navbar {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin: 0 auto;
+    max-width: 960px;
+    padding: 10px 12px 8px;
+}
+
+.brand {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+.brand-umber { color: var(--accent); }
+.brand-relay { color: var(--title-relay); }
+.brand-version {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 400;
+    margin-left: 6px;
+}
+
+/* Tabs: text-only, no underline */
+.tabs {
+    display: flex;
+    gap: 0;
+    list-style: none;
+}
+.tabs li + li { margin-left: 0; }
+.tabs a {
+    color: var(--text-muted);
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    padding: 4px 14px;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color 100ms;
+}
+.tabs a:hover {
+    color: var(--text);
+}
+.tabs a.active {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* Divider line under navbar */
+.navbar-rule {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TUI PANEL — box-drawing bordered sections
+   ════════════════════════════════════════════════════════════
+
+   Uses real Unicode box-drawing characters rendered via
+   CSS pseudo-elements + border. The title sits in the top
+   border line, Zellij-style: ┌─ Title ─────────────────────┐
+*/
+
+.panel {
+    border: 1px solid var(--border);
+    margin-top: 16px;
+    padding: 12px 14px;
+    position: relative;
+}
+
+/* Panel title — sits on the top border */
+.panel-title {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    left: 10px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0 6px;
+    position: absolute;
+    text-transform: uppercase;
+    top: 0;
+    transform: translateY(-50%);
+    background: var(--bg);
+}
+
+/* Panel with panel-bg background needs title bg to match */
+.panel--filled {
+    background: var(--panel-bg);
+}
+.panel--filled > .panel-title {
+    background: var(--panel-bg);
+}
+
+/* When panel is inside another panel, inherit bg */
+.panel .panel {
+    background: transparent;
+}
+
+/* Panel note — muted text beside title */
+.panel-title .note {
+    color: var(--text-muted);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin-left: 6px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   STAT BOXES
+   ════════════════════════════════════════════════════════════ */
+
+.stat-row {
+    display: flex;
+    gap: 8px;
+}
+.stat-box {
+    border: 1px solid var(--border);
+    flex: 1;
+    padding: 6px 10px;
+    text-align: center;
+}
+.stat-num {
+    color: var(--accent);
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+}
+.stat-lbl {
+    color: var(--text-muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════════════════════
+   BREAKDOWN BAR
+   ════════════════════════════════════════════════════════════ */
+
+.breakdown-bar {
+    border: 1px solid var(--border);
+    display: flex;
+    gap: 1px;
+    height: 6px;
+    overflow: hidden;
+}
+.breakdown-seg { display: block; min-width: 1px; }
+.seg-tracking  { background: var(--critical); }
+.seg-analytics { background: var(--analytics); }
+.seg-unclassified { background: var(--accent); }
+
+.breakdown-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-top: 4px;
+}
+.breakdown-legend span {
+    align-items: center;
+    display: inline-flex;
+    font-size: 11px;
+    gap: 4px;
+    color: var(--text-muted);
+}
+.legend-dot {
+    display: inline-block;
+    height: 6px;
+    width: 6px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TABLE — flat, minimal, bordered rows
+   ════════════════════════════════════════════════════════════ */
+
+.tui-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    width: 100%;
+}
+.tui-table th {
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 4px 8px;
+    text-align: left;
+    text-transform: uppercase;
+}
+.tui-table td {
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+}
+.tui-table tr:last-child td {
+    border-bottom: none;
+}
+
+.pill {
+    border: 1px solid currentColor;
+    color: var(--critical);
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 0 5px;
+    text-transform: uppercase;
+}
+.pill--analytics { color: var(--analytics); }
+.pill--unclassified { color: var(--accent); }
+
+/* ════════════════════════════════════════════════════════════
+   ATTENTION ITEMS
+   ════════════════════════════════════════════════════════════ */
+
+.attention-item {
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--critical);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 8px 12px;
+}
+.attention-item + .attention-item { margin-top: 6px; }
+.attention-item--volume { border-left-color: var(--analytics); }
+.attention-item--bypass { border-left-color: var(--warn); }
+
+.att-device {
+    color: var(--text);
+    font-size: 13px;
+}
+.att-badge {
+    border: 1px solid currentColor;
+    color: var(--critical);
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-left: 6px;
+    padding: 0 5px;
+    text-transform: uppercase;
+}
+.att-badge--volume { color: var(--analytics); }
+.att-badge--bypass { color: var(--warn); }
+.att-detail {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 2px;
+}
+.att-link {
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 3px 10px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.att-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════════════
+   CHART PLACEHOLDER
+   ════════════════════════════════════════════════════════════ */
+
+.chart-area {
+    height: 180px;
+    margin-top: 8px;
+    position: relative;
+}
+.chart-area canvas {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+/* Range controls in panel title area */
+.range-controls {
+    display: inline-flex;
+    gap: 0;
+    margin-left: auto;
+    position: absolute;
+    right: 10px;
+    top: 0;
+    transform: translateY(-50%);
+    background: var(--bg);
+    padding: 0 6px;
+}
+.range-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 0 6px;
+    text-transform: uppercase;
+}
+.range-btn:hover { color: var(--text); }
+.range-btn.active {
+    color: var(--accent);
+    font-weight: 700;
+}
+.range-btn + .range-btn {
+    border-left: 1px solid var(--border);
+}
+
+/* ════════════════════════════════════════════════════════════
+   FORMS — terminal-style inputs
+   ════════════════════════════════════════════════════════════ */
+
+.tui-field {
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.tui-label {
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 10px;
+    left: 8px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0 4px;
+    position: absolute;
+    text-transform: uppercase;
+    top: 0;
+    transform: translateY(-50%);
+}
+
+/* Label on filled-panel background */
+.panel--filled .tui-label {
+    background: var(--panel-bg);
+}
+
+.tui-input,
+.tui-select {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    outline: none;
+    padding: 10px 10px 6px;
+    width: 100%;
+}
+.tui-input:focus,
+.tui-select:focus {
+    border-color: var(--accent);
+}
+.tui-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.tui-select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23b09470'/%3E%3C/svg%3E");
+    background-position: right 10px center;
+    background-repeat: no-repeat;
+}
+.tui-select option {
+    background: var(--panel-bg-alt);
+    color: var(--text);
+}
+
+.tui-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 6px 16px;
+    text-transform: uppercase;
+    transition: background 100ms, color 100ms;
+}
+.tui-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+.tui-btn--secondary {
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+.tui-btn--secondary:hover {
+    background: var(--border);
+    color: var(--text);
+}
+
+.inline-form {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+.inline-form .tui-input {
+    max-width: 200px;
+    padding: 5px 8px;
+}
+.inline-form .tui-btn {
+    padding: 5px 12px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   DEVICE GRID
+   ════════════════════════════════════════════════════════════ */
+
+.device-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    margin-top: 12px;
+}
+
+.device-card {
+    border: 1px solid var(--border);
+    color: inherit;
+    display: block;
+    padding: 10px 12px;
+    text-decoration: none;
+    transition: border-color 100ms;
+}
+.device-card:hover {
+    border-color: var(--accent);
+}
+.device-card--anomaly {
+    border-left: 2px solid var(--critical);
+}
+
+.device-card-header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+.device-card-name {
+    color: var(--text);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.device-pct {
+    color: var(--critical);
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+.device-card-bar {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    height: 3px;
+    margin: 5px 0;
+    overflow: hidden;
+}
+.device-card-bar span {
+    background: var(--critical);
+    display: block;
+    height: 100%;
+}
+.device-card-meta {
+    color: var(--text-muted);
+    display: flex;
+    font-size: 11px;
+    justify-content: space-between;
+}
+
+/* ════════════════════════════════════════════════════════════
+   DEVICE DETAIL
+   ════════════════════════════════════════════════════════════ */
+
+.back-link {
+    color: var(--text-muted);
+    display: inline-block;
+    font-size: 12px;
+    margin: 12px 0 4px;
+    text-decoration: none;
+}
+.back-link:hover { color: var(--accent); }
+
+.detail-name {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+.detail-sub {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.privacy-row {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+}
+.privacy-bar-wrap { flex: 1; }
+.privacy-stat { text-align: right; }
+.privacy-stat .stat-num { font-size: 18px; }
+.privacy-stat-detail {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIVE QUERY STREAM
+   ════════════════════════════════════════════════════════════ */
+
+.live-stream-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.live-stream-controls .tui-input {
+    flex: 1;
+    padding: 5px 8px;
+}
+.live-stream-controls .tui-select {
+    padding: 5px 28px 5px 8px;
+    width: auto;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SETTINGS
+   ════════════════════════════════════════════════════════════ */
+
+.settings-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+}
+
+/* ════════════════════════════════════════════════════════════
+   LAYOUT HELPERS
+   ════════════════════════════════════════════════════════════ */
+
+.page-content {
+    padding-bottom: 40px;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 8px 0;
+}
+
+/* ════════════════════════════════════════════════════════════
+   FOOTER
+   ════════════════════════════════════════════════════════════ */
+
+.footer-rule {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+.footer {
+    color: var(--text-muted);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    margin: 0 auto;
+    max-width: 960px;
+    padding: 8px 12px;
+    text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<!-- Wireframe page switcher (not part of actual UI) -->
+<div class="wireframe-nav">
+    wireframe preview &mdash;
+    <button class="active" onclick="showPage('home')">Home</button>
+    <button onclick="showPage('devices')">Devices</button>
+    <button onclick="showPage('detail')">Device Detail</button>
+    <button onclick="showPage('settings')">Settings</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     NAVBAR (shared across all pages)
+     ════════════════════════════════════════════════════ -->
+<nav class="navbar">
+    <a class="brand" href="#">
+        <span class="brand-umber">Umber</span><span class="brand-relay">relay</span>
+        <span class="brand-version">0.1.0</span>
+    </a>
+    <ul class="tabs" id="main-tabs">
+        <li><a href="#" class="active" data-tab="home">Home</a></li>
+        <li><a href="#" data-tab="devices">Devices</a></li>
+        <li><a href="#" data-tab="settings">Settings</a></li>
+    </ul>
+</nav>
+<hr class="navbar-rule">
+
+<!-- ════════════════════════════════════════════════════
+     HOME PAGE
+     ════════════════════════════════════════════════════ -->
+<div class="page active" id="page-home">
+<div class="container page-content">
+
+    <!-- Network Privacy overview -->
+    <div class="panel">
+        <div class="panel-title">Network Privacy</div>
+        <div style="display:flex; gap:16px; align-items:center;">
+            <div style="flex:1;">
+                <p style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">
+                    31% of DNS queries hit known trackers across 12 devices
+                </p>
+                <div class="breakdown-bar">
+                    <span class="breakdown-seg seg-tracking" style="width:31%"></span>
+                    <span class="breakdown-seg seg-analytics" style="width:8%"></span>
+                    <span class="breakdown-seg seg-unclassified" style="width:61%"></span>
+                </div>
+                <div class="breakdown-legend">
+                    <span><i class="legend-dot seg-tracking"></i> Tracking <strong>4,218</strong></span>
+                    <span><i class="legend-dot seg-analytics"></i> Analytics <strong>1,090</strong></span>
+                    <span><i class="legend-dot seg-unclassified"></i> Unclassified <strong>8,312</strong></span>
+                </div>
+            </div>
+            <div class="stat-row" style="width:170px;">
+                <div class="stat-box">
+                    <span class="stat-num">12</span>
+                    <span class="stat-lbl">Devices</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num">847</span>
+                    <span class="stat-lbl">Domains</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="panel">
+        <div class="panel-title">Tracker Rate Over Time</div>
+        <div class="range-controls">
+            <button class="range-btn" type="button">24h</button>
+            <button class="range-btn active" type="button">7d</button>
+            <button class="range-btn" type="button">30d</button>
+        </div>
+        <div class="chart-area"><canvas id="chart-home"></canvas></div>
+    </div>
+
+    <!-- Top Domains -->
+    <div class="panel">
+        <div class="panel-title">Top Domains <span class="note">sorted by reach and volume</span></div>
+        <table class="tui-table">
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Classification</th>
+                    <th>Queries</th>
+                    <th>Reach</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ads.doubleclick.net</td>
+                    <td><span class="pill">tracking</span></td>
+                    <td>1,204</td>
+                    <td>9 / 12</td>
+                </tr>
+                <tr>
+                    <td>analytics.google.com</td>
+                    <td><span class="pill pill--analytics">analytics</span></td>
+                    <td>892</td>
+                    <td>7 / 12</td>
+                </tr>
+                <tr>
+                    <td>cdn.example.com</td>
+                    <td><span class="pill pill--unclassified">unclassified</span></td>
+                    <td>641</td>
+                    <td>11 / 12</td>
+                </tr>
+                <tr>
+                    <td>graph.facebook.com</td>
+                    <td><span class="pill">tracking</span></td>
+                    <td>423</td>
+                    <td>5 / 12</td>
+                </tr>
+                <tr>
+                    <td>api.segment.io</td>
+                    <td><span class="pill pill--analytics">analytics</span></td>
+                    <td>318</td>
+                    <td>3 / 12</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Needs Attention -->
+    <div class="panel">
+        <div class="panel-title">Needs Attention <span class="note">vs previous period</span></div>
+        <div class="attention-item">
+            <div>
+                <div><strong class="att-device">Living Room TV</strong><span class="att-badge">tracker spike</span></div>
+                <div class="att-detail">Tracker rate jumped from 20% to 75% — top domain: ads.example.com</div>
+            </div>
+            <a href="#" class="att-link">Investigate →</a>
+        </div>
+        <div class="attention-item attention-item--volume">
+            <div>
+                <div><strong class="att-device">Nest Thermostat</strong><span class="att-badge att-badge--volume">volume spike</span></div>
+                <div class="att-detail">Query volume 3x above average over the last 6 hours</div>
+            </div>
+            <a href="#" class="att-link">Investigate →</a>
+        </div>
+        <div class="attention-item attention-item--bypass">
+            <div>
+                <div><strong class="att-device">Work Laptop</strong><span class="att-badge att-badge--bypass">dns bypass</span></div>
+                <div class="att-detail">Active on LAN but no DNS queries for 3 hours — dns.google was seen earlier</div>
+            </div>
+            <a href="#" class="att-link">Investigate →</a>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DEVICES PAGE
+     ════════════════════════════════════════════════════ -->
+<div class="page" id="page-devices">
+<div class="container page-content">
+
+    <div class="panel">
+        <div class="panel-title">Devices <span class="note">12 total</span></div>
+        <div style="display:flex; gap:8px;">
+            <div class="tui-field" style="flex:1; margin-bottom:0;">
+                <input type="search" class="tui-input" placeholder="Filter devices...">
+            </div>
+            <div class="tui-field" style="width:180px; margin-bottom:0;">
+                <select class="tui-select">
+                    <option>By Tracker Rate</option>
+                    <option>By Volume</option>
+                    <option>By Name</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="device-grid">
+        <a href="#" class="device-card device-card--anomaly" onclick="showPage('detail');return false;">
+            <div class="device-card-header">
+                <strong class="device-card-name">Living Room TV</strong>
+                <span class="device-pct">75%</span>
+            </div>
+            <div class="device-card-bar"><span style="width:75%"></span></div>
+            <div class="device-card-meta">
+                <span>Samsung · 192.168.1.42</span>
+                <span>1,204 queries</span>
+            </div>
+        </a>
+        <a href="#" class="device-card">
+            <div class="device-card-header">
+                <strong class="device-card-name">iPhone 15</strong>
+                <span class="device-pct">42%</span>
+            </div>
+            <div class="device-card-bar"><span style="width:42%"></span></div>
+            <div class="device-card-meta">
+                <span>Apple · 192.168.1.15</span>
+                <span>892 queries</span>
+            </div>
+        </a>
+        <a href="#" class="device-card">
+            <div class="device-card-header">
+                <strong class="device-card-name">Work Laptop</strong>
+                <span class="device-pct">18%</span>
+            </div>
+            <div class="device-card-bar"><span style="width:18%"></span></div>
+            <div class="device-card-meta">
+                <span>Dell · 192.168.1.8</span>
+                <span>2,341 queries</span>
+            </div>
+        </a>
+        <a href="#" class="device-card">
+            <div class="device-card-header">
+                <strong class="device-card-name">Nest Thermostat</strong>
+                <span class="device-pct">12%</span>
+            </div>
+            <div class="device-card-bar"><span style="width:12%"></span></div>
+            <div class="device-card-meta">
+                <span>Google · 192.168.1.31</span>
+                <span>641 queries</span>
+            </div>
+        </a>
+        <a href="#" class="device-card">
+            <div class="device-card-header">
+                <strong class="device-card-name">Echo Dot</strong>
+                <span class="device-pct">38%</span>
+            </div>
+            <div class="device-card-bar"><span style="width:38%"></span></div>
+            <div class="device-card-meta">
+                <span>Amazon · 192.168.1.22</span>
+                <span>423 queries</span>
+            </div>
+        </a>
+        <a href="#" class="device-card">
+            <div class="device-card-header">
+                <strong class="device-card-name">Unattributed · 10.0.0.7</strong>
+                <span class="device-pct">5%</span>
+            </div>
+            <div class="device-card-bar"><span style="width:5%"></span></div>
+            <div class="device-card-meta">
+                <span>Unattributed source</span>
+                <span>25 queries</span>
+            </div>
+        </a>
+    </div>
+
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DEVICE DETAIL PAGE
+     ════════════════════════════════════════════════════ -->
+<div class="page" id="page-detail">
+<div class="container page-content">
+
+    <a href="#" class="back-link" onclick="showPage('devices');return false;">← All Devices</a>
+
+    <!-- Device info -->
+    <div class="panel">
+        <div class="panel-title">Device Detail</div>
+        <div class="detail-name">Living Room TV</div>
+        <div class="inline-form" style="margin:6px 0;">
+            <input type="text" class="tui-input" value="Living Room TV" placeholder="Edit Label">
+            <button class="tui-btn tui-btn--secondary">Save</button>
+        </div>
+        <div class="detail-sub">Samsung · aa:bb:cc:dd:ee:ff · 192.168.1.42</div>
+    </div>
+
+    <!-- Privacy Breakdown -->
+    <div class="panel">
+        <div class="panel-title">Privacy Breakdown</div>
+        <div class="privacy-row">
+            <div class="privacy-bar-wrap">
+                <div class="breakdown-bar">
+                    <span class="breakdown-seg seg-tracking" style="width:75%"></span>
+                    <span class="breakdown-seg seg-analytics" style="width:5%"></span>
+                    <span class="breakdown-seg seg-unclassified" style="width:20%"></span>
+                </div>
+                <div class="breakdown-legend">
+                    <span><i class="legend-dot seg-tracking"></i> Tracking 75%</span>
+                    <span><i class="legend-dot seg-analytics"></i> Analytics 5%</span>
+                    <span><i class="legend-dot seg-unclassified"></i> Unclassified 20%</span>
+                </div>
+            </div>
+            <div class="privacy-stat">
+                <span class="stat-num">1,204</span>
+                <span class="privacy-stat-detail">queries (24h) · <span style="color:var(--critical)">↑ 55%</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity chart -->
+    <div class="panel">
+        <div class="panel-title">Activity</div>
+        <div class="range-controls">
+            <button class="range-btn" type="button">24h</button>
+            <button class="range-btn active" type="button">7d</button>
+            <button class="range-btn" type="button">30d</button>
+        </div>
+        <div class="chart-area"><canvas id="chart-detail"></canvas></div>
+    </div>
+
+    <!-- Domains table -->
+    <div class="panel">
+        <div class="panel-title">Domains <span class="note">42 unique · showing top 20</span></div>
+        <table class="tui-table">
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Classification</th>
+                    <th>Queries</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ads.doubleclick.net</td>
+                    <td><span class="pill">tracking</span></td>
+                    <td>421</td>
+                    <td>
+                        <div class="inline-form">
+                            <select class="tui-select" style="width:120px; padding:3px 24px 3px 6px; font-size:11px;">
+                                <option>tracking</option>
+                                <option>analytics</option>
+                                <option>unclassified</option>
+                            </select>
+                            <button class="tui-btn tui-btn--secondary" style="padding:3px 8px;">Classify</button>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>graph.facebook.com</td>
+                    <td><span class="pill">tracking</span></td>
+                    <td>318</td>
+                    <td>
+                        <div class="inline-form">
+                            <select class="tui-select" style="width:120px; padding:3px 24px 3px 6px; font-size:11px;">
+                                <option>tracking</option>
+                                <option>analytics</option>
+                                <option>unclassified</option>
+                            </select>
+                            <button class="tui-btn tui-btn--secondary" style="padding:3px 8px;">Classify</button>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>api.samsung.com</td>
+                    <td><span class="pill pill--unclassified">unclassified</span></td>
+                    <td>203</td>
+                    <td>
+                        <div class="inline-form">
+                            <select class="tui-select" style="width:120px; padding:3px 24px 3px 6px; font-size:11px;">
+                                <option>unclassified</option>
+                                <option>tracking</option>
+                                <option>analytics</option>
+                            </select>
+                            <button class="tui-btn tui-btn--secondary" style="padding:3px 8px;">Classify</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Live Query Stream -->
+    <div class="panel">
+        <div class="panel-title">Live Query Stream <span class="note">real-time DNS feed</span></div>
+        <div class="live-stream-controls">
+            <input type="search" class="tui-input" placeholder="Filter domain...">
+            <select class="tui-select" style="width:160px;">
+                <option>All categories</option>
+                <option>tracking</option>
+                <option>analytics</option>
+                <option>unclassified</option>
+            </select>
+            <button class="tui-btn tui-btn--secondary">Clear</button>
+        </div>
+        <table class="tui-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Domain</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="color:var(--text-muted);">14:32:07</td>
+                    <td>Living Room TV</td>
+                    <td>ads.doubleclick.net</td>
+                    <td>A</td>
+                    <td><span class="pill">tracking</span></td>
+                </tr>
+                <tr>
+                    <td style="color:var(--text-muted);">14:32:05</td>
+                    <td>Living Room TV</td>
+                    <td>api.samsung.com</td>
+                    <td>AAAA</td>
+                    <td><span class="pill pill--unclassified">unclassified</span></td>
+                </tr>
+                <tr>
+                    <td style="color:var(--text-muted);">14:31:58</td>
+                    <td>Living Room TV</td>
+                    <td>graph.facebook.com</td>
+                    <td>A</td>
+                    <td><span class="pill">tracking</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SETTINGS PAGE
+     ════════════════════════════════════════════════════ -->
+<div class="page" id="page-settings">
+<div class="container page-content">
+
+    <!-- Retention -->
+    <div class="panel">
+        <div class="panel-title">Retention</div>
+        <div class="settings-grid">
+            <div class="tui-field">
+                <label class="tui-label">Days to retain query data</label>
+                <input type="number" class="tui-input" value="30">
+            </div>
+            <div class="tui-field">
+                <label class="tui-label">Hours between list refreshes</label>
+                <input type="number" class="tui-input" value="24">
+            </div>
+        </div>
+        <button class="tui-btn" style="margin-top:4px;">Save</button>
+    </div>
+
+    <!-- Classification Lists -->
+    <div class="panel">
+        <div class="panel-title">Classification Lists</div>
+        <div style="margin-bottom:10px;">
+            <button class="tui-btn tui-btn--secondary">Refresh Lists Now</button>
+        </div>
+        <table class="tui-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Enabled</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Steven Black Unified</td>
+                    <td>tracking</td>
+                    <td><button class="tui-btn tui-btn--secondary" style="padding:2px 8px; font-size:10px;">Disable</button></td>
+                    <td><button class="tui-btn tui-btn--secondary" style="padding:2px 8px; font-size:10px;">Remove</button></td>
+                </tr>
+                <tr>
+                    <td>EasyPrivacy</td>
+                    <td>analytics</td>
+                    <td><button class="tui-btn tui-btn--secondary" style="padding:2px 8px; font-size:10px;">Disable</button></td>
+                    <td><button class="tui-btn tui-btn--secondary" style="padding:2px 8px; font-size:10px;">Remove</button></td>
+                </tr>
+                <tr>
+                    <td>Disconnect.me Tracking</td>
+                    <td>tracking</td>
+                    <td><button class="tui-btn tui-btn--secondary" style="padding:2px 8px; font-size:10px;">Disable</button></td>
+                    <td><button class="tui-btn tui-btn--secondary" style="padding:2px 8px; font-size:10px;">Remove</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add List -->
+    <div class="panel">
+        <div class="panel-title">Add List</div>
+        <div class="tui-field">
+            <label class="tui-label">URL</label>
+            <input type="url" class="tui-input" placeholder="https://example.com/list.txt">
+        </div>
+        <div class="settings-grid">
+            <div class="tui-field">
+                <label class="tui-label">Name</label>
+                <input type="text" class="tui-input" placeholder="My List">
+            </div>
+            <div class="tui-field">
+                <label class="tui-label">Category</label>
+                <select class="tui-select">
+                    <option>Tracking</option>
+                    <option>Advertising</option>
+                    <option>Analytics</option>
+                    <option>Telemetry</option>
+                    <option>Malware</option>
+                    <option>Uncategorized</option>
+                </select>
+            </div>
+        </div>
+        <button class="tui-btn">Add</button>
+    </div>
+
+</div>
+</div>
+
+<!-- Footer -->
+<hr class="footer-rule">
+<div class="footer">Umberrelay 0.1.0 — forwarding DNS with attribution</div>
+
+<script>
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+
+    document.querySelectorAll('.wireframe-nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.wireframe-nav button').forEach(b => {
+        if (b.textContent.trim().toLowerCase() === name || (name === 'detail' && b.textContent.trim().toLowerCase() === 'device detail')) {
+            b.classList.add('active');
+        }
+    });
+
+    // Update nav tabs
+    var tabMap = { home: 'home', devices: 'devices', detail: 'devices', settings: 'settings' };
+    document.querySelectorAll('.tabs a').forEach(a => {
+        a.classList.toggle('active', a.dataset.tab === tabMap[name]);
+    });
+}
+
+/* ── Retro CRT line chart renderer ── */
+function drawRetroChart(canvasId, datasets, opts) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    var W = rect.width;
+    var H = rect.height;
+
+    var pad = { top: 14, right: 10, bottom: 24, left: 40 };
+    var plotW = W - pad.left - pad.right;
+    var plotH = H - pad.top - pad.bottom;
+
+    // Background
+    ctx.fillStyle = '#0e0b04';
+    ctx.fillRect(0, 0, W, H);
+
+    // Scanline overlay
+    ctx.fillStyle = 'rgba(240,230,200,0.015)';
+    for (var sy = 0; sy < H; sy += 3) {
+        ctx.fillRect(0, sy, W, 1);
+    }
+
+    // Find value range
+    var allVals = datasets.reduce(function(a, d) { return a.concat(d.values); }, []);
+    var maxVal = Math.max.apply(null, allVals) * 1.15;
+    var minVal = 0;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(90,69,40,0.4)';
+    ctx.lineWidth = 0.5;
+    var gridSteps = 4;
+    ctx.font = '9px SFMono-Regular, Consolas, monospace';
+    ctx.fillStyle = '#b09470';
+    ctx.textAlign = 'right';
+    for (var g = 0; g <= gridSteps; g++) {
+        var gy = pad.top + plotH - (g / gridSteps) * plotH;
+        ctx.beginPath();
+        ctx.setLineDash([2, 3]);
+        ctx.moveTo(pad.left, gy);
+        ctx.lineTo(pad.left + plotW, gy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        var label = Math.round(minVal + (g / gridSteps) * (maxVal - minVal));
+        ctx.fillText(label, pad.left - 6, gy + 3);
+    }
+
+    // X-axis labels
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#b09470';
+    var numPoints = datasets[0].values.length;
+    var xlabels = opts.xlabels || [];
+    for (var xi = 0; xi < xlabels.length; xi++) {
+        var lx = pad.left + (xi / (xlabels.length - 1)) * plotW;
+        ctx.fillText(xlabels[xi], lx, H - 4);
+    }
+
+    // Draw each dataset
+    datasets.forEach(function(ds) {
+        var vals = ds.values;
+        var n = vals.length;
+
+        // Glow effect
+        ctx.save();
+        ctx.shadowColor = ds.color;
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = ds.color;
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'miter';
+        ctx.beginPath();
+        for (var i = 0; i < n; i++) {
+            var x = pad.left + (i / (n - 1)) * plotW;
+            var y = pad.top + plotH - ((vals[i] - minVal) / (maxVal - minVal)) * plotH;
+            // Step-style: horizontal then vertical for retro feel
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                var prevX = pad.left + ((i - 1) / (n - 1)) * plotW;
+                ctx.lineTo(x, ctx._lastY || y);
+                ctx.lineTo(x, y);
+            }
+            ctx._lastY = y;
+        }
+        delete ctx._lastY;
+        ctx.stroke();
+        ctx.restore();
+
+        // Dot markers
+        ctx.fillStyle = ds.color;
+        for (var i = 0; i < n; i++) {
+            var x = pad.left + (i / (n - 1)) * plotW;
+            var y = pad.top + plotH - ((vals[i] - minVal) / (maxVal - minVal)) * plotH;
+            ctx.fillRect(x - 2, y - 2, 4, 4);
+        }
+    });
+
+    // Plot area border
+    ctx.strokeStyle = '#5a4528';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+}
+
+function initCharts() {
+    drawRetroChart('chart-home', [
+        {
+            color: '#f5a623',
+            values: [28, 30, 32, 29, 35, 31, 27, 33, 38, 42, 36, 31, 29, 34, 31, 28, 33, 30, 35, 32, 29, 31, 30, 31]
+        },
+        {
+            color: '#ff4f4f',
+            values: [8, 9, 11, 10, 14, 12, 9, 12, 16, 19, 14, 11, 10, 13, 11, 9, 12, 10, 14, 12, 10, 11, 10, 11]
+        }
+    ], {
+        xlabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    });
+
+    drawRetroChart('chart-detail', [
+        {
+            color: '#f5a623',
+            values: [45, 52, 48, 62, 71, 58, 65, 80, 95, 110, 98, 85, 78, 92, 88, 75, 82, 90, 105, 95, 88, 84, 80, 78]
+        },
+        {
+            color: '#ff4f4f',
+            values: [32, 38, 35, 48, 55, 42, 50, 62, 75, 88, 78, 65, 60, 72, 68, 58, 64, 70, 82, 74, 68, 65, 62, 60]
+        }
+    ], {
+        xlabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    });
+}
+
+// Draw on load and on page switch
+document.addEventListener('DOMContentLoaded', initCharts);
+var origShowPage = showPage;
+showPage = function(name) {
+    origShowPage(name);
+    setTimeout(initCharts, 10);
+};
+</script>
+</body>
+</html>

@@ -232,12 +232,7 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0;
 }
 
-/* Pipe separator between tabs */
-.umberrelay-tabs li + li::before {
-    color: var(--umberrelay-panel-border);
-    content: '│';
-    font-size: 0.85rem;
-}
+/* No separators — text-only tabs */
 
 .umberrelay-tab {
     color: var(--pico-muted-color);
@@ -253,25 +248,48 @@ h1, h2, h3, h4, h5, h6 {
 .umberrelay-tab:hover,
 .umberrelay-tab:focus-visible {
     color: var(--pico-color);
+    text-decoration: none;
 }
 
 .umberrelay-tab[aria-current="page"] {
     color: var(--umberrelay-accent);
     font-weight: 700;
+    text-decoration: none;
+}
+
+/* ── Navbar divider ───────────────────────────────────────── */
+
+.umberrelay-navbar-rule {
+    border: none;
+    border-top: 1px solid var(--umberrelay-panel-border);
+    margin: 0 auto;
+    max-width: 960px;
 }
 
 /* ── Container width — match navbar ────────────────────────── */
 
 main.container {
     max-width: 960px;
+    padding: 0 12px;
+}
+
+/* Kill Pico body>main block padding and section bottom margin */
+body > main {
+    padding-block: 0 !important;
+}
+
+section {
+    margin-bottom: 0 !important;
 }
 
 /* ── Terminal panel (replaces article/card) ─────────────────── */
 
 article,
 .live-query-stream {
+    background: transparent !important;
     border: 1px solid var(--umberrelay-panel-border);
     border-radius: 0;
+    box-shadow: none !important;
     margin-bottom: 0;
     position: relative;
 }
@@ -322,11 +340,13 @@ article:has(> .chart-header:first-child),
 }
 
 .section-title > span {
+    background: var(--pico-background-color);
     flex-shrink: 0;
     padding: 0 0.4rem;
 }
 
 .section-note {
+    background: var(--pico-background-color);
     color: var(--pico-muted-color);
     font-size: 0.7rem;
     font-weight: 400;
@@ -344,6 +364,7 @@ article:has(> .chart-header:first-child),
 }
 
 .chart-label {
+    background: var(--pico-background-color);
     color: var(--umberrelay-accent);
     flex-shrink: 0;
     font-size: 0.75rem;
@@ -416,4 +437,148 @@ article small {
         font-size: 0.7rem;
         padding: 0.15rem 0.4rem;
     }
+}
+
+/* ── TUI form overrides ───────────────────────────────────── */
+
+/* Kill Pico search icon */
+input[type="search"] {
+    background-image: none !important;
+    padding-inline-start: 0.6rem;
+}
+
+/* Border-only buttons — !important to override Pico */
+button,
+[type="submit"],
+[type="button"] {
+    background: transparent !important;
+    border: 1px solid var(--umberrelay-accent) !important;
+    box-shadow: none !important;
+    color: var(--umberrelay-accent);
+    cursor: pointer;
+    font-family: var(--pico-font-family);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 6px 16px;
+    text-transform: uppercase;
+    transition: background 100ms, color 100ms;
+}
+
+button:hover,
+[type="submit"]:hover,
+[type="button"]:hover {
+    background: var(--umberrelay-accent) !important;
+    color: var(--pico-background-color);
+}
+
+button.secondary,
+[type="submit"].secondary,
+[type="button"].secondary {
+    border-color: var(--umberrelay-panel-border) !important;
+    color: var(--pico-muted-color);
+}
+
+button.secondary:hover,
+[type="submit"].secondary:hover,
+[type="button"].secondary:hover {
+    background: var(--umberrelay-panel-border) !important;
+    color: var(--pico-color);
+}
+
+/* Border-only inputs — !important to override Pico */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    background: transparent !important;
+    border: 1px solid var(--umberrelay-panel-border) !important;
+    box-shadow: none !important;
+    color: var(--pico-color);
+    font-family: var(--pico-font-family);
+    font-size: 13px;
+    outline: none;
+    padding: 10px 10px 6px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--umberrelay-accent) !important;
+    box-shadow: none !important;
+}
+
+input::placeholder {
+    color: var(--pico-muted-color);
+    opacity: 0.6;
+}
+
+select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 1.75rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23b09470'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+    background-repeat: no-repeat;
+}
+
+select option {
+    background: var(--pico-card-sectioning-background-color);
+    color: var(--pico-color);
+}
+
+/* Floating label pattern */
+.tui-field {
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.tui-field label,
+.tui-label {
+    background: var(--pico-background-color);
+    color: var(--pico-muted-color);
+    font-size: 10px;
+    left: 8px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0 4px;
+    position: absolute;
+    text-transform: uppercase;
+    top: 0;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+/* Labels always match page background since panels are transparent */
+
+.tui-field input,
+.tui-field select {
+    width: 100%;
+}
+
+/* ── Device detail heading ────────────────────────────────── */
+
+.detail-device-name {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0;
+    margin: 0 0 2px;
+    text-transform: none;
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+
+.umberrelay-footer-rule {
+    border: none;
+    border-top: 1px solid var(--umberrelay-panel-border);
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+.umberrelay-footer {
+    color: var(--pico-muted-color);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    margin: 0 auto;
+    max-width: 960px;
+    padding: 8px 12px;
+    text-transform: uppercase;
 }

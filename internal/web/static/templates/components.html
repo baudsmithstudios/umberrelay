@@ -58,7 +58,7 @@
 {{define "domain-row"}}
 <tr id="domain-row-{{.Domain}}">
     <td data-label="Domain">{{.Domain}}</td>
-    <td data-label="Classification"><span class="classification-pill">{{.ClassificationLabel}}</span></td>
+    <td data-label="Classification"><span class="classification-pill {{.ClassificationClass}}">{{.ClassificationLabel}}</span></td>
     <td data-label="Queries">{{.QueryCount}}</td>
     {{if eq .Scope "network"}}
     <td data-label="Reach">{{.DeviceCountLabel}}</td>

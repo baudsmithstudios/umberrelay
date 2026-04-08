@@ -1,6 +1,5 @@
 {{define "page_styles"}}
 <link rel="stylesheet" href="/static/css/home.css">
-<link rel="stylesheet" href="/static/css/uplot.min.css">
 {{end}}
 
 {{define "content"}}
@@ -67,7 +66,7 @@
                     {{range .TopDomains}}
                     <tr>
                         <td data-label="Domain">{{.Domain}}</td>
-                        <td data-label="Classification"><span class="classification-pill">{{.ClassificationLabel}}</span></td>
+                        <td data-label="Classification"><span class="classification-pill {{.ClassificationClass}}">{{.ClassificationLabel}}</span></td>
                         <td data-label="Queries">{{.QueryCount}}</td>
                         <td data-label="Reach">{{.DeviceCountLabel}}</td>
                     </tr>
@@ -107,6 +106,5 @@
 {{end}}
 
 {{define "page_scripts"}}
-<script src="/static/js/uplot.min.js"></script>
 <script src="/static/js/charts.js"></script>
 {{end}}

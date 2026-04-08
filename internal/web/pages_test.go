@@ -250,6 +250,31 @@ func TestHomePageTopDomainsShowReach(t *testing.T) {
 	}
 }
 
+func TestHomePageTopDomainsUseClassificationPillClasses(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		`class="classification-pill classification-pill-tracking"`,
+		`class="classification-pill classification-pill-analytics"`,
+		`class="classification-pill classification-pill-unclassified"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("response missing classification pill class %q", want)
+		}
+	}
+}
+
 func TestHomePageAnomalyLinksToDeviceDetail(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()

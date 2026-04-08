@@ -2,9 +2,9 @@
 
 .home-page {
     display: grid;
-    gap: 2rem;
+    gap: 16px;
     /* width constrained by main.container */
-    padding-bottom: 3rem;
+    padding-bottom: 40px;
 }
 
 .home-page article {
@@ -14,7 +14,7 @@
 /* ── Headline card ── */
 
 .home-page .headline-card {
-    padding: 1rem;
+    padding: 0.75rem 0.875rem;
 }
 
 .home-page .headline-row {
@@ -32,8 +32,8 @@
 
 .home-page .headline-subtitle {
     color: var(--pico-muted-color);
-    font-size: 0.8rem;
-    margin: 0.15rem 0 0.4rem;
+    font-size: 12px;
+    margin: 0 0 6px;
 }
 
 .home-page .headline-bar {
@@ -42,15 +42,15 @@
 
 .home-page .headline-stats {
     display: grid;
-    gap: 0.4rem;
+    gap: 8px;
     grid-template-columns: 1fr 1fr;
-    width: 156px;
+    width: 170px;
 }
 
 /* ── Chart card ── */
 
 .home-page .chart-card {
-    padding: 0.75rem;
+    padding: 12px 14px;
 }
 
 /* ── Attention feed ── */

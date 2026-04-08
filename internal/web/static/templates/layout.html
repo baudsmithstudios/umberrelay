@@ -24,9 +24,12 @@
             <li><a class="umberrelay-tab" href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a></li>
         </ul>
     </nav>
+    <hr class="umberrelay-navbar-rule">
     <main class="container" aria-live="polite">
         {{template "content" .}}
     </main>
+    <hr class="umberrelay-footer-rule">
+    <div class="umberrelay-footer">Umberrelay 0.1.0 — forwarding DNS with attribution</div>
     <script src="/static/js/htmx.min.js"></script>
     {{block "page_scripts" .}}{{end}}
 </body>
