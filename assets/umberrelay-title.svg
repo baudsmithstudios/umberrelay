@@ -53,7 +53,7 @@
   <text
     class="glow-text"
     x="300"
-    y="46"
+    y="44"
     font-family="'Orbitron', sans-serif"
     font-size="32"
     font-weight="700"
@@ -65,9 +65,9 @@
   <text
     class="tagline"
     x="300"
-    y="74"
+    y="78"
     font-family="'Courier Prime', 'Courier New', monospace"
-    font-size="11"
+    font-size="12"
     text-anchor="middle"
     dominant-baseline="central"
     letter-spacing="1.2"
