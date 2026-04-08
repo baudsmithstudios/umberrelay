@@ -3,10 +3,6 @@
 </p>
 
 <p align="center">
-  <em>Trace the traffic your network never explains.</em>
-</p>
-
-<p align="center">
   <img src="https://img.shields.io/badge/Raspberry%20Pi-A22846?style=flat&logo=raspberrypi&logoColor=white" alt="Raspberry Pi">
   <a href="https://github.com/baudsmithstudios/umberrelay/releases/latest"><img src="https://img.shields.io/github/v/release/baudsmithstudios/umberrelay?label=version" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-5faf87.svg" alt="Apache 2.0 License"></a>
