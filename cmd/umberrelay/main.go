@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -33,25 +35,32 @@ func main() {
 	demoData := flag.Bool("demo-data", false, "seed demo data into an empty database for local UI review")
 	flag.Parse()
 
-	cfg, err := config.Load(*configPath)
+	if err := run(*configPath, *demoData); err != nil {
+		log.Printf("%s failed: %v", runtimeName, err)
+		os.Exit(1)
+	}
+}
+
+func run(configPath string, demoData bool) error {
+	cfg, err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
-		log.Fatalf("create data dir: %v", err)
+		return fmt.Errorf("create data dir: %w", err)
 	}
 
 	dbPath := filepath.Join(cfg.DataDir, defaultDBName)
 	db, err := store.Open(dbPath)
 	if err != nil {
-		log.Fatalf("open db: %v", err)
+		return fmt.Errorf("open db: %w", err)
 	}
 	defer db.Close()
 
-	if *demoData {
+	if demoData {
 		if err := demo.Seed(db, time.Now()); err != nil {
-			log.Fatalf("seed demo data: %v", err)
+			return fmt.Errorf("seed demo data: %w", err)
 		}
 		log.Printf("demo data ready in %s", dbPath)
 	}
@@ -70,7 +79,7 @@ func main() {
 	// Device tracker
 	oui := device.DefaultOUIDB()
 	tracker := device.NewTracker(db, oui)
-	if !*demoData {
+	if !demoData {
 		go tracker.Run(ctx)
 	}
 
@@ -87,7 +96,7 @@ func main() {
 	}
 
 	sources := defaultListSources(db)
-	if cached == 0 && !*demoData {
+	if cached == 0 && !demoData {
 		log.Println("no list cache found, fetching lists immediately")
 		mgr.Refresh(ctx, sources)
 	} else {
@@ -99,7 +108,7 @@ func main() {
 			refreshHours = n
 		}
 	}
-	if !*demoData {
+	if !demoData {
 		go mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour)
 	}
 
@@ -108,14 +117,19 @@ func main() {
 
 	// DNS listener + async writer
 	records := make(chan dns.QueryRecord, 4096)
-	if !*demoData {
+	errCh := make(chan error, 2)
+	if !demoData {
 		listener, err := dns.NewListener(cfg.Listen, cfg.Upstream, records)
 		if err != nil {
-			log.Fatalf("create dns listener: %v", err)
+			return fmt.Errorf("create dns listener: %w", err)
 		}
 		go func() {
 			if err := listener.Run(ctx); err != nil && ctx.Err() == nil {
-				log.Fatalf("dns listener: %v", err)
+				select {
+				case errCh <- fmt.Errorf("dns listener: %w", err):
+				default:
+				}
+				cancel()
 			}
 		}()
 	}
@@ -125,12 +139,12 @@ func main() {
 		FlushInterval: 1 * time.Second,
 		OnFlush:       srv.NotifyNewQueries,
 	})
-	if !*demoData {
+	if !demoData {
 		go writer.Run(ctx)
 	}
 
 	// Purge goroutine
-	if !*demoData {
+	if !demoData {
 		go runPurge(ctx, db)
 	}
 
@@ -138,17 +152,38 @@ func main() {
 		addr := fmt.Sprintf(":%d", cfg.HTTPPort)
 		log.Printf("web ui: http://0.0.0.0%s", addr)
 		if err := srv.ListenAndServe(ctx, addr); err != nil && ctx.Err() == nil {
-			log.Fatalf("web server: %v", err)
+			if errors.Is(err, http.ErrServerClosed) {
+				return
+			}
+			select {
+			case errCh <- fmt.Errorf("web server: %w", err):
+			default:
+			}
+			cancel()
 		}
 	}()
 
-	if *demoData {
+	if demoData {
 		log.Printf("%s demo mode started (http=:%d)", runtimeName, cfg.HTTPPort)
 	} else {
 		log.Printf("%s started (dns=%s, upstream=%v)", runtimeName, cfg.Listen, cfg.Upstream)
 	}
-	<-ctx.Done()
+
+	var runErr error
+	select {
+	case <-ctx.Done():
+	case runErr = <-errCh:
+	}
+	cancel()
+	select {
+	case err := <-errCh:
+		if runErr == nil {
+			runErr = err
+		}
+	default:
+	}
 	log.Println("shutdown complete")
+	return runErr
 }
 
 func runPurge(ctx context.Context, db *store.DB) {
@@ -215,27 +250,18 @@ func defaultListSources(db *store.DB) []classify.ListSource {
 				"tracking",
 			},
 		}
-		var sources []classify.ListSource
 		for _, d := range defaults {
-			id, err := db.AddList(d.url, d.name, d.category)
+			_, err := db.AddList(d.url, d.name, d.category)
 			if err != nil {
 				log.Printf("seed list %s: %v", d.name, err)
 				continue
 			}
-			sources = append(sources, classify.ListSource{
-				ID: id, URL: d.url, Name: d.name, Category: d.category,
-			})
-		}
-		return sources
-	}
-
-	var sources []classify.ListSource
-	for _, l := range lists {
-		if l.Enabled {
-			sources = append(sources, classify.ListSource{
-				ID: l.ID, URL: l.URL, Name: l.Name, Category: l.Category,
-			})
 		}
 	}
-	return sources
+	enabledLists, err := db.ListEnabledLists()
+	if err != nil {
+		log.Printf("load enabled lists: %v", err)
+		return nil
+	}
+	return classify.SourcesFromListEntries(enabledLists)
 }

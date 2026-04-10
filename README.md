@@ -175,6 +175,7 @@ The API is unauthenticated — bind to localhost or a trusted network.
 | `GET` | `/api/bypass` | Best-effort signals for devices that may be bypassing local DNS visibility |
 | `GET` | `/api/domains` | Top domains with source list attribution and attribution-actor counts (last 24h) |
 | `GET` | `/api/settings` | Current settings |
+| `GET` | `/api/lists/status` | Last classification-list refresh attempt/success/error status |
 | `PUT` | `/api/settings` | Update settings |
 | `GET` | `/api/lists` | All classification lists |
 | `POST` | `/api/lists` | Add a list |
@@ -209,6 +210,7 @@ Selected read endpoints return these JSON shapes:
 | `GET /api/bypass` | `[{"device_mac":"aa:bb:cc:dd:ee:ff","device_name":"Living Room TV","confidence":"likely","hint_domain":"dns.google","silent_minutes":180,"prior_query_count":42,"last_seen":1711670400,"last_query":1711659600}]` |
 | `GET /api/domains` | `{ "total_devices": 12, "domains": [{"domain": "ads.example.com", "category": "tracking", "query_count": 120, "device_count": 4, "source_list": "Tracking List"}] }` |
 | `GET /api/settings` | `{ "retention_days": 30, "list_refresh_hours": 24 }` |
+| `GET /api/lists/status` | `{ "last_attempt_at": 1711670400, "last_success_at": 1711666800, "last_error": "..." }` |
 | `GET /api/queries/stream` | SSE `query` events with JSON `data` like `{"id":42,"actor_key":"device:aa:bb:cc:dd:ee:ff","device_mac":"aa:bb:cc:dd:ee:ff","source_ip":"192.168.1.10","domain":"ads.example.com","query_type":"A","category":"tracking","timestamp":1711670400}` |
 
 Selected error responses use this JSON shape:

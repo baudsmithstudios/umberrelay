@@ -60,24 +60,11 @@ func DeleteList(db *store.DB, id int64) error {
 
 // EnabledListSources returns the currently enabled classification lists.
 func EnabledListSources(db *store.DB) ([]classify.ListSource, error) {
-	lists, err := db.ListLists()
+	lists, err := db.ListEnabledLists()
 	if err != nil {
 		return nil, err
 	}
-
-	var sources []classify.ListSource
-	for _, list := range lists {
-		if list.Enabled {
-			sources = append(sources, classify.ListSource{
-				ID:       list.ID,
-				URL:      list.URL,
-				Name:     list.Name,
-				Category: list.Category,
-			})
-		}
-	}
-
-	return sources, nil
+	return classify.SourcesFromListEntries(lists), nil
 }
 
 // RefreshListSources reloads the provided classification lists into the manager.

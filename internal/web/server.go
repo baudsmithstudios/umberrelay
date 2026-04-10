@@ -29,7 +29,7 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 		classify: classify,
 		queryHub: newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
 			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
-		}, time.Second, 500),
+		}, 500),
 		mux:   http.NewServeMux(),
 		pages: parsePages(),
 		now:   time.Now,
@@ -70,6 +70,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/bypass", s.handleAPIBypass)
 	s.mux.HandleFunc("GET /api/domains", s.handleAPIDomains)
 	s.mux.HandleFunc("GET /api/settings", s.handleAPIGetSettings)
+	s.mux.HandleFunc("GET /api/lists/status", s.handleAPIListRefreshStatus)
 	s.mux.HandleFunc("PUT /api/settings", s.handleAPIUpdateSettings)
 	s.mux.HandleFunc("GET /api/lists", s.handleAPIListLists)
 	s.mux.HandleFunc("POST /api/lists", s.handleAPIAddList)

@@ -82,6 +82,46 @@ func TestAPIGetSettingsReturnsNumericValues(t *testing.T) {
 	}
 }
 
+func TestAPIListRefreshStatusReturnsPersistedValues(t *testing.T) {
+	s := testServer(t)
+	attemptAt := time.Date(2026, 4, 1, 14, 0, 0, 0, time.UTC)
+	successAt := attemptAt.Add(-time.Hour)
+	if err := s.db.SetConfig("list_refresh_last_attempt_at", strconv.FormatInt(attemptAt.UnixNano(), 10)); err != nil {
+		t.Fatalf("SetConfig(last_attempt): %v", err)
+	}
+	if err := s.db.SetConfig("list_refresh_last_success_at", strconv.FormatInt(successAt.UnixNano(), 10)); err != nil {
+		t.Fatalf("SetConfig(last_success): %v", err)
+	}
+	if err := s.db.SetConfig("list_refresh_last_error", "refresh failed"); err != nil {
+		t.Fatalf("SetConfig(last_error): %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/lists/status", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var response struct {
+		LastAttemptAt int64  `json:"last_attempt_at"`
+		LastSuccessAt int64  `json:"last_success_at"`
+		LastError     string `json:"last_error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response.LastAttemptAt != attemptAt.Unix() {
+		t.Fatalf("last_attempt_at = %d, want %d", response.LastAttemptAt, attemptAt.Unix())
+	}
+	if response.LastSuccessAt != successAt.Unix() {
+		t.Fatalf("last_success_at = %d, want %d", response.LastSuccessAt, successAt.Unix())
+	}
+	if response.LastError != "refresh failed" {
+		t.Fatalf("last_error = %q, want %q", response.LastError, "refresh failed")
+	}
+}
+
 func TestAPIActorsIncludesUnattributedSources(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
@@ -257,6 +297,18 @@ func TestAPISetOverrideAcceptsJSON(t *testing.T) {
 	}
 	if got := s.classify.Classify("example.com."); got != "tracking" {
 		t.Fatalf("override category = %q, want %q", got, "tracking")
+	}
+}
+
+func TestAPISetOverrideRejectsInvalidCategory(t *testing.T) {
+	s := testServerWithClassify(t)
+	body := bytes.NewBufferString(`{"category":"not-a-real-category"}`)
+	req := httptest.NewRequest("PUT", "/api/overrides/example.com", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
 

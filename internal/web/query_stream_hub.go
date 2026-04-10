@@ -3,7 +3,6 @@ package web
 import (
 	"log"
 	"sync"
-	"time"
 
 	"umberrelay/internal/store"
 )
@@ -23,11 +22,10 @@ type queryStreamHub struct {
 	wake        chan struct{}
 }
 
-func newQueryStreamHub(fetch queryFeedFetcher, pollInterval time.Duration, batchSize int) *queryStreamHub {
+func newQueryStreamHub(fetch queryFeedFetcher, batchSize int) *queryStreamHub {
 	if batchSize <= 0 {
 		batchSize = 100
 	}
-	_ = pollInterval
 	return &queryStreamHub{
 		fetch:       fetch,
 		batchSize:   batchSize,

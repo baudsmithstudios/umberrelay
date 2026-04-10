@@ -30,6 +30,23 @@
     padding: 0.25rem 0.6rem;
 }
 
+.settings-refresh-status {
+    margin: 0 0 0.75rem;
+    font-size: 0.7rem;
+}
+
+.settings-refresh-status.status-ok {
+    color: var(--pico-color-green-400);
+}
+
+.settings-refresh-status.status-error {
+    color: var(--pico-color-red-400);
+}
+
+.settings-refresh-status.status-neutral {
+    color: var(--muted);
+}
+
 .settings-page .domain-table button {
     font-size: 0.65rem;
     margin-bottom: 0;

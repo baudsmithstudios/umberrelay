@@ -31,6 +31,7 @@
         <form hx-post="/ui/lists/refresh" hx-swap="none" class="settings-action-row">
             <button type="submit" class="secondary">Refresh Lists Now</button>
         </form>
+        <p class="settings-refresh-status {{.ListRefreshStatusClass}}">{{.ListRefreshStatusText}}</p>
         <div class="domain-table-wrap">
             <table class="domain-table" role="grid">
                 <thead>

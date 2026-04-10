@@ -545,6 +545,56 @@ func TestConfigGetMissing(t *testing.T) {
 	}
 }
 
+func TestListRefreshStatusTracksAttemptSuccessAndFailure(t *testing.T) {
+	db := testDB(t)
+
+	initial, err := db.GetListRefreshStatus()
+	if err != nil {
+		t.Fatalf("GetListRefreshStatus(initial): %v", err)
+	}
+	if !initial.LastAttemptAt.IsZero() || !initial.LastSuccessAt.IsZero() || initial.LastError != "" {
+		t.Fatalf("initial status = %#v, want zero values", initial)
+	}
+
+	firstAttempt := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	if err := db.RecordListRefreshAttempt(firstAttempt, errors.New("refresh failed")); err != nil {
+		t.Fatalf("RecordListRefreshAttempt(failure): %v", err)
+	}
+
+	afterFailure, err := db.GetListRefreshStatus()
+	if err != nil {
+		t.Fatalf("GetListRefreshStatus(after failure): %v", err)
+	}
+	if !afterFailure.LastAttemptAt.Equal(firstAttempt) {
+		t.Fatalf("LastAttemptAt = %v, want %v", afterFailure.LastAttemptAt, firstAttempt)
+	}
+	if !afterFailure.LastSuccessAt.IsZero() {
+		t.Fatalf("LastSuccessAt = %v, want zero", afterFailure.LastSuccessAt)
+	}
+	if afterFailure.LastError == "" {
+		t.Fatal("LastError = empty, want refresh error")
+	}
+
+	secondAttempt := firstAttempt.Add(2 * time.Hour)
+	if err := db.RecordListRefreshAttempt(secondAttempt, nil); err != nil {
+		t.Fatalf("RecordListRefreshAttempt(success): %v", err)
+	}
+
+	afterSuccess, err := db.GetListRefreshStatus()
+	if err != nil {
+		t.Fatalf("GetListRefreshStatus(after success): %v", err)
+	}
+	if !afterSuccess.LastAttemptAt.Equal(secondAttempt) {
+		t.Fatalf("LastAttemptAt = %v, want %v", afterSuccess.LastAttemptAt, secondAttempt)
+	}
+	if !afterSuccess.LastSuccessAt.Equal(secondAttempt) {
+		t.Fatalf("LastSuccessAt = %v, want %v", afterSuccess.LastSuccessAt, secondAttempt)
+	}
+	if afterSuccess.LastError != "" {
+		t.Fatalf("LastError = %q, want empty", afterSuccess.LastError)
+	}
+}
+
 func TestListDomainCache(t *testing.T) {
 	db := testDB(t)
 	// Add a list

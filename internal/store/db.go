@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,12 @@ import (
 
 const trackingCategorySQL = "('tracking', 'advertising', 'malware')"
 const encryptedDNSBootstrapSQL = "('dns.google', 'cloudflare-dns.com', 'one.one.one.one', 'dns.quad9.net', 'doh.opendns.com', 'dns.nextdns.io', 'dns.adguard-dns.com')"
+
+const (
+	configListRefreshLastAttemptAt = "list_refresh_last_attempt_at"
+	configListRefreshLastSuccessAt = "list_refresh_last_success_at"
+	configListRefreshLastError     = "list_refresh_last_error"
+)
 
 func isTrackingCategory(cat string) bool {
 	switch cat {
@@ -735,6 +742,83 @@ func (d *DB) GetConfig(key string) (string, error) {
 	return value, err
 }
 
+// ListRefreshStatus stores recent classification list refresh state.
+type ListRefreshStatus struct {
+	LastAttemptAt time.Time
+	LastSuccessAt time.Time
+	LastError     string
+}
+
+// GetListRefreshStatus returns persisted list refresh status.
+func (d *DB) GetListRefreshStatus() (ListRefreshStatus, error) {
+	var status ListRefreshStatus
+
+	lastAttemptRaw, err := d.GetConfig(configListRefreshLastAttemptAt)
+	if err != nil {
+		return status, err
+	}
+	lastSuccessRaw, err := d.GetConfig(configListRefreshLastSuccessAt)
+	if err != nil {
+		return status, err
+	}
+	lastError, err := d.GetConfig(configListRefreshLastError)
+	if err != nil {
+		return status, err
+	}
+
+	if lastAttemptRaw != "" {
+		lastAttemptNS, err := strconv.ParseInt(lastAttemptRaw, 10, 64)
+		if err == nil && lastAttemptNS > 0 {
+			status.LastAttemptAt = time.Unix(0, lastAttemptNS).UTC()
+		}
+	}
+	if lastSuccessRaw != "" {
+		lastSuccessNS, err := strconv.ParseInt(lastSuccessRaw, 10, 64)
+		if err == nil && lastSuccessNS > 0 {
+			status.LastSuccessAt = time.Unix(0, lastSuccessNS).UTC()
+		}
+	}
+	status.LastError = lastError
+	return status, nil
+}
+
+// RecordListRefreshAttempt persists refresh timing and error state.
+func (d *DB) RecordListRefreshAttempt(attemptAt time.Time, refreshErr error) error {
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	setConfigTx := func(key, value string) error {
+		_, err := tx.Exec(
+			`INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+			key, value,
+		)
+		return err
+	}
+
+	attemptAtNS := strconv.FormatInt(attemptAt.UTC().UnixNano(), 10)
+	if err := setConfigTx(configListRefreshLastAttemptAt, attemptAtNS); err != nil {
+		return err
+	}
+
+	if refreshErr != nil {
+		if err := setConfigTx(configListRefreshLastError, refreshErr.Error()); err != nil {
+			return err
+		}
+	} else {
+		if err := setConfigTx(configListRefreshLastSuccessAt, attemptAtNS); err != nil {
+			return err
+		}
+		if err := setConfigTx(configListRefreshLastError, ""); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 // AddList inserts a classification list and returns its ID.
 func (d *DB) AddList(url, name, category string) (int64, error) {
 	res, err := d.sql.Exec(
@@ -760,6 +844,30 @@ type ListEntry struct {
 // ListLists returns all classification lists.
 func (d *DB) ListLists() ([]ListEntry, error) {
 	rows, err := d.sql.Query(`SELECT id, url, name, category, last_fetch, enabled FROM lists ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ListEntry
+	for rows.Next() {
+		var l ListEntry
+		var lastFetch sql.NullInt64
+		if err := rows.Scan(&l.ID, &l.URL, &l.Name, &l.Category, &lastFetch, &l.Enabled); err != nil {
+			return nil, err
+		}
+		if lastFetch.Valid {
+			t := time.Unix(0, lastFetch.Int64)
+			l.LastFetch = &t
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
+}
+
+// ListEnabledLists returns only enabled classification lists.
+func (d *DB) ListEnabledLists() ([]ListEntry, error) {
+	rows, err := d.sql.Query(`SELECT id, url, name, category, last_fetch, enabled FROM lists WHERE enabled = 1 ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}

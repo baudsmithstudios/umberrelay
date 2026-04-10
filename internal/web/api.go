@@ -497,6 +497,29 @@ func (s *Server) handleAPIGetSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleAPIListRefreshStatus(w http.ResponseWriter, r *http.Request) {
+	status, err := s.db.GetListRefreshStatus()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	response := struct {
+		LastAttemptAt int64  `json:"last_attempt_at"`
+		LastSuccessAt int64  `json:"last_success_at"`
+		LastError     string `json:"last_error"`
+	}{
+		LastError: status.LastError,
+	}
+	if !status.LastAttemptAt.IsZero() {
+		response.LastAttemptAt = status.LastAttemptAt.Unix()
+	}
+	if !status.LastSuccessAt.IsZero() {
+		response.LastSuccessAt = status.LastSuccessAt.Unix()
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
 func (s *Server) handleAPIUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		RetentionDays    *int `json:"retention_days"`
@@ -602,14 +625,7 @@ func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
 		return
 	}
-
-	sources, err := app.EnabledListSources(s.db)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	go app.RefreshListSources(context.Background(), s.classify, sources)
+	s.refreshClassificationAsync()
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -626,6 +642,10 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := app.SetDomainOverride(s.db, s.classify, domain, body.Category); err != nil {
+		if errors.Is(err, app.ErrInvalidCategory) {
+			writeJSONError(w, http.StatusBadRequest, "invalid category")
+			return
+		}
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -731,9 +751,20 @@ func (s *Server) refreshClassificationAsync() {
 	if s.classify == nil {
 		return
 	}
-	sources, err := app.EnabledListSources(s.db)
-	if err != nil {
-		return
-	}
-	go s.classify.Refresh(context.Background(), sources)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		sources, err := app.EnabledListSources(s.db)
+		if err != nil {
+			log.Printf("load enabled list sources: %v", err)
+			if recordErr := s.db.RecordListRefreshAttempt(time.Now().UTC(), err); recordErr != nil {
+				log.Printf("record list refresh status: %v", recordErr)
+			}
+			return
+		}
+		if err := app.RefreshListSources(ctx, s.classify, sources); err != nil {
+			log.Printf("refresh list sources: %v", err)
+		}
+	}()
 }

@@ -77,3 +77,12 @@ func TestDeleteDomainOverrideReturnsErrorWhenPersistenceFails(t *testing.T) {
 		t.Fatalf("Classify after failed delete = %q, want tracking", got)
 	}
 }
+
+func TestSetDomainOverrideRejectsInvalidCategory(t *testing.T) {
+	db := testDB(t)
+	mgr := classify.NewManager(db)
+
+	if err := SetDomainOverride(db, mgr, "example.com", "not-a-real-category"); err == nil {
+		t.Fatal("SetDomainOverride() error = nil, want non-nil")
+	}
+}

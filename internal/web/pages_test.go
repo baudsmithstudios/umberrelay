@@ -199,6 +199,29 @@ func TestSettingsPage(t *testing.T) {
 	}
 }
 
+func TestSettingsPageIncludesListRefreshStatus(t *testing.T) {
+	s := testServer(t)
+	attemptAt := time.Date(2026, 4, 2, 12, 34, 0, 0, time.UTC)
+	if err := s.db.SetConfig("list_refresh_last_attempt_at", strconv.FormatInt(attemptAt.UnixNano(), 10)); err != nil {
+		t.Fatalf("SetConfig(last_attempt): %v", err)
+	}
+	if err := s.db.SetConfig("list_refresh_last_error", "network timeout"); err != nil {
+		t.Fatalf("SetConfig(last_error): %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/settings", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "network timeout") {
+		t.Fatalf("settings page missing refresh error status: %q", body)
+	}
+}
+
 func TestUIUpdateSettingsRedirectsBackToSettings(t *testing.T) {
 	s := testServer(t)
 	form := url.Values{
@@ -382,5 +405,25 @@ func TestUIOverrideReturnsUpdatedDomainRow(t *testing.T) {
 	}
 	if !strings.Contains(body, "tracking · manual") {
 		t.Fatalf("response missing updated override category/source: %s", body)
+	}
+}
+
+func TestUIOverrideRejectsInvalidCategory(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	form := url.Values{
+		"category": {"not-a-real-category"},
+		"scope":    {"network"},
+	}
+	req := httptest.NewRequest("POST", "/ui/overrides/manual.example.com", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }

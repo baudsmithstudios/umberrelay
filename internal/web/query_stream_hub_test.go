@@ -18,7 +18,7 @@ func TestQueryStreamHubPollsOnceAndBroadcastsToAllSubscribers(t *testing.T) {
 		return []store.Query{
 			{ID: 1, Domain: "ads.example.com", QueryType: "A", Category: "tracking"},
 		}, nil
-	}, 100*time.Millisecond, 100)
+	}, 100)
 	defer hub.Close()
 
 	first, cancelFirst := hub.Subscribe()
@@ -60,7 +60,7 @@ func TestQueryStreamHubAdvanceCursorSkipsOlderRows(t *testing.T) {
 			{ID: 3, Domain: "old.example.com"},
 			{ID: 6, Domain: "new.example.com"},
 		}, nil
-	}, 100*time.Millisecond, 100)
+	}, 100)
 	defer hub.Close()
 
 	stream, cancel := hub.Subscribe()
@@ -86,7 +86,7 @@ func TestQueryStreamHubOnlyPollsAfterNotify(t *testing.T) {
 		return []store.Query{
 			{ID: 1, Domain: "ads.example.com"},
 		}, nil
-	}, 100*time.Millisecond, 100)
+	}, 100)
 	defer hub.Close()
 
 	stream, cancel := hub.Subscribe()

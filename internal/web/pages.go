@@ -119,6 +119,16 @@ type deviceDetailView struct {
 	SelectedDeviceName string
 }
 
+func listRefreshStatusView(status store.ListRefreshStatus) (string, string) {
+	if status.LastAttemptAt.IsZero() {
+		return "List refresh has not run yet.", "status-neutral"
+	}
+	if status.LastError != "" {
+		return fmt.Sprintf("Last refresh failed at %s: %s", status.LastAttemptAt.Local().Format("2006-01-02 15:04:05"), status.LastError), "status-error"
+	}
+	return fmt.Sprintf("Last refresh succeeded at %s.", status.LastSuccessAt.Local().Format("2006-01-02 15:04:05")), "status-ok"
+}
+
 func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
 	if !t.HasPrior {
 		return TrendDisplay{}
@@ -731,6 +741,11 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	refreshStatus, err := s.db.GetListRefreshStatus()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	lists, err := s.db.ListLists()
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -739,15 +754,18 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		pageData
-		RetentionDays    int
-		ListRefreshHours int
-		Lists            interface{}
+		RetentionDays          int
+		ListRefreshHours       int
+		ListRefreshStatusClass string
+		ListRefreshStatusText  string
+		Lists                  interface{}
 	}{
 		pageData:         pageData{Title: "Settings", Active: "settings"},
 		RetentionDays:    settings.RetentionDays,
 		ListRefreshHours: settings.ListRefreshHours,
 		Lists:            lists,
 	}
+	data.ListRefreshStatusClass, data.ListRefreshStatusText = listRefreshStatusView(refreshStatus)
 	s.renderPage(w, "settings", data)
 }
 
@@ -846,13 +864,22 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	}
 
 	domain := r.PathValue("domain")
-	category := r.FormValue("category")
-	if category == "" {
+	categoryValue := r.FormValue("category")
+	if categoryValue == "" {
 		http.Error(w, "category is required", http.StatusBadRequest)
 		return
 	}
+	normalizedCategory, ok := category.Normalize(categoryValue)
+	if !ok {
+		http.Error(w, "invalid category", http.StatusBadRequest)
+		return
+	}
 
-	if err := app.SetDomainOverride(s.db, s.classify, domain, category); err != nil {
+	if err := app.SetDomainOverride(s.db, s.classify, domain, normalizedCategory); err != nil {
+		if errors.Is(err, app.ErrInvalidCategory) {
+			http.Error(w, "invalid category", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -912,17 +939,17 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	if row.Domain == "" {
 		row = makePrivacyDomainRow(store.DomainWithSource{
 			Domain:      domain,
-			Category:    category,
+			Category:    normalizedCategory,
 			QueryCount:  0,
 			DeviceCount: 0,
 			SourceList:  "manual",
 		}, totalActors, actorKey)
 	}
-	row.Category = category
-	row.CategoryLabel = categoryLabel(category)
+	row.Category = normalizedCategory
+	row.CategoryLabel = categoryLabel(normalizedCategory)
 	row.SourceList = "manual"
 	row.ClassificationLabel = fmt.Sprintf("%s · manual", row.CategoryLabel)
-	row.ClassificationClass = classificationPillClass(category)
+	row.ClassificationClass = classificationPillClass(normalizedCategory)
 
 	s.renderFragment(w, "fragments", "domain-row", row)
 }
@@ -997,14 +1024,7 @@ func (s *Server) handleUIRefreshLists(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "classify manager not available", http.StatusServiceUnavailable)
 		return
 	}
-
-	sources, err := app.EnabledListSources(s.db)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	go app.RefreshListSources(context.Background(), s.classify, sources)
+	s.refreshClassificationAsync()
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 

@@ -34,6 +34,7 @@ type Manager struct {
 	domains   atomic.Pointer[domainMap]
 	overrides sync.Map // domain -> category
 	wake      chan struct{}
+	refresh   func(context.Context, []ListSource) error
 }
 
 // NewManager creates a classification manager.
@@ -43,6 +44,7 @@ func NewManager(db *store.DB) *Manager {
 		wake: make(chan struct{}, 1),
 	}
 	m.domains.Store(newDomainMap(make(map[string]string)))
+	m.refresh = m.Refresh
 	return m
 }
 
@@ -127,8 +129,33 @@ type ListSource struct {
 	Category string
 }
 
+// SourcesFromListEntries converts store list rows to classify list sources.
+func SourcesFromListEntries(entries []store.ListEntry) []ListSource {
+	sources := make([]ListSource, 0, len(entries))
+	for _, entry := range entries {
+		sources = append(sources, ListSource{
+			ID:       entry.ID,
+			URL:      entry.URL,
+			Name:     entry.Name,
+			Category: entry.Category,
+		})
+	}
+	return sources
+}
+
 // Refresh fetches all enabled lists, rebuilds the in-memory lookup, and updates the cache.
 func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
+	attemptedAt := time.Now().UTC()
+	var refreshErr error
+	defer func() {
+		if m.db == nil {
+			return
+		}
+		if err := m.db.RecordListRefreshAttempt(attemptedAt, refreshErr); err != nil {
+			log.Printf("record list refresh status: %v", err)
+		}
+	}()
+
 	combined := make(map[string]string)
 	successCount := 0
 	for _, src := range sources {
@@ -159,7 +186,8 @@ func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 		log.Printf("loaded %s: %d domains", src.Name, len(domains))
 	}
 	if len(sources) > 0 && successCount == 0 {
-		return fmt.Errorf("all list refreshes failed")
+		refreshErr = fmt.Errorf("all list refreshes failed")
+		return refreshErr
 	}
 	m.domains.Store(newDomainMap(combined))
 	log.Printf("classification database: %d domains total", len(combined))
@@ -189,11 +217,14 @@ func (m *Manager) Run(ctx context.Context, initialSources []ListSource, interval
 			timer.Stop()
 			continue
 		case <-timer.C:
-			sources := m.loadSourcesFromDB()
-			if len(sources) == 0 {
+			sources, err := m.loadSourcesFromDB()
+			if err != nil {
+				log.Printf("load list sources from db: %v", err)
 				sources = initialSources
 			}
-			m.Refresh(ctx, sources)
+			if err := m.refresh(ctx, sources); err != nil {
+				log.Printf("refresh lists: %v", err)
+			}
 		}
 	}
 }
@@ -213,27 +244,15 @@ func (m *Manager) refreshInterval(defaultInterval time.Duration) time.Duration {
 	return n
 }
 
-func (m *Manager) loadSourcesFromDB() []ListSource {
+func (m *Manager) loadSourcesFromDB() ([]ListSource, error) {
 	if m.db == nil {
-		return nil
+		return nil, nil
 	}
-	lists, err := m.db.ListLists()
+	lists, err := m.db.ListEnabledLists()
 	if err != nil {
-		log.Printf("load list sources from db: %v", err)
-		return nil
+		return nil, err
 	}
-	var sources []ListSource
-	for _, l := range lists {
-		if l.Enabled {
-			sources = append(sources, ListSource{
-				ID:       l.ID,
-				URL:      l.URL,
-				Name:     l.Name,
-				Category: l.Category,
-			})
-		}
-	}
-	return sources
+	return SourcesFromListEntries(lists), nil
 }
 
 const maxListBytes int64 = 20 << 20

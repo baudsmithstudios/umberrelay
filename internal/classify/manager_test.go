@@ -161,7 +161,7 @@ func TestManagerLoadFromCache(t *testing.T) {
 		t.Fatalf("AddList: %v", err)
 	}
 	if err := db.WriteListDomains(listID, map[string]string{
-		"ads.example.com": "tracking",
+		"ads.example.com":     "tracking",
 		"metrics.example.com": "analytics",
 	}); err != nil {
 		t.Fatalf("WriteListDomains: %v", err)
@@ -206,12 +206,81 @@ func TestManagerLoadSourcesFromDBReturnsEnabledOnly(t *testing.T) {
 	}
 
 	m := NewManager(db)
-	sources := m.loadSourcesFromDB()
+	sources, err := m.loadSourcesFromDB()
+	if err != nil {
+		t.Fatalf("loadSourcesFromDB: %v", err)
+	}
 	if len(sources) != 1 {
 		t.Fatalf("len(sources) = %d, want 1", len(sources))
 	}
 	if sources[0].ID != firstID || sources[0].Name != "One" {
 		t.Fatalf("sources[0] = %#v, want enabled list only", sources[0])
+	}
+}
+
+func TestManagerRunDoesNotFallbackToInitialSourcesWhenNoListsEnabled(t *testing.T) {
+	db := testDB(t)
+	disabledID, err := db.AddList("https://example.com/disabled.txt", "Disabled", "tracking")
+	if err != nil {
+		t.Fatalf("AddList(disabled): %v", err)
+	}
+	if err := db.UpdateListEnabled(disabledID, false); err != nil {
+		t.Fatalf("UpdateListEnabled: %v", err)
+	}
+
+	m := NewManager(db)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	refreshSources := make(chan []ListSource, 1)
+	m.refresh = func(_ context.Context, sources []ListSource) error {
+		out := append([]ListSource(nil), sources...)
+		refreshSources <- out
+		cancel()
+		return nil
+	}
+
+	initial := []ListSource{{ID: 42, URL: "https://example.com/initial.txt", Name: "Initial", Category: "tracking"}}
+	go m.Run(ctx, initial, time.Millisecond)
+
+	select {
+	case sources := <-refreshSources:
+		if len(sources) != 0 {
+			t.Fatalf("len(sources) = %d, want 0 when no lists are enabled", len(sources))
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Run did not trigger refresh")
+	}
+}
+
+func TestManagerRunFallsBackToInitialSourcesWhenDBLoadFails(t *testing.T) {
+	db := testDB(t)
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	m := NewManager(db)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	refreshSources := make(chan []ListSource, 1)
+	m.refresh = func(_ context.Context, sources []ListSource) error {
+		out := append([]ListSource(nil), sources...)
+		refreshSources <- out
+		cancel()
+		return nil
+	}
+
+	initial := []ListSource{{ID: 7, URL: "https://example.com/initial.txt", Name: "Initial", Category: "tracking"}}
+	go m.Run(ctx, initial, time.Millisecond)
+
+	select {
+	case sources := <-refreshSources:
+		if len(sources) != 1 || sources[0].ID != initial[0].ID {
+			t.Fatalf("sources = %#v, want fallback to initial sources", sources)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Run did not trigger refresh")
 	}
 }
 
