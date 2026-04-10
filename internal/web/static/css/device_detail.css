@@ -18,10 +18,14 @@
 }
 
 .device-detail-page .detail-card {
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
     margin-bottom: 12px;
-    padding: 12px 14px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
 }
 
 .device-detail-page .chart-card {
-    padding: 12px 14px;
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
 }

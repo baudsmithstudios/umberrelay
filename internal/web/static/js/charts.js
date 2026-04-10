@@ -8,134 +8,166 @@
         if (range === '24h') {
             return d.getHours().toString().padStart(2, '0') + ':00';
         }
-        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return months[d.getMonth()] + ' ' + d.getDate();
     }
 
-    function drawRetroChart(canvas, datasets, xlabels) {
+    function snapPixel(value, dpr) {
+        return Math.round(value * dpr) / dpr;
+    }
+
+    function niceMax(value, steps) {
+        if (!isFinite(value) || value <= 0) {
+            return 1;
+        }
+        var roughStep = value / steps;
+        var magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+        var normalized = roughStep / magnitude;
+        var step = 1;
+        if (normalized > 1 && normalized <= 2) {
+            step = 2;
+        } else if (normalized > 2 && normalized <= 5) {
+            step = 5;
+        } else if (normalized > 5) {
+            step = 10;
+        }
+        return step * magnitude * steps;
+    }
+
+    function drawSeries(ctx, points, color) {
+        if (points.length === 0) {
+            return;
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (var i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        for (var i = 0; i < points.length; i++) {
+            ctx.beginPath();
+            ctx.arc(points[i].x, points[i].y, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function drawChart(canvas, datasets, xlabels) {
         var dpr = window.devicePixelRatio || 1;
         var rect = canvas.parentElement.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        var ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-        var W = rect.width;
-        var H = rect.height;
+        canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * dpr));
 
-        var pad = { top: 16, right: 12, bottom: 26, left: 44 };
+        var ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        var W = canvas.width / dpr;
+        var H = canvas.height / dpr;
+        ctx.clearRect(0, 0, W, H);
+
+        var pad = { top: 18, right: 44, bottom: 30, left: 44 };
         var plotW = W - pad.left - pad.right;
         var plotH = H - pad.top - pad.bottom;
 
-        var bgColor = chartColor('--pico-background-color') || '#0e0b04';
         var borderColor = chartColor('--umberrelay-panel-border') || '#5a4528';
+        var gridColor = 'rgba(90, 69, 40, 0.25)';
         var mutedColor = chartColor('--pico-muted-color') || '#b09470';
         var textColor = chartColor('--pico-color') || '#f0e6c8';
 
-        // Background
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, W, H);
-
-        // Scanline overlay
-        ctx.fillStyle = 'rgba(240,230,200,0.015)';
-        for (var sy = 0; sy < H; sy += 3) {
-            ctx.fillRect(0, sy, W, 1);
-        }
-
-        // Value range across all datasets
-        var allVals = [];
-        for (var di = 0; di < datasets.length; di++) {
-            allVals = allVals.concat(datasets[di].values);
-        }
-        var maxVal = Math.max.apply(null, allVals) * 1.15;
-        if (maxVal === 0) { maxVal = 1; }
+        var primaryVals = datasets[0] ? datasets[0].values : [];
+        var secondaryVals = datasets[1] ? datasets[1].values : [];
+        var gridSteps = 4;
+        var maxPrimary = niceMax(Math.max.apply(null, primaryVals), gridSteps);
+        var maxSecondary = niceMax(Math.max.apply(null, secondaryVals), gridSteps);
         var minVal = 0;
 
-        // Grid lines
-        ctx.strokeStyle = 'rgba(90,69,40,0.4)';
-        ctx.lineWidth = 0.5;
-        var gridSteps = 4;
-        var font = '9px SFMono-Regular, Cascadia Code, Consolas, monospace';
-        ctx.font = font;
+        ctx.font = '11px SFMono-Regular, Cascadia Code, Consolas, monospace';
         ctx.fillStyle = mutedColor;
-        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
         for (var g = 0; g <= gridSteps; g++) {
-            var gy = pad.top + plotH - (g / gridSteps) * plotH;
+            var ratio = g / gridSteps;
+            var y = snapPixel(pad.top + plotH - (ratio * plotH), dpr);
+
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.setLineDash([2, 3]);
-            ctx.moveTo(pad.left, gy);
-            ctx.lineTo(pad.left + plotW, gy);
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(pad.left + plotW, y);
             ctx.stroke();
-            ctx.setLineDash([]);
-            var label = Math.round(minVal + (g / gridSteps) * maxVal);
-            ctx.fillText(label.toString(), pad.left - 6, gy + 3);
+
+            var leftLabel = Math.round(minVal + ratio * maxPrimary);
+            ctx.textAlign = 'right';
+            ctx.fillText(leftLabel.toString(), pad.left - 6, y);
+
+            var rightLabel = Math.round(minVal + ratio * maxSecondary);
+            ctx.textAlign = 'left';
+            ctx.fillText(rightLabel.toString(), pad.left + plotW + 6, y);
         }
 
-        // X-axis labels
+        ctx.textBaseline = 'top';
         ctx.textAlign = 'center';
-        ctx.fillStyle = mutedColor;
         if (xlabels && xlabels.length > 0) {
             var step = Math.max(1, Math.floor(xlabels.length / 7));
             for (var xi = 0; xi < xlabels.length; xi += step) {
-                var lx = pad.left + (xi / Math.max(1, xlabels.length - 1)) * plotW;
-                ctx.fillText(xlabels[xi], lx, H - 6);
+                var lx = snapPixel(pad.left + (xi / Math.max(1, xlabels.length - 1)) * plotW, dpr);
+                ctx.fillText(xlabels[xi], lx, snapPixel(pad.top + plotH + 8, dpr));
             }
         }
 
-        // Draw each dataset
         for (var di = 0; di < datasets.length; di++) {
             var ds = datasets[di];
             var vals = ds.values;
             var n = vals.length;
-            if (n === 0) { continue; }
+            if (n === 0) {
+                continue;
+            }
+
+            var seriesMax = maxPrimary;
+            if (ds.axis === 'right') {
+                seriesMax = maxSecondary;
+            }
 
             var points = [];
             for (var i = 0; i < n; i++) {
                 points.push({
                     x: pad.left + (i / Math.max(1, n - 1)) * plotW,
-                    y: pad.top + plotH - ((vals[i] - minVal) / maxVal) * plotH,
+                    y: pad.top + plotH - ((vals[i] - minVal) / seriesMax) * plotH,
                 });
             }
 
-            // Glow effect
-            ctx.save();
-            ctx.shadowColor = ds.color;
-            ctx.shadowBlur = 6;
-            ctx.strokeStyle = ds.color;
-            ctx.lineWidth = 1.5;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(points[0].x, points[0].y);
-            for (var i = 1; i < points.length; i++) {
-                var prev = points[i - 1];
-                var curr = points[i];
-                var controlX = (prev.x + curr.x) / 2;
-                ctx.bezierCurveTo(controlX, prev.y, controlX, curr.y, curr.x, curr.y);
-            }
-            ctx.stroke();
-            ctx.restore();
-
-            // Square dot markers
-            ctx.fillStyle = ds.color;
-            for (var i = 0; i < points.length; i++) {
-                ctx.fillRect(points[i].x - 2, points[i].y - 2, 4, 4);
-            }
+            drawSeries(ctx, points, ds.color);
         }
 
-        // Plot area border
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = 1;
         ctx.strokeRect(pad.left, pad.top, plotW, plotH);
 
-        // Legend — bottom-right inside plot area
-        ctx.font = font;
+        ctx.font = '600 10px SFMono-Regular, Cascadia Code, Consolas, monospace';
+        ctx.fillStyle = textColor;
+        ctx.textBaseline = 'bottom';
+        ctx.textAlign = 'left';
+        ctx.fillText('Queries', pad.left, pad.top - 4);
         ctx.textAlign = 'right';
+        ctx.fillText('Tracker', pad.left + plotW, pad.top - 4);
+
         var legendX = pad.left + plotW - 8;
-        var legendY = pad.top + 14;
-        for (var di = 0; di < datasets.length; di++) {
-            ctx.fillStyle = datasets[di].color;
-            ctx.fillRect(legendX - 50, legendY + di * 14 - 6, 6, 6);
-            ctx.fillText(datasets[di].label, legendX, legendY + di * 14);
+        var legendY = pad.top + 12;
+        ctx.font = '10px SFMono-Regular, Cascadia Code, Consolas, monospace';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'right';
+        for (var li = 0; li < datasets.length; li++) {
+            var item = datasets[li];
+            var itemY = legendY + (li * 14);
+            ctx.fillStyle = item.color;
+            ctx.fillRect(legendX - 48, itemY - 3, 8, 8);
+            ctx.fillStyle = textColor;
+            ctx.fillText(item.label, legendX, itemY + 1);
         }
     }
 
@@ -172,9 +204,9 @@
                 var totalColor = chartColor('--umberrelay-chart-total') || '#f5a623';
                 var trackerColor = chartColor('--umberrelay-chart-tracker') || '#ff4f4f';
 
-                drawRetroChart(canvas, [
-                    { color: totalColor, values: totals, label: 'Queries' },
-                    { color: trackerColor, values: trackerVals, label: 'Tracker' },
+                drawChart(canvas, [
+                    { color: totalColor, values: totals, label: 'Queries', axis: 'left' },
+                    { color: trackerColor, values: trackerVals, label: 'Tracker', axis: 'right' },
                 ], xlabels);
             })
             .catch(function () {
@@ -212,13 +244,11 @@
         (root || document).querySelectorAll('.privacy-chart').forEach(bindChart);
     }
 
-    // Resize observer for responsive chart containers
     if (typeof ResizeObserver !== 'undefined') {
         var resizeObserver = new ResizeObserver(function (entries) {
             entries.forEach(function (entry) {
                 var container = entry.target;
                 if (container._canvas && container.clientWidth > 0) {
-                    // Re-render on resize
                     var range = container._range || '7d';
                     renderChart(container, range);
                 }
@@ -228,7 +258,7 @@
         var originalBindChart = bindChart;
         bindChart = function (container) {
             originalBindChart(container);
-            if (container && container._canvas) {
+            if (container) {
                 resizeObserver.observe(container);
             }
         };

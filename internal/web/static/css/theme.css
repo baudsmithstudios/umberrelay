@@ -232,7 +232,13 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0;
 }
 
-/* No separators — text-only tabs */
+/* Pipe separators between tabs */
+
+.umberrelay-tabs li + li::before {
+    color: var(--umberrelay-panel-border);
+    content: '|';
+    margin: 0 0.3rem;
+}
 
 .umberrelay-tab {
     color: var(--pico-muted-color);
@@ -275,7 +281,7 @@ main.container {
 
 /* Kill Pico body>main block padding and section bottom margin */
 body > main {
-    padding-block: 0 !important;
+    padding-block: 0.65rem 0 !important;
 }
 
 section {
@@ -286,11 +292,14 @@ section {
 
 article,
 .live-query-stream {
+    --umberrelay-card-pad-x: var(--pico-block-spacing-horizontal);
+    --umberrelay-card-pad-y: var(--pico-block-spacing-vertical);
     background: transparent !important;
     border: 1px solid var(--umberrelay-panel-border);
     border-radius: 0;
     box-shadow: none !important;
     margin-bottom: 0;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
     position: relative;
 }
 
@@ -318,10 +327,10 @@ article:has(> .chart-header:first-child),
     font-weight: 700;
     gap: 0;
     letter-spacing: 0.08em;
-    margin: calc(var(--pico-block-spacing-vertical) * -1 - 1px) calc(var(--pico-block-spacing-horizontal) * -1 - 1px) 0.5rem;
+    margin: calc(var(--umberrelay-card-pad-y) * -1 - 1px) calc(var(--umberrelay-card-pad-x) * -1 - 1px) 0.5rem;
     padding: 0;
     text-transform: uppercase;
-    transform: translateY(-50%);
+    transform: translateY(-45%);
 }
 
 /* Short ─ prefix before the title */
@@ -337,6 +346,8 @@ article:has(> .chart-header:first-child),
     border-top: 1px solid var(--umberrelay-panel-border);
     content: '';
     flex: 1;
+    position: relative;
+    right: -1px;
 }
 
 .section-title > span {
@@ -358,9 +369,9 @@ article:has(> .chart-header:first-child),
    The ::before/::after draw the border line, the label and range
    controls sit inline. */
 .chart-header {
-    margin: calc(var(--pico-block-spacing-vertical) * -1 - 1px) calc(var(--pico-block-spacing-horizontal) * -1 - 1px) 0.5rem;
+    margin: calc(var(--umberrelay-card-pad-y) * -1 - 1px) calc(var(--umberrelay-card-pad-x) * -1 - 1px) 0.5rem;
     padding: 0;
-    transform: translateY(-50%);
+    transform: translateY(-45%);
 }
 
 .chart-label {
@@ -385,6 +396,8 @@ article:has(> .chart-header:first-child),
     border-top: 1px solid var(--umberrelay-panel-border);
     content: '';
     flex-shrink: 0;
+    position: relative;
+    right: -1px;
     width: 0.6rem;
 }
 
@@ -423,19 +436,20 @@ article small {
 
 @media (max-width: 767px) {
     .umberrelay-navbar {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 0.25rem;
         padding: 0.35rem 0.5rem;
     }
 
     .umberrelay-tabs {
-        width: 100%;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+        width: auto;
     }
 
     .umberrelay-tab {
         font-size: 0.7rem;
-        padding: 0.15rem 0.4rem;
+        padding: 0.15rem 0.2rem;
     }
 }
 

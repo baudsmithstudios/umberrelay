@@ -14,7 +14,9 @@
 /* ── Headline card ── */
 
 .home-page .headline-card {
-    padding: 0.75rem 0.875rem;
+    --umberrelay-card-pad-y: 0.75rem;
+    --umberrelay-card-pad-x: 0.875rem;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
 }
 
 .home-page .headline-row {
@@ -50,7 +52,9 @@
 /* ── Chart card ── */
 
 .home-page .chart-card {
-    padding: 12px 14px;
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
 }
 
 /* ── Attention feed ── */

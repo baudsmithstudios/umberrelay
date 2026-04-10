@@ -6,8 +6,10 @@
 }
 
 .devices-page .devices-header-card {
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
     margin-bottom: 12px;
-    padding: 12px 14px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
 }
 
 .devices-page .devices-controls {
