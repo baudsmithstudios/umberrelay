@@ -46,7 +46,7 @@ This is the simplest path, but it is slower on older Pi models.
 
 This is the recommended contributor workflow for building on a dev machine and deploying to a Pi.
 
-One important difference: the checked-in [`docker-compose.yml`](../docker-compose.yml) is build-oriented. For image transfer from a dev machine, use a Pi-specific compose file that references `image: umberrelay:latest` instead of `build: .`.
+One important difference: the checked-in [`docker-compose.yml`](../docker-compose.yml) is build-oriented. For image transfer from a dev machine, use [`docker-compose.pi.yml`](../docker-compose.pi.yml), which references `image: umberrelay:latest`.
 
 Build the ARM64 image tar on your dev machine:
 
@@ -57,20 +57,6 @@ docker buildx create --use --name pibuilder
 # Build for ARM64 and export the image as a tar
 docker buildx build --platform linux/arm64 -t umberrelay:latest \
   --output type=docker,dest=umberrelay.tar .
-```
-
-Create a deployment compose file named `docker-compose.pi.yml`:
-
-```yaml
-services:
-  umberrelay:
-    image: umberrelay:latest
-    container_name: umberrelay
-    network_mode: host
-    volumes:
-      - ./config.toml:/etc/umberrelay/config.toml:ro
-      - /path/to/external/drive/umberrelay:/data
-    restart: unless-stopped
 ```
 
 Copy the image and supporting files to the Pi:
@@ -177,6 +163,8 @@ If that works but normal browsing does not show up, the client may be using encr
 ### Queries are visible, but attribution is weak
 
 Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information. Across routed VLANs, source-IP fallback actors are expected when MAC attribution is unavailable.
+
+For deeper network-path troubleshooting and VLAN validation workflows, see [`docs/TROUBLE_SHOOTING.md`](./TROUBLE_SHOOTING.md).
 
 ## Health Checklist
 

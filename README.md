@@ -116,8 +116,8 @@ These are managed through the web UI or API:
 
 | Setting | Default | Description |
 |---|---|---|
-| `retention_days` | `30` | Days of query history to keep before purging |
-| `list_refresh_hours` | `24` | Hours between blocklist refresh cycles |
+| `retention_days` | `30` | Days of query history to keep before purging (`1`-`365`) |
+| `list_refresh_hours` | `24` | Hours between blocklist refresh cycles (`1`-`168`) |
 
 ## Device Discovery
 

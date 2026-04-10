@@ -13,7 +13,8 @@ Priorities may change as Umberrelay matures. This roadmap reflects current produ
    Surface source IP clearly when MAC attribution is unavailable so routed multi-VLAN deployments remain understandable without router-specific integrations. This closes a practical visibility gap exposed by real Pi testing.
 
 2. **DoH/DoT detection**
-   Identify devices bypassing local DNS. Start with a best-effort signal based on existing DNS and passive discovery data so users get immediate visibility into likely blind spots without requiring packet capture. This is the highest-impact trust feature: if a device uses encrypted DNS, Umberrelay is blind to it, and users should know that immediately.
+   Status: Completed (best-effort signal).
+   The current implementation identifies likely DNS-visibility bypass using existing DNS history plus passive discovery data, so users get immediate trust warnings without packet capture. Higher-confidence attribution remains a post-MVP follow-up once flow metadata exists.
 
 3. **Live query stream**
    Status: Completed on April 3, 2026.

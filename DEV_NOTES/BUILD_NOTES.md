@@ -13,7 +13,7 @@ DNS Listener → buffered channel (4096) → Pipeline Writer → SQLite (WAL mod
                                      Classify Manager (domain→category)
 ```
 
-All components run as goroutines coordinated via `context.Context`. Graceful shutdown on SIGTERM/SIGINT drains the pipeline before exiting.
+All components run as goroutines coordinated via `context.Context`. On SIGTERM/SIGINT, shutdown performs a best-effort drain of buffered pipeline records before exit.
 
 ### Key packages
 
@@ -32,7 +32,7 @@ All components run as goroutines coordinated via `context.Context`. Graceful shu
 
 ### Go (1.26+)
 
-Single static binary, excellent concurrency primitives for the pipeline architecture, cross-compiles to ARM for Raspberry Pi. Go 1.22+ method routing (`GET /api/...`) eliminates the need for a third-party router.
+Single static binary, excellent concurrency primitives for the pipeline architecture, cross-compiles to ARM for Raspberry Pi. Standard library method routing (`GET /api/...`) eliminates the need for a third-party router.
 
 ### modernc.org/sqlite (pure Go)
 
@@ -48,7 +48,7 @@ Minimal config parsing for the bootstrap config file. Chosen for simplicity — 
 
 ### HTMX + Pico CSS
 
-Server-rendered HTML with HTMX for dynamic interactions (list management, settings). Pico CSS provides classless styling. No JavaScript build toolchain required. uPlot is included for future charting.
+Server-rendered HTML with HTMX for dynamic interactions (list management, settings). Pico CSS provides classless styling. No JavaScript build toolchain required; charts are rendered with lightweight static JavaScript.
 
 ### IEEE OUI Database
 
