@@ -245,10 +245,6 @@
     margin: 0 0 0.15rem;
 }
 
-.detail-device-name {
-    margin-bottom: 0.15rem;
-}
-
 .detail-subtitle {
     color: var(--pico-muted-color);
     font-size: 0.78rem;

@@ -1,6 +1,5 @@
 {{define "label-edit"}}
 <div class="device-label-block" id="device-label-editor">
-    <h3 class="detail-device-name">{{.DeviceName}}</h3>
     <form class="label-form" hx-post="/ui/devices/{{.Device.MAC}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
         <input type="text" name="label" value="{{.Device.Label}}" maxlength="128" placeholder="Edit Label">
         <button type="submit" class="secondary">Save Label</button>
@@ -10,7 +9,6 @@
 
 {{define "source-label-edit"}}
 <div class="device-label-block" id="device-label-editor">
-    <h3 class="detail-device-name">{{.DeviceName}}</h3>
     <form class="label-form" hx-post="/ui/sources/{{.SourceIP}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
         <input type="text" name="label" value="{{.SourceLabel}}" maxlength="128" placeholder="Edit Label">
         <button type="submit" class="secondary">Save Label</button>

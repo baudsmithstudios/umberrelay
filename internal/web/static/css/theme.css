@@ -561,17 +561,8 @@ select option {
 
 .tui-field input,
 .tui-field select {
+    height: calc(1rem * var(--pico-line-height) + var(--pico-form-element-spacing-vertical) * 2 + var(--pico-border-width) * 2);
     width: 100%;
-}
-
-/* ── Device detail heading ────────────────────────────────── */
-
-.detail-device-name {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0;
-    margin: 0 0 2px;
-    text-transform: none;
 }
 
 /* ── Footer ───────────────────────────────────────────────── */

@@ -70,14 +70,13 @@
         var H = canvas.height / dpr;
         ctx.clearRect(0, 0, W, H);
 
-        var pad = { top: 18, right: 44, bottom: 30, left: 44 };
+        var pad = { top: 26, right: 44, bottom: 30, left: 44 };
         var plotW = W - pad.left - pad.right;
         var plotH = H - pad.top - pad.bottom;
 
         var borderColor = chartColor('--umberrelay-panel-border') || '#5a4528';
         var gridColor = 'rgba(90, 69, 40, 0.25)';
         var mutedColor = chartColor('--pico-muted-color') || '#b09470';
-        var textColor = chartColor('--pico-color') || '#f0e6c8';
 
         var primaryVals = datasets[0] ? datasets[0].values : [];
         var secondaryVals = datasets[1] ? datasets[1].values : [];
@@ -148,26 +147,29 @@
         ctx.lineWidth = 1;
         ctx.strokeRect(pad.left, pad.top, plotW, plotH);
 
-        ctx.font = '600 10px SFMono-Regular, Cascadia Code, Consolas, monospace';
-        ctx.fillStyle = textColor;
-        ctx.textBaseline = 'bottom';
-        ctx.textAlign = 'left';
-        ctx.fillText('Queries', pad.left, pad.top - 4);
-        ctx.textAlign = 'right';
-        ctx.fillText('Tracker', pad.left + plotW, pad.top - 4);
-
-        var legendX = pad.left + plotW - 8;
-        var legendY = pad.top + 12;
         ctx.font = '10px SFMono-Regular, Cascadia Code, Consolas, monospace';
         ctx.textBaseline = 'middle';
-        ctx.textAlign = 'right';
+        ctx.textAlign = 'left';
+        var legendY = pad.top - 16;
+        var swatchSize = 8;
+        var swatchGap = 5;
+        var itemGap = 14;
+        var legendWidth = 0;
+        for (var li = 0; li < datasets.length; li++) {
+            legendWidth += swatchSize + swatchGap + ctx.measureText(datasets[li].label).width;
+            if (li < datasets.length - 1) {
+                legendWidth += itemGap;
+            }
+        }
+        var legendX = pad.left + plotW - legendWidth;
         for (var li = 0; li < datasets.length; li++) {
             var item = datasets[li];
-            var itemY = legendY + (li * 14);
             ctx.fillStyle = item.color;
-            ctx.fillRect(legendX - 48, itemY - 3, 8, 8);
-            ctx.fillStyle = textColor;
-            ctx.fillText(item.label, legendX, itemY + 1);
+            ctx.fillRect(legendX, legendY - swatchSize / 2, swatchSize, swatchSize);
+            legendX += swatchSize + swatchGap;
+            ctx.fillStyle = mutedColor;
+            ctx.fillText(item.label, legendX, legendY);
+            legendX += ctx.measureText(item.label).width + itemGap;
         }
     }
 
