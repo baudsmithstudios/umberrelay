@@ -281,7 +281,7 @@ main.container {
 
 /* Kill Pico body>main block padding and section bottom margin */
 body > main {
-    padding-block: 0.65rem 0 !important;
+    padding-block: 2rem 0 !important;
 }
 
 section {
@@ -296,7 +296,7 @@ article,
     --umberrelay-card-pad-y: var(--pico-block-spacing-vertical);
     background: transparent !important;
     border: 1px solid var(--umberrelay-panel-border);
-    border-radius: 0;
+    border-radius: 3px;
     box-shadow: none !important;
     margin-bottom: 0;
     padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
@@ -327,10 +327,10 @@ article:has(> .chart-header:first-child),
     font-weight: 700;
     gap: 0;
     letter-spacing: 0.08em;
-    margin: calc(var(--umberrelay-card-pad-y) * -1 - 1px) calc(var(--umberrelay-card-pad-x) * -1 - 1px) 0.5rem;
+    margin: calc(var(--umberrelay-card-pad-y) * -1) calc(var(--umberrelay-card-pad-x) * -1) 0.5rem;
     padding: 0;
     text-transform: uppercase;
-    transform: translateY(-45%);
+    transform: translateY(-50%);
 }
 
 /* Short ─ prefix before the title */
@@ -346,8 +346,6 @@ article:has(> .chart-header:first-child),
     border-top: 1px solid var(--umberrelay-panel-border);
     content: '';
     flex: 1;
-    position: relative;
-    right: -1px;
 }
 
 .section-title > span {
@@ -369,9 +367,9 @@ article:has(> .chart-header:first-child),
    The ::before/::after draw the border line, the label and range
    controls sit inline. */
 .chart-header {
-    margin: calc(var(--umberrelay-card-pad-y) * -1 - 1px) calc(var(--umberrelay-card-pad-x) * -1 - 1px) 0.5rem;
+    margin: calc(var(--umberrelay-card-pad-y) * -1) calc(var(--umberrelay-card-pad-x) * -1) 0.5rem;
     padding: 0;
-    transform: translateY(-45%);
+    transform: translateY(-50%);
 }
 
 .chart-label {
@@ -396,8 +394,6 @@ article:has(> .chart-header:first-child),
     border-top: 1px solid var(--umberrelay-panel-border);
     content: '';
     flex-shrink: 0;
-    position: relative;
-    right: -1px;
     width: 0.6rem;
 }
 
