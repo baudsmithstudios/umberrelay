@@ -32,10 +32,18 @@ const (
 	defaultDBName     = "umberrelay.db"
 )
 
+var version = "dev"
+
 func main() {
 	configPath := flag.String("config", defaultConfigPath, "path to config file")
 	demoData := flag.Bool("demo-data", false, "seed demo data into an empty database for local UI review")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	if err := run(*configPath, *demoData); err != nil {
 		log.Printf("%s failed: %v", runtimeName, err)
