@@ -1,0 +1,11 @@
+services:
+  umberrelay:
+    build: .
+    network_mode: host
+    volumes:
+      - ./config.toml:/etc/umberrelay/config.toml:ro
+      - umberrelay-data:/data
+    restart: unless-stopped
+
+volumes:
+  umberrelay-data:

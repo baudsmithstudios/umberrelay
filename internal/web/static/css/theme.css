@@ -1,0 +1,528 @@
+/*
+ * All foreground colors meet WCAG AA contrast against every
+ * background they appear on.
+ */
+
+[data-theme="dark"] {
+    color-scheme: dark;
+
+    --pico-background-color: #0e0b04;
+    --pico-card-background-color: #151006;
+    --pico-card-sectioning-background-color: #1a1408;
+    --pico-dropdown-background-color: #1a1408;
+    --pico-code-background-color: #1a1408;
+    --pico-form-element-background-color: #0e0b04;
+    --pico-form-element-active-background-color: #151006;
+    --pico-form-element-selected-background-color: #1a1408;
+    --pico-modal-overlay-background-color: rgba(14, 11, 4, 0.85);
+    --pico-progress-background-color: #1a1408;
+
+    --pico-color: #f0e6c8;
+    --pico-h1-color: #f0e6c8;
+    --pico-h2-color: #f0e6c8;
+    --pico-h3-color: #f0e6c8;
+    --pico-h4-color: #c8b88a;
+    --pico-h5-color: #c8b88a;
+    --pico-h6-color: #c8b88a;
+    --pico-muted-color: #b09470;
+    --pico-code-color: #c8b88a;
+
+    --pico-primary: #f5a623;
+    --pico-primary-background: #d08a1b;
+    --pico-primary-border: var(--pico-primary-background);
+    --pico-primary-underline: rgba(245, 166, 35, 0.5);
+    --pico-primary-hover: #ffbe4d;
+    --pico-primary-hover-background: #f5a623;
+    --pico-primary-hover-border: var(--pico-primary-hover-background);
+    --pico-primary-hover-underline: var(--pico-primary-hover);
+    --pico-primary-focus: rgba(245, 166, 35, 0.375);
+    --pico-primary-inverse: #0e0b04;
+
+    --pico-secondary: #b09470;
+    --pico-secondary-background: #2a1f0e;
+    --pico-secondary-border: #5a4528;
+    --pico-secondary-hover: #f0e6c8;
+    --pico-secondary-hover-background: #3a2c16;
+    --pico-secondary-hover-border: #6a5538;
+    --pico-secondary-focus: rgba(42, 31, 14, 0.25);
+    --pico-secondary-inverse: #f0e6c8;
+
+    --pico-contrast: #f0e6c8;
+    --pico-contrast-background: #f0e6c8;
+    --pico-contrast-border: var(--pico-contrast-background);
+    --pico-contrast-hover: #ffffff;
+    --pico-contrast-hover-background: #ffffff;
+    --pico-contrast-hover-border: var(--pico-contrast-hover-background);
+    --pico-contrast-focus: rgba(240, 230, 200, 0.25);
+    --pico-contrast-inverse: #0e0b04;
+
+    --pico-muted-border-color: #5a4528;
+    --pico-card-border-color: #5a4528;
+    --pico-table-border-color: #5a4528;
+    --pico-form-element-border-color: #5a4528;
+    --pico-form-element-active-border-color: var(--pico-primary);
+    --pico-form-element-focus-color: var(--pico-primary);
+    --pico-dropdown-border-color: #5a4528;
+    --pico-dropdown-hover-background-color: #1a1408;
+    --pico-blockquote-border-color: #5a4528;
+    --pico-accordion-border-color: #5a4528;
+
+    --pico-form-element-invalid-border-color: #ff4f4f;
+    --pico-form-element-invalid-active-border-color: #ff4f4f;
+    --pico-form-element-invalid-focus-color: #ff4f4f;
+    --pico-form-element-valid-border-color: #1dbd5c;
+    --pico-form-element-valid-active-border-color: #1dbd5c;
+    --pico-form-element-valid-focus-color: #1dbd5c;
+
+    --pico-form-element-color: #f0e6c8;
+    --pico-form-element-placeholder-color: #b09470;
+    --pico-form-element-disabled-opacity: 0.5;
+    --pico-text-selection-color: rgba(245, 166, 35, 0.25);
+    --pico-mark-background-color: #2a1f0e;
+    --pico-mark-color: #f0e6c8;
+    --pico-ins-color: #1dbd5c;
+    --pico-del-color: #ff4f4f;
+    --pico-switch-background-color: #5a4528;
+    --pico-switch-checked-background-color: var(--pico-primary-background);
+    --pico-switch-color: #0e0b04;
+    --pico-range-border-color: #5a4528;
+    --pico-range-active-border-color: #f5a623;
+    --pico-range-thumb-color: var(--pico-primary-background);
+    --pico-range-thumb-active-color: var(--pico-primary-background);
+    --pico-accordion-active-summary-color: var(--pico-primary-hover);
+    --pico-accordion-close-summary-color: var(--pico-color);
+    --pico-accordion-open-summary-color: var(--pico-muted-color);
+    --pico-loading-spinner-opacity: 0.5;
+    --pico-tooltip-background-color: #1a1408;
+    --pico-tooltip-color: #f0e6c8;
+    --pico-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+
+    --pico-font-family: 'SFMono-Regular', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+    --pico-font-size: 14px;
+
+    --pico-border-radius: 0;
+
+    --pico-spacing: 0.75rem;
+    --pico-block-spacing-vertical: 0.75rem;
+    --pico-block-spacing-horizontal: 1rem;
+
+    --umberrelay-warn: #d08a1b;
+    --umberrelay-critical: #ff4f4f;
+    --umberrelay-accent: #f5a623;
+    --umberrelay-accent-soft: #ffd978;
+    --umberrelay-accent-deep: #e08700;
+    --umberrelay-title-relay: #c8b88a;
+    --umberrelay-positive: #1dbd5c;
+    --umberrelay-chart-total: #f5a623;
+    --umberrelay-chart-tracker: #ff4f4f;
+
+    --umberrelay-panel-border: #5a4528;
+    --umberrelay-panel-bg: #151006;
+}
+
+/* ── Global terminal overrides ─────────────────────────────── */
+
+*, *::before, *::after {
+    border-radius: 0 !important;
+}
+
+body {
+    font-variant-ligatures: none;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+}
+
+/* ── Typography ─────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--pico-font-family);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* ── Brand ─────────────────────────────────────────────────── */
+
+.umberrelay-brand {
+    color: inherit;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 0.95rem;
+}
+
+.umberrelay-brand:hover,
+.umberrelay-brand:focus-visible {
+    text-decoration: none;
+}
+
+.umberrelay-brand-umber {
+    color: var(--umberrelay-accent);
+}
+
+.umberrelay-brand-relay {
+    color: var(--umberrelay-title-relay);
+}
+
+.umberrelay-navbar {
+    align-items: center;
+    background: var(--pico-background-color);
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem auto 0;
+    max-width: 965px;
+    padding: 0.35rem 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.umberrelay-tabs {
+    align-items: center;
+    display: flex;
+    gap: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.umberrelay-tabs li {
+    align-items: center;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+
+.umberrelay-tabs li + li::before {
+    color: var(--umberrelay-panel-border);
+    content: '|';
+    margin: 0 0.3rem;
+}
+
+.umberrelay-tab {
+    color: var(--pico-muted-color);
+    display: block;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.6rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color 100ms ease;
+}
+
+.umberrelay-tab:hover,
+.umberrelay-tab:focus-visible {
+    color: var(--pico-color);
+    text-decoration: none;
+}
+
+.umberrelay-tab[aria-current="page"] {
+    color: var(--umberrelay-accent);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+/* ── Navbar divider ───────────────────────────────────────── */
+
+.umberrelay-navbar-rule {
+    border: none;
+    border-top: 1px solid var(--umberrelay-panel-border);
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+/* ── Container width — match navbar ────────────────────────── */
+
+main.container {
+    max-width: 960px;
+    padding: 0 12px;
+}
+
+body > main {
+    padding-block: 2rem 0 !important;
+}
+
+section {
+    margin-bottom: 0 !important;
+}
+
+
+article,
+.live-query-stream {
+    --umberrelay-card-pad-x: var(--pico-block-spacing-horizontal);
+    --umberrelay-card-pad-y: var(--pico-block-spacing-vertical);
+    background: transparent !important;
+    border: 1px solid var(--umberrelay-panel-border);
+    border-radius: 3px;
+    box-shadow: none !important;
+    margin-bottom: 0;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
+    position: relative;
+}
+
+/* Remove top border when a title element replaces it */
+article:has(> .section-title:first-child),
+article:has(> .chart-header:first-child),
+.live-query-stream:has(> .section-title:first-child) {
+    border-top: none;
+}
+
+.section-title {
+    align-items: center;
+    color: var(--umberrelay-accent);
+    display: flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    gap: 0;
+    letter-spacing: 0.08em;
+    margin: calc(var(--umberrelay-card-pad-y) * -1) calc(var(--umberrelay-card-pad-x) * -1) 0.5rem;
+    padding: 0;
+    text-transform: uppercase;
+    transform: translateY(-50%);
+}
+
+.section-title::before {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex-shrink: 0;
+    width: 0.6rem;
+}
+
+.section-title::after {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex: 1;
+}
+
+.section-title > span {
+    background: var(--pico-background-color);
+    flex-shrink: 0;
+    padding: 0 0.4rem;
+}
+
+.section-note {
+    background: var(--pico-background-color);
+    color: var(--pico-muted-color);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+}
+
+.chart-header {
+    margin: calc(var(--umberrelay-card-pad-y) * -1) calc(var(--umberrelay-card-pad-x) * -1) 0.5rem;
+    padding: 0;
+    transform: translateY(-50%);
+}
+
+.chart-label {
+    background: var(--pico-background-color);
+    color: var(--umberrelay-accent);
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0 0.4rem;
+    text-transform: uppercase;
+}
+
+.chart-header::before {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex-shrink: 0;
+    width: 0.6rem;
+}
+
+.chart-header::after {
+    border-top: 1px solid var(--umberrelay-panel-border);
+    content: '';
+    flex-shrink: 0;
+    width: 0.6rem;
+}
+
+.eyebrow {
+    color: var(--umberrelay-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.stat-lbl,
+.zone-label {
+    letter-spacing: 0.08em;
+}
+
+nav a {
+    letter-spacing: 0.06em;
+}
+
+/* ── Global utility rules ──────────────────────────────────── */
+
+.tracker-pct { color: var(--umberrelay-critical); }
+nav ul { list-style: none; }
+small:empty { display: none; }
+.value small,
+td small,
+article small {
+    display: block;
+    color: var(--pico-muted-color);
+}
+.tracker-pct .trend-up { color: var(--umberrelay-critical); }
+.tracker-pct .trend-down { color: var(--umberrelay-positive); }
+
+/* ── Responsive: mobile nav ────────────────────────────────── */
+
+@media (max-width: 767px) {
+    .umberrelay-navbar {
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+        padding: 0.35rem 0.5rem;
+    }
+
+    .umberrelay-tabs {
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        width: auto;
+    }
+
+    .umberrelay-tab {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.2rem;
+    }
+}
+
+/* ── TUI form overrides ───────────────────────────────────── */
+
+/* Kill Pico search icon */
+input[type="search"] {
+    background-image: none !important;
+    padding-inline-start: 0.6rem;
+}
+
+/* Border-only buttons — !important to override Pico */
+button,
+[type="submit"],
+[type="button"] {
+    background: transparent !important;
+    border: 1px solid var(--umberrelay-accent) !important;
+    box-shadow: none !important;
+    color: var(--umberrelay-accent);
+    cursor: pointer;
+    font-family: var(--pico-font-family);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 6px 16px;
+    text-transform: uppercase;
+    transition: background 100ms, color 100ms;
+}
+
+button:hover,
+[type="submit"]:hover,
+[type="button"]:hover {
+    background: var(--umberrelay-accent) !important;
+    color: var(--pico-background-color) !important;
+}
+
+button.secondary,
+[type="submit"].secondary,
+[type="button"].secondary {
+    border-color: var(--umberrelay-panel-border) !important;
+    color: var(--pico-muted-color);
+}
+
+button.secondary:hover,
+[type="submit"].secondary:hover,
+[type="button"].secondary:hover {
+    background: var(--umberrelay-panel-border) !important;
+    color: var(--pico-color) !important;
+}
+
+/* Border-only inputs — !important to override Pico */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    background: transparent !important;
+    border: 1px solid var(--umberrelay-panel-border) !important;
+    box-shadow: none !important;
+    color: var(--pico-color);
+    font-family: var(--pico-font-family);
+    font-size: 13px;
+    outline: none;
+    padding: 10px 10px 6px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--umberrelay-accent) !important;
+    box-shadow: none !important;
+}
+
+input::placeholder {
+    color: var(--pico-muted-color);
+    opacity: 0.6;
+}
+
+select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 1.75rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23b09470'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+    background-repeat: no-repeat;
+}
+
+select option {
+    background: var(--pico-card-sectioning-background-color);
+    color: var(--pico-color);
+}
+
+.tui-field {
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.tui-field label,
+.tui-label {
+    background: var(--pico-background-color);
+    color: var(--pico-muted-color);
+    font-size: 10px;
+    left: 8px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0 4px;
+    position: absolute;
+    text-transform: uppercase;
+    top: 0;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+/* Labels always match page background since panels are transparent */
+
+.tui-field input,
+.tui-field select {
+    height: calc(1rem * var(--pico-line-height) + var(--pico-form-element-spacing-vertical) * 2 + var(--pico-border-width) * 2);
+    width: 100%;
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+
+.umberrelay-footer-rule {
+    border: none;
+    border-top: 1px solid var(--umberrelay-panel-border);
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+.umberrelay-footer {
+    color: var(--pico-muted-color);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    margin: 0 auto;
+    max-width: 960px;
+    padding: 8px 12px;
+    text-transform: uppercase;
+}

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&amp;family=Courier+Prime&amp;display=swap');
+      .title-umber { fill: #f5a623; }
+      .title-relay { fill: #c8b88a; }
+      .rivet       { fill: #a27f46; }
+      .glow-text   { filter: url(#phosphor-glow); }
+      .tagline     { fill: #c8b88a; }
+    </style>
+    <filter id="phosphor-glow" x="-15%" y="-40%" width="130%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="wide-blur"/>
+      <feFlood flood-color="#f5a623" flood-opacity="0.4" result="amber"/>
+      <feComposite in="amber" in2="wide-blur" operator="in" result="outer-glow"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="tight-blur"/>
+      <feFlood flood-color="#ffbe4d" flood-opacity="0.7" result="bright-amber"/>
+      <feComposite in="bright-amber" in2="tight-blur" operator="in" result="inner-glow"/>
+      <feMerge>
+        <feMergeNode in="outer-glow"/>
+        <feMergeNode in="inner-glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="1280" height="640" fill="#1a1208"/>
+
+  <!-- panel inset -->
+  <rect x="80" y="120" width="1120" height="400" rx="3" fill="#2a1f0e"/>
+  <rect x="81" y="121" width="1118" height="398" rx="3" fill="none" stroke="#a27f46" stroke-width="1"/>
+  <rect x="86" y="126" width="1108" height="388" rx="2" fill="none" stroke="#4a3820" stroke-width="0.5"/>
+
+  <!-- corner rivets on panel -->
+  <circle class="rivet" cx="100" cy="140" r="4" opacity="0.7"/>
+  <circle class="rivet" cx="1180" cy="140" r="4" opacity="0.7"/>
+  <circle class="rivet" cx="100" cy="500" r="4" opacity="0.7"/>
+  <circle class="rivet" cx="1180" cy="500" r="4" opacity="0.7"/>
+
+  <!-- title -->
+  <text
+    class="glow-text"
+    x="640"
+    y="300"
+    font-family="'Orbitron', sans-serif"
+    font-size="80"
+    font-weight="700"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="14"
+  ><tspan class="title-umber">U</tspan><tspan class="title-umber">M</tspan><tspan class="title-umber">B</tspan><tspan class="title-umber">E</tspan><tspan class="title-umber">R</tspan><tspan class="title-relay">R</tspan><tspan class="title-relay">E</tspan><tspan class="title-relay">L</tspan><tspan class="title-relay">A</tspan><tspan class="title-relay">Y</tspan></text>
+
+  <!-- tagline -->
+  <text
+    class="tagline"
+    x="640"
+    y="380"
+    font-family="'Courier Prime', 'Courier New', monospace"
+    font-size="20"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="2"
+  >Trace the traffic your network never explains.</text>
+</svg>

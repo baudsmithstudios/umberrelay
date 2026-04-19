@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="600" height="120">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&amp;family=Courier+Prime&amp;display=swap');
+
+      /* dark mode (default) */
+      .title-umber { fill: #f5a623; }
+      .title-relay { fill: #c8b88a; }
+      .glow-text   { filter: url(#phosphor-glow); }
+      .tagline     { fill: #c8b88a; }
+
+      /* light mode */
+      @media (prefers-color-scheme: light) {
+        .title-umber { fill: #6d4105; }
+        .title-relay { fill: #2f2414; }
+        .glow-text   { filter: url(#phosphor-glow-light); }
+        .tagline     { fill: #2f2414; }
+      }
+    </style>
+    <!-- dark mode: layered amber phosphor glow -->
+    <filter id="phosphor-glow" x="-15%" y="-40%" width="130%" height="180%">
+      <!-- outer bloom: wide, soft -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="wide-blur"/>
+      <feFlood flood-color="#f5a623" flood-opacity="0.4" result="amber"/>
+      <feComposite in="amber" in2="wide-blur" operator="in" result="outer-glow"/>
+      <!-- inner halo: tight, bright -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="tight-blur"/>
+      <feFlood flood-color="#ffbe4d" flood-opacity="0.7" result="bright-amber"/>
+      <feComposite in="bright-amber" in2="tight-blur" operator="in" result="inner-glow"/>
+      <feMerge>
+        <feMergeNode in="outer-glow"/>
+        <feMergeNode in="inner-glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- light mode: subtler warm halo -->
+    <filter id="phosphor-glow-light" x="-15%" y="-40%" width="130%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="wide-blur"/>
+      <feFlood flood-color="#f5a623" flood-opacity="0.3" result="amber"/>
+      <feComposite in="amber" in2="wide-blur" operator="in" result="outer-glow"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="tight-blur"/>
+      <feFlood flood-color="#f5a623" flood-opacity="0.5" result="bright-amber"/>
+      <feComposite in="bright-amber" in2="tight-blur" operator="in" result="inner-glow"/>
+      <feMerge>
+        <feMergeNode in="outer-glow"/>
+        <feMergeNode in="inner-glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- title: per-character tspans for uniform spacing with two-tone color -->
+  <text
+    class="glow-text"
+    x="300"
+    y="44"
+    font-family="'Orbitron', sans-serif"
+    font-size="32"
+    font-weight="700"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="6"
+  ><tspan class="title-umber">U</tspan><tspan class="title-umber">M</tspan><tspan class="title-umber">B</tspan><tspan class="title-umber">E</tspan><tspan class="title-umber">R</tspan><tspan class="title-relay">R</tspan><tspan class="title-relay">E</tspan><tspan class="title-relay">L</tspan><tspan class="title-relay">A</tspan><tspan class="title-relay">Y</tspan></text>
+
+  <text
+    class="tagline"
+    x="300"
+    y="78"
+    font-family="'Courier Prime', 'Courier New', monospace"
+    font-size="12"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="1.2"
+  >Trace the traffic your network never explains.</text>
+</svg>

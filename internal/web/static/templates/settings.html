@@ -1,0 +1,99 @@
+{{define "page_styles"}}
+<link rel="stylesheet" href="/static/css/settings.css">
+{{end}}
+
+{{define "content"}}
+<section class="settings-page">
+
+    <article>
+        <div class="section-title">
+            <span>Retention</span>
+        </div>
+        <form hx-post="/ui/settings" hx-swap="none">
+            <div class="settings-grid">
+                <div class="tui-field">
+                    <label for="retention_days" class="tui-label">Days to retain query data</label>
+                    <input type="number" id="retention_days" name="retention_days" value="{{.RetentionDays}}" min="1" max="365">
+                </div>
+                <div class="tui-field">
+                    <label for="list_refresh_hours" class="tui-label">Hours between list refreshes</label>
+                    <input type="number" id="list_refresh_hours" name="list_refresh_hours" value="{{.ListRefreshHours}}" min="1" max="168">
+                </div>
+            </div>
+            <button type="submit">Save</button>
+        </form>
+    </article>
+
+    <article>
+        <div class="section-title">
+            <span>Classification Lists</span>
+        </div>
+        <form hx-post="/ui/lists/refresh" hx-swap="none" class="settings-action-row">
+            <button type="submit" class="secondary">Refresh Lists Now</button>
+        </form>
+        <p class="settings-refresh-status {{.ListRefreshStatusClass}}">{{.ListRefreshStatusText}}</p>
+        <div class="domain-table-wrap">
+            <table class="domain-table" role="grid">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Enabled</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Lists}}
+                    <tr>
+                        <td data-label="Name">{{.Name}}</td>
+                        <td data-label="Category">{{.Category}}</td>
+                        <td data-label="Enabled">
+                            <form hx-post="/ui/lists/{{.ID}}/enabled" hx-swap="none">
+                                <input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}">
+                                <button type="submit" class="secondary">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+                            </form>
+                        </td>
+                        <td data-label="Actions">
+                            <form hx-post="/ui/lists/{{.ID}}/delete" hx-swap="none">
+                                <button type="submit" class="secondary" hx-confirm="Remove this list?">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article>
+        <div class="section-title">
+            <span>Add List</span>
+        </div>
+        <form hx-post="/ui/lists" hx-swap="none">
+            <div class="tui-field">
+                <label for="list_url" class="tui-label">URL</label>
+                <input type="url" id="list_url" name="url" required placeholder="https://example.com/list.txt">
+            </div>
+            <div class="settings-grid">
+                <div class="tui-field">
+                    <label for="list_name" class="tui-label">Name</label>
+                    <input type="text" id="list_name" name="name" required placeholder="My List">
+                </div>
+                <div class="tui-field">
+                    <label for="list_category" class="tui-label">Category</label>
+                    <select id="list_category" name="category">
+                        <option value="tracking">Tracking</option>
+                        <option value="advertising">Advertising</option>
+                        <option value="analytics">Analytics</option>
+                        <option value="telemetry">Telemetry</option>
+                        <option value="malware">Malware</option>
+                        <option value="uncategorized">Uncategorized</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit">Add</button>
+        </form>
+    </article>
+
+</section>
+{{end}}

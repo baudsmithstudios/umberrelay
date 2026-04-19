@@ -1,0 +1,77 @@
+/* ── Settings page ── */
+
+.settings-page {
+    display: grid;
+    gap: 24px;
+    /* width constrained by main.container */
+    padding-bottom: 40px;
+}
+
+.settings-page article {
+    margin-bottom: 0;
+}
+
+.settings-page form {
+    margin-bottom: 0;
+}
+
+.settings-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr 1fr;
+}
+
+.settings-action-row {
+    margin-bottom: 0.75rem;
+}
+
+.settings-action-row button {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.6rem;
+}
+
+.settings-refresh-status {
+    margin: 0 0 0.75rem;
+    font-size: 0.7rem;
+}
+
+.settings-refresh-status.status-ok {
+    color: var(--pico-color-green-400);
+}
+
+.settings-refresh-status.status-error {
+    color: var(--pico-color-red-400);
+}
+
+.settings-refresh-status.status-neutral {
+    color: var(--muted);
+}
+
+.settings-page .domain-table button {
+    font-size: 0.65rem;
+    margin-bottom: 0;
+    padding: 0.15rem 0.5rem;
+}
+
+.settings-page .domain-table form {
+    margin-bottom: 0;
+}
+
+.settings-page form button[type="submit"]:not(.secondary):is(:hover, :active, :focus, :focus-visible) {
+    -webkit-text-fill-color: #0e0b04 !important;
+    color: #0e0b04 !important;
+    opacity: 1 !important;
+}
+
+@media (min-width: 768px) {
+    .settings-page .domain-table td[data-label="Enabled"] button,
+    .settings-page .domain-table td[data-label="Actions"] button {
+        align-items: center;
+        display: inline-flex;
+        height: 1.85rem;
+        justify-content: center;
+        min-width: 9ch;
+        padding: 0 0.45rem;
+        width: 9ch;
+    }
+}

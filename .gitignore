@@ -1,0 +1,39 @@
+# Dev Notes
+DEV_NOTES/
+
+# Build output
+/umberrelay
+*.exe
+*.tar
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+.demo/
+
+# Go
+vendor/
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage.out
+*.test
+
+# Docker
+.env
+
+# Agents
+.claude/
+.codex

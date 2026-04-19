@@ -1,0 +1,77 @@
+{{define "label-edit"}}
+<div class="device-label-block" id="device-label-editor">
+    <form class="label-form" hx-post="/ui/devices/{{.Device.MAC}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
+        <input type="text" name="label" value="{{.Device.Label}}" maxlength="128" placeholder="Edit Label">
+        <button type="submit" class="secondary">Save Label</button>
+    </form>
+</div>
+{{end}}
+
+{{define "source-label-edit"}}
+<div class="device-label-block" id="device-label-editor">
+    <form class="label-form" hx-post="/ui/sources/{{.SourceIP}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
+        <input type="text" name="label" value="{{.SourceLabel}}" maxlength="128" placeholder="Edit Label">
+        <button type="submit" class="secondary">Save Label</button>
+    </form>
+</div>
+{{end}}
+
+{{define "live-query-stream"}}
+<section class="live-query-stream" id="live-query-stream" data-actor-key="{{.LiveActorKey}}">
+    <div class="section-title">
+        <span>Live Query Stream</span>
+        <span class="section-note">real-time DNS feed</span>
+    </div>
+    <div class="sort-row">
+        <input type="search" id="live-query-domain-filter" class="sidebar-search" placeholder="Filter domain...">
+        <select id="live-query-category-filter" aria-label="Filter live stream category">
+            <option value="">All categories</option>
+            {{range .CategoryOptions}}
+            <option value="{{.Value}}">{{.Label}}</option>
+            {{end}}
+        </select>
+        <button type="button" id="live-query-clear" class="secondary">Clear</button>
+    </div>
+    <div class="domain-table-wrap">
+        <table class="domain-table" role="grid">
+            <thead>
+                <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Actor</th>
+                    <th scope="col">Domain</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Category</th>
+                </tr>
+            </thead>
+            <tbody id="live-query-feed">
+                <tr>
+                    <td colspan="5">Waiting for live queries…</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}
+
+{{define "domain-row"}}
+<tr id="domain-row-{{.Domain}}">
+    <td data-label="Domain">{{.Domain}}</td>
+    <td data-label="Classification"><span class="classification-pill {{.ClassificationClass}}">{{.ClassificationLabel}}</span></td>
+    <td data-label="Queries">{{.QueryCount}}</td>
+    {{if eq .Scope "network"}}
+    <td data-label="Reach">{{.DeviceCountLabel}}</td>
+    {{end}}
+    <td data-label="Actions">
+        <form class="override-form" hx-post="/ui/overrides/{{.Domain}}" hx-target="closest tr" hx-swap="outerHTML">
+            <input type="hidden" name="actor_key" value="{{.ActorKey}}">
+            <select name="category" aria-label="Override category for {{.Domain}}">
+                {{$row := .}}
+                {{range .CategoryOptions}}
+                <option value="{{.Value}}"{{if eq $row.Category .Value}} selected{{end}}>{{.Label}}</option>
+                {{end}}
+            </select>
+            <button type="submit" class="secondary">Classify</button>
+        </form>
+    </td>
+</tr>
+{{end}}

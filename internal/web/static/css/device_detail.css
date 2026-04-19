@@ -1,0 +1,69 @@
+/* ── Device detail page ── */
+
+.device-detail-page {
+    /* width constrained by main.container */
+    margin-top: -1.5rem;
+    padding-bottom: 40px;
+}
+
+.device-detail-page .back-link {
+    color: var(--pico-muted-color);
+    display: inline-block;
+    font-size: 12px;
+    margin: 0 0 16px;
+    text-decoration: none;
+}
+
+.device-detail-page .back-link:hover {
+    color: var(--umberrelay-accent);
+}
+
+.device-detail-page .detail-card {
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
+    margin-bottom: 18px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
+}
+
+.device-detail-page .chart-card {
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
+}
+
+.domain-pagination {
+    align-items: center;
+    display: flex;
+    gap: 0.65rem;
+    justify-content: center;
+    margin-top: 0.6rem;
+}
+
+.domain-pagination-link {
+    border: 1px solid var(--umberrelay-panel-border);
+    color: var(--pico-color);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    min-width: 4.4rem;
+    padding: 0.15rem 0.45rem;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.domain-pagination-link:hover {
+    border-color: var(--umberrelay-accent);
+    color: var(--umberrelay-accent);
+}
+
+.domain-pagination-link.is-disabled {
+    color: var(--pico-muted-color);
+    opacity: 0.5;
+}
+
+.domain-pagination-status {
+    color: var(--pico-muted-color);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}

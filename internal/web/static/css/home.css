@@ -1,0 +1,114 @@
+/* ── Home page layout ── */
+
+.home-page {
+    display: grid;
+    gap: 24px;
+    /* width constrained by main.container */
+    padding-bottom: 40px;
+}
+
+.home-page article {
+    margin-bottom: 0;
+}
+
+/* ── Headline card ── */
+
+.home-page .headline-card {
+    --umberrelay-card-pad-y: 0.75rem;
+    --umberrelay-card-pad-x: 0.875rem;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
+}
+
+.home-page .headline-row {
+    align-items: center;
+    display: flex;
+    gap: 1.25rem;
+}
+
+.home-page .headline-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.home-page .headline-subtitle {
+    color: var(--pico-muted-color);
+    font-size: 12px;
+    margin: 0 0 6px;
+}
+
+.home-page .headline-bar {
+    height: 6px;
+}
+
+.home-page .headline-stats {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    width: 170px;
+}
+
+/* ── Chart card ── */
+
+.home-page .chart-card {
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
+}
+
+/* ── Attention feed ── */
+
+.home-page .attention-feed {
+    display: grid;
+    gap: 0.4rem;
+}
+
+/* ── Responsive: mobile ── */
+
+@media (max-width: 767px) {
+    .home-page .headline-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .home-page .headline-stats {
+        width: 100%;
+    }
+
+    .home-page .attention-item {
+        align-items: stretch;
+        display: grid;
+    }
+
+    .home-page .domain-table thead {
+        display: none;
+    }
+
+    .home-page .domain-table,
+    .home-page .domain-table tbody,
+    .home-page .domain-table tr,
+    .home-page .domain-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .home-page .domain-table tr {
+        border-bottom: 1px solid var(--pico-table-border-color);
+        padding: 0.6rem 0;
+    }
+
+    .home-page .domain-table td {
+        border: 0;
+        padding: 0.15rem 0;
+    }
+
+    .home-page .domain-table td::before {
+        color: var(--umberrelay-accent);
+        content: attr(data-label);
+        display: block;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.1rem;
+        text-transform: uppercase;
+    }
+}

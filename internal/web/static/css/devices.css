@@ -1,0 +1,144 @@
+/* ── Devices list page ── */
+
+.devices-page {
+    /* width constrained by main.container */
+    padding-bottom: 40px;
+}
+
+.devices-page .devices-header-card {
+    --umberrelay-card-pad-y: 12px;
+    --umberrelay-card-pad-x: 14px;
+    margin-bottom: 18px;
+    padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
+}
+
+.devices-page .devices-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.devices-page .device-search {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.devices-page .device-sort {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    max-width: 100%;
+    width: max-content;
+}
+
+/* ── Device card grid ── */
+
+.devices-page .device-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    margin-top: 12px;
+}
+
+.devices-page .device-card {
+    background: transparent;
+    border: 1px solid var(--umberrelay-panel-border);
+    color: inherit;
+    display: block;
+    padding: 10px 12px;
+    text-decoration: none;
+    transition: border-color 100ms ease;
+}
+
+.devices-page .device-card:hover,
+.devices-page .device-card:focus-visible {
+    border-color: var(--umberrelay-accent);
+}
+
+.devices-page .device-card.anomaly-tracker {
+    border-left: 2px solid var(--umberrelay-critical);
+}
+
+.devices-page .device-card.anomaly-volume {
+    border-left: 2px solid var(--umberrelay-analytics);
+}
+
+.devices-page .device-card.anomaly-bypass {
+    border-left: 2px solid var(--umberrelay-warn);
+}
+
+/* ── Card internals ── */
+
+.devices-page .device-card-header {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.devices-page .device-card-name {
+    color: var(--pico-color);
+    font-size: 13px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.devices-page .device-pct-badge {
+    color: var(--umberrelay-critical);
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.devices-page .device-card-bar {
+    border: 1px solid var(--umberrelay-panel-border);
+    height: 3px;
+    margin: 5px 0;
+    overflow: hidden;
+}
+
+.devices-page .device-card-bar span {
+    background: var(--umberrelay-critical);
+    display: block;
+    height: 100%;
+    min-width: 1px;
+}
+
+.devices-page .device-card-meta {
+    color: var(--pico-muted-color);
+    display: flex;
+    font-size: 11px;
+    justify-content: space-between;
+}
+
+.devices-page .device-card-info {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.devices-page .device-card-queries {
+    flex-shrink: 0;
+}
+
+.devices-page .device-card-trends {
+    display: none;
+}
+
+/* ── Responsive: mobile ── */
+
+@media (max-width: 767px) {
+    .devices-page .devices-controls {
+        flex-direction: column;
+    }
+
+    .devices-page .device-sort {
+        width: 100%;
+    }
+
+    .devices-page .device-grid {
+        grid-template-columns: 1fr;
+    }
+}
