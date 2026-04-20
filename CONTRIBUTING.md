@@ -1,11 +1,11 @@
 # Contributing to Umberrelay
 
-Thanks for your interest in contributing. Umberrelay is a small Raspberry Pi and homelab project, and focused contributions are welcome.
+Thanks for your interest in contributing. Umberrelay is a small Raspberry Pi and homelab project where focused contributions are welcome.
 
 ## Getting Started
 
 1. Fork the repo and clone your fork
-2. Make sure you have Go 1.26+ installed
+2. Make sure you have Go 1.26.1+ installed
 3. Run `go test ./...` to verify everything passes
 4. Create a branch for your change
 
@@ -18,13 +18,13 @@ For cross-compilation, dev-machine image builds, and live Pi testing, see [docs/
 For UI and UX work, start Umberrelay with representative local demo data from the repo root:
 
 ```sh
-./umberrelay-demo.sh
+./scripts/umberrelay-demo.sh
 ```
 
 To wipe the demo database and reseed it from scratch:
 
 ```sh
-./umberrelay-demo.sh --reset
+./scripts/umberrelay-demo.sh --reset
 ```
 
 The script:
@@ -38,7 +38,7 @@ The script:
 - Open a pull request against `main`
 - Keep changes focused — one feature or fix per PR
 - Include tests for new functionality
-- Make sure `go test ./...` passes before submitting
+- Make sure `go build ./...`, `go test ./...`, and `go vet ./...` pass before submitting
 
 ## Reporting Bugs
 

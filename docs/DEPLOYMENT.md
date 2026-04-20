@@ -171,7 +171,7 @@ If that works but normal browsing does not show up, the client may be using encr
 
 Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information. Across routed VLANs, source-IP fallback actors are expected when MAC attribution is unavailable.
 
-For deeper network-path troubleshooting and VLAN validation workflows, see [`TROUBLE_SHOOTING.md`](./TROUBLE_SHOOTING.md).
+For deeper network-path troubleshooting and VLAN validation workflows, see [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md).
 
 ## Health Checklist
 
