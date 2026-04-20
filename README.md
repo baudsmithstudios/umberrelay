@@ -3,7 +3,7 @@
 </p>
 
 <p align="center" style="margin-top: 0;">
-  <img src="assets/readme-home.png" alt="Umberrelay home dashboard" width="800">
+  <img src="assets/readme-home.png" alt="Umberrelay home dashboard" width="800" style="border-radius: 5px;">
 </p>
 
 <p align="center">
