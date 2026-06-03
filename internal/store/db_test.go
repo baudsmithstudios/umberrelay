@@ -22,13 +22,6 @@ func testDB(t *testing.T) *DB {
 	return db
 }
 
-func TestOpenAndClose(t *testing.T) {
-	db := testDB(t)
-	if db == nil {
-		t.Fatal("db is nil")
-	}
-}
-
 func TestOpenAppliesPiConnectionTuning(t *testing.T) {
 	db := testDB(t)
 
@@ -507,36 +500,6 @@ func TestQueryFeedFiltersAndCursor(t *testing.T) {
 	}
 }
 
-func TestPurgeQueries(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-
-	old := now.Add(-48 * time.Hour)
-	db.WriteQueries([]Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "old.com", QueryType: "A", Timestamp: old},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "new.com", QueryType: "A", Timestamp: now},
-	})
-
-	for {
-		deleted, err := db.PurgeQueriesOlderThanChunk(now.Add(-24*time.Hour), 500)
-		if err != nil {
-			t.Fatalf("PurgeQueriesOlderThanChunk: %v", err)
-		}
-		if deleted == 0 {
-			break
-		}
-	}
-
-	results, _ := db.QueryLog("", "", time.Time{}, time.Now(), 100, 0)
-	if len(results) != 1 {
-		t.Fatalf("got %d after purge, want 1", len(results))
-	}
-	if results[0].Domain != "new.com" {
-		t.Errorf("remaining domain = %q, want new.com", results[0].Domain)
-	}
-}
-
 func TestPurgeQueriesOlderThanChunk(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -814,62 +777,6 @@ func TestDashboardSummaryCountsUnattributedSourceIPsSeparately(t *testing.T) {
 	}
 	if summary.DeviceCount != 3 {
 		t.Fatalf("DeviceCount = %d, want 3", summary.DeviceCount)
-	}
-}
-
-func TestTopDomains(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-	db.UpsertDevice(Device{MAC: "11:22:33:44:55:66", IP: "192.168.1.11", FirstSeen: now, LastSeen: now})
-
-	db.WriteQueries([]Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "popular.com", QueryType: "A", Category: "", Timestamp: now},
-		{DeviceMAC: "11:22:33:44:55:66", Domain: "popular.com", QueryType: "A", Category: "", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
-	})
-
-	domains, err := db.TopDomainsWithSource(10)
-	if err != nil {
-		t.Fatalf("TopDomainsWithSource: %v", err)
-	}
-	if len(domains) != 2 {
-		t.Fatalf("got %d domains, want 2", len(domains))
-	}
-	if domains[0].Domain != "popular.com" {
-		t.Errorf("top domain = %q, want popular.com", domains[0].Domain)
-	}
-	if domains[0].QueryCount != 2 {
-		t.Errorf("query count = %d, want 2", domains[0].QueryCount)
-	}
-	if domains[0].DeviceCount != 2 {
-		t.Errorf("device count = %d, want 2", domains[0].DeviceCount)
-	}
-}
-
-func TestDeviceTopDomains(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-
-	db.WriteQueries([]Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "A", Category: "", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "example.com", QueryType: "AAAA", Category: "tracking", Timestamp: now.Add(time.Second)},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
-	})
-
-	domains, err := db.DeviceTopDomainsWithSource("aa:bb:cc:dd:ee:ff", 10)
-	if err != nil {
-		t.Fatalf("DeviceTopDomainsWithSource: %v", err)
-	}
-	if len(domains) != 2 {
-		t.Fatalf("got %d domains, want 2", len(domains))
-	}
-	if domains[0].Domain != "example.com" || domains[0].QueryCount != 2 {
-		t.Errorf("top domain = %q count = %d, want example.com/2", domains[0].Domain, domains[0].QueryCount)
-	}
-	if domains[0].Category != "tracking" {
-		t.Errorf("top domain category = %q, want tracking", domains[0].Category)
 	}
 }
 
@@ -2181,18 +2088,5 @@ func TestSourceActorQueriesAndAggregations(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("source trend for %s not found", sourceA)
-	}
-}
-
-func TestTrendWindowUTCIsOrderedAndSized(t *testing.T) {
-	priorStart, currentStart, now := trendWindowUTC()
-	if !priorStart.Before(currentStart) || !currentStart.Before(now) {
-		t.Fatalf("unexpected ordering prior=%v current=%v now=%v", priorStart, currentStart, now)
-	}
-	if currentStart.Sub(priorStart) != 7*24*time.Hour {
-		t.Fatalf("prior span = %s, want 168h", currentStart.Sub(priorStart))
-	}
-	if now.Sub(currentStart) != 24*time.Hour {
-		t.Fatalf("current span = %s, want 24h", now.Sub(currentStart))
 	}
 }

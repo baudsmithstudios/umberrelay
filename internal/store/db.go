@@ -1128,10 +1128,6 @@ func (d *DB) ListDevicesWithStats() ([]DeviceWithStats, error) {
 	return out, rows.Err()
 }
 
-func trendWindowUTC() (time.Time, time.Time, time.Time) {
-	return trendWindowAt(time.Now())
-}
-
 func trendWindowAt(now time.Time) (time.Time, time.Time, time.Time) {
 	now = now.UTC()
 	currentStart := now.Add(-24 * time.Hour)
