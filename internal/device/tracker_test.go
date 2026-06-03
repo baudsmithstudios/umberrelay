@@ -103,9 +103,9 @@ func TestDeviceWriterCoalescesAndDrainsOnCancel(t *testing.T) {
 		t.Fatal("device writer did not drain after cancel")
 	}
 
-	devices, err := db.ListDevices()
+	devices, err := db.ListDevicesWithStats()
 	if err != nil {
-		t.Fatalf("ListDevices: %v", err)
+		t.Fatalf("ListDevicesWithStats: %v", err)
 	}
 	if len(devices) != n {
 		t.Fatalf("got %d devices, want %d", len(devices), n)

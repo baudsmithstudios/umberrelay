@@ -253,29 +253,6 @@ func (d *DB) GetSourceLabel(sourceIP string) (string, error) {
 	return label, err
 }
 
-func (d *DB) ListDevices() ([]Device, error) {
-	rows, err := d.sql.Query(`SELECT mac, ip, hostname, vendor, label, first_seen, last_seen FROM devices ORDER BY last_seen DESC`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []Device
-	for rows.Next() {
-		var dev Device
-		var firstSeen, lastSeen int64
-		var label sql.NullString
-		if err := rows.Scan(&dev.MAC, &dev.IP, &dev.Hostname, &dev.Vendor, &label, &firstSeen, &lastSeen); err != nil {
-			return nil, err
-		}
-		dev.Label = label.String
-		dev.FirstSeen = time.Unix(0, firstSeen)
-		dev.LastSeen = time.Unix(0, lastSeen)
-		out = append(out, dev)
-	}
-	return out, rows.Err()
-}
-
 func (d *DB) GetDevice(mac string) (Device, error) {
 	var dev Device
 	var firstSeen, lastSeen int64
@@ -605,18 +582,6 @@ func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
 	}
 
 	return buckets, nil
-}
-
-func (d *DB) PurgeQueriesOlderThan(cutoff time.Time) error {
-	for {
-		deleted, err := d.PurgeQueriesOlderThanChunk(cutoff, 500)
-		if err != nil {
-			return err
-		}
-		if deleted == 0 {
-			return nil
-		}
-	}
 }
 
 func (d *DB) PurgeQueriesOlderThanChunk(cutoff time.Time, limit int) (int64, error) {
@@ -1060,57 +1025,9 @@ func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
 	return stats, rows.Err()
 }
 
-type DomainSummary struct {
-	Domain      string
-	Category    string
-	QueryCount  int
-	DeviceCount int
-}
-
-func (d *DB) TopDomains(limit int) ([]DomainSummary, error) {
-	domains, err := d.TopDomainsWithSource(limit)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]DomainSummary, 0, len(domains))
-	for _, domain := range domains {
-		out = append(out, DomainSummary{
-			Domain:      domain.Domain,
-			Category:    domain.Category,
-			QueryCount:  domain.QueryCount,
-			DeviceCount: domain.DeviceCount,
-		})
-	}
-	return out, nil
-}
-
-type DeviceDomainSummary struct {
-	Domain   string
-	Category string
-	Count    int
-}
-
 type CategoryCount struct {
 	Category string
 	Count    int
-}
-
-func (d *DB) DeviceTopDomains(mac string, limit int) ([]DeviceDomainSummary, error) {
-	domains, err := d.DeviceTopDomainsWithSource(mac, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]DeviceDomainSummary, 0, len(domains))
-	for _, domain := range domains {
-		out = append(out, DeviceDomainSummary{
-			Domain:   domain.Domain,
-			Category: domain.Category,
-			Count:    domain.QueryCount,
-		})
-	}
-	return out, nil
 }
 
 func (d *DB) DeviceCategoryBreakdown(mac string) ([]CategoryCount, error) {
@@ -1211,10 +1128,6 @@ func (d *DB) ListDevicesWithStats() ([]DeviceWithStats, error) {
 	return out, rows.Err()
 }
 
-func trendWindowUTC() (time.Time, time.Time, time.Time) {
-	return trendWindowAt(time.Now())
-}
-
 func trendWindowAt(now time.Time) (time.Time, time.Time, time.Time) {
 	now = now.UTC()
 	currentStart := now.Add(-24 * time.Hour)
@@ -1253,10 +1166,6 @@ func trackerPercentTrend(currentCount, currentTrackerCount, priorCount, priorTra
 	return trend
 }
 
-func (d *DB) loadTrends(whereClause string, args ...any) (Trend, Trend, error) {
-	return d.LoadTrendsAt(time.Now(), whereClause, args...)
-}
-
 func (d *DB) LoadTrendsAt(now time.Time, whereClause string, args ...any) (Trend, Trend, error) {
 	priorStart, currentStart, now := trendWindowAt(now)
 
@@ -1292,18 +1201,6 @@ func (d *DB) LoadTrendsAt(now time.Time, whereClause string, args ...any) (Trend
 	}
 
 	return queryCountTrend(currentCount, priorCount), trackerPercentTrend(currentCount, currentTrackerCount, priorCount, priorTrackerCount), nil
-}
-
-func (d *DB) DashboardTrends() (Trend, Trend, error) {
-	return d.loadTrends("")
-}
-
-func (d *DB) DeviceTrends(mac string) (Trend, Trend, error) {
-	return d.loadTrends("device_mac = ?", mac)
-}
-
-func (d *DB) ListDevicesWithTrends() ([]DeviceWithTrends, error) {
-	return d.ListDevicesWithTrendsAt(time.Now())
 }
 
 func (d *DB) ListDevicesWithTrendsAt(now time.Time) ([]DeviceWithTrends, error) {
@@ -1406,10 +1303,6 @@ func (d *DB) ListSourceWithTrendsAt(now time.Time) ([]SourceWithTrends, error) {
 		out = append(out, swt)
 	}
 	return out, rows.Err()
-}
-
-func (d *DB) DevicePrivacySummary(mac string) (DevicePrivacySummary, error) {
-	return d.DevicePrivacySummaryAt(mac, time.Now())
 }
 
 func (d *DB) DevicePrivacySummaryAt(mac string, now time.Time) (DevicePrivacySummary, error) {

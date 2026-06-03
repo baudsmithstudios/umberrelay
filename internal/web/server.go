@@ -115,7 +115,6 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /ui/lists/refresh", s.handleUIRefreshLists)
 }
 
-// Handler returns the HTTP handler with all routes.
 func (s *Server) Handler() http.Handler {
 	return s.handler
 }

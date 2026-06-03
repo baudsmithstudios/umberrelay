@@ -3,7 +3,6 @@ package app
 import (
 	"path/filepath"
 	"testing"
-	"time"
 
 	"umberrelay/internal/store"
 )
@@ -17,14 +16,4 @@ func testDB(t *testing.T) *store.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	return db
-}
-
-func deviceFixture() store.Device {
-	now := time.Now()
-	return store.Device{
-		MAC:       "aa:bb:cc:dd:ee:ff",
-		IP:        "192.168.1.10",
-		FirstSeen: now,
-		LastSeen:  now,
-	}
 }

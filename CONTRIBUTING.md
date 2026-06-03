@@ -37,7 +37,7 @@ The script:
 
 - Open a pull request against `main`
 - Keep changes focused — one feature or fix per PR
-- Include tests for new functionality
+- Include tests for any new functionality
 - Make sure `go build ./...`, `go test ./...`, and `go vet ./...` pass before submitting
 
 ## Reporting Bugs
@@ -56,4 +56,4 @@ Open an issue with:
 
 ## Questions?
 
-Open an issue.
+Please open an issue.

@@ -11,7 +11,7 @@ import (
 var ErrInvalidCategory = errors.New("invalid category")
 
 func SetDomainOverride(db *store.DB, mgr *classify.Manager, domain, categoryValue string) error {
-	normalizedCategory, ok := normalizeOverrideCategory(categoryValue)
+	normalizedCategory, ok := category.Normalize(categoryValue)
 	if !ok {
 		return ErrInvalidCategory
 	}
@@ -26,15 +26,4 @@ func DeleteDomainOverride(db *store.DB, mgr *classify.Manager, domain string) er
 		return mgr.RemoveOverride(domain)
 	}
 	return db.DeleteDomainOverride(domain)
-}
-
-func normalizeOverrideCategory(value string) (string, bool) {
-	normalized, ok := category.Normalize(value)
-	if !ok {
-		return "", false
-	}
-	if normalized == "" {
-		return "", false
-	}
-	return normalized, true
 }

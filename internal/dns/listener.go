@@ -76,7 +76,6 @@ func (l *Listener) Addr() string {
 }
 
 func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
-	// Extract source IP
 	sourceIP := ""
 	switch addr := w.RemoteAddr().(type) {
 	case *net.UDPAddr:
