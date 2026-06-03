@@ -408,6 +408,15 @@ func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorK
 	return row
 }
 
+func findDomainRow(domains []store.DomainWithSource, domain string, totalActors int, actorKey string) privacyDomainRow {
+	for _, item := range domains {
+		if item.Domain == domain {
+			return makePrivacyDomainRow(item, totalActors, actorKey)
+		}
+	}
+	return privacyDomainRow{}
+}
+
 func anomalyClass(anomalyType string) string {
 	switch anomalyType {
 	case "tracker_spike":
@@ -980,45 +989,23 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	}
 	totalActors := stats.DeviceCount
 
-	var row privacyDomainRow
+	var domains []store.DomainWithSource
+	rowActorKey := actorKey
 	actorType, actorValue, hasActor := parseActorKey(actorKey)
-	if hasActor && actorType == actorTypeDevice {
-		domains, err := s.db.DeviceTopDomainsWithSource(actorValue, 20)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		for _, item := range domains {
-			if item.Domain == domain {
-				row = makePrivacyDomainRow(item, totalActors, actorKey)
-				break
-			}
-		}
-	} else if hasActor && actorType == actorTypeSource {
-		domains, err := s.db.SourceTopDomainsWithSource(actorValue, 20)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		for _, item := range domains {
-			if item.Domain == domain {
-				row = makePrivacyDomainRow(item, totalActors, actorKey)
-				break
-			}
-		}
-	} else {
-		domains, err := s.db.TopDomainsWithSource(20)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		for _, item := range domains {
-			if item.Domain == domain {
-				row = makePrivacyDomainRow(item, totalActors, "")
-				break
-			}
-		}
+	switch {
+	case hasActor && actorType == actorTypeDevice:
+		domains, err = s.db.DeviceTopDomainsWithSource(actorValue, 20)
+	case hasActor && actorType == actorTypeSource:
+		domains, err = s.db.SourceTopDomainsWithSource(actorValue, 20)
+	default:
+		domains, err = s.db.TopDomainsWithSource(20)
+		rowActorKey = ""
 	}
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	row := findDomainRow(domains, domain, totalActors, rowActorKey)
 	if row.Domain == "" {
 		row = makePrivacyDomainRow(store.DomainWithSource{
 			Domain:      domain,
