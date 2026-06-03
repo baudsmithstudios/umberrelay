@@ -112,9 +112,9 @@ func TestUpsertAndListDevices(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpsertDevice: %v", err)
 	}
-	devices, err := db.ListDevices()
+	devices, err := db.ListDevicesWithStats()
 	if err != nil {
-		t.Fatalf("ListDevices: %v", err)
+		t.Fatalf("ListDevicesWithStats: %v", err)
 	}
 	if len(devices) != 1 {
 		t.Fatalf("got %d devices, want 1", len(devices))
@@ -129,7 +129,7 @@ func TestUpsertDeviceUpdatesIP(t *testing.T) {
 	now := time.Now()
 	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
 	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.20", LastSeen: now.Add(time.Minute)})
-	devices, _ := db.ListDevices()
+	devices, _ := db.ListDevicesWithStats()
 	if devices[0].IP != "192.168.1.20" {
 		t.Errorf("IP = %q, want 192.168.1.20", devices[0].IP)
 	}
@@ -154,9 +154,9 @@ func TestUpsertDevicesBatchInsertsAndMergesPreservingLabel(t *testing.T) {
 		t.Fatalf("UpsertDevices: %v", err)
 	}
 
-	devices, err := db.ListDevices()
+	devices, err := db.ListDevicesWithStats()
 	if err != nil {
-		t.Fatalf("ListDevices: %v", err)
+		t.Fatalf("ListDevicesWithStats: %v", err)
 	}
 	if len(devices) != 2 {
 		t.Fatalf("got %d devices, want 2", len(devices))
@@ -185,7 +185,7 @@ func TestUpdateDeviceLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateDeviceLabel: %v", err)
 	}
-	devices, _ := db.ListDevices()
+	devices, _ := db.ListDevicesWithStats()
 	if devices[0].Label != "Living Room TV" {
 		t.Errorf("label = %q, want Living Room TV", devices[0].Label)
 	}
@@ -518,9 +518,14 @@ func TestPurgeQueries(t *testing.T) {
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "new.com", QueryType: "A", Timestamp: now},
 	})
 
-	err := db.PurgeQueriesOlderThan(now.Add(-24 * time.Hour))
-	if err != nil {
-		t.Fatalf("PurgeQueriesOlderThan: %v", err)
+	for {
+		deleted, err := db.PurgeQueriesOlderThanChunk(now.Add(-24*time.Hour), 500)
+		if err != nil {
+			t.Fatalf("PurgeQueriesOlderThanChunk: %v", err)
+		}
+		if deleted == 0 {
+			break
+		}
 	}
 
 	results, _ := db.QueryLog("", "", time.Time{}, time.Now(), 100, 0)
@@ -824,9 +829,9 @@ func TestTopDomains(t *testing.T) {
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
 	})
 
-	domains, err := db.TopDomains(10)
+	domains, err := db.TopDomainsWithSource(10)
 	if err != nil {
-		t.Fatalf("TopDomains: %v", err)
+		t.Fatalf("TopDomainsWithSource: %v", err)
 	}
 	if len(domains) != 2 {
 		t.Fatalf("got %d domains, want 2", len(domains))
@@ -853,15 +858,15 @@ func TestDeviceTopDomains(t *testing.T) {
 		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
 	})
 
-	domains, err := db.DeviceTopDomains("aa:bb:cc:dd:ee:ff", 10)
+	domains, err := db.DeviceTopDomainsWithSource("aa:bb:cc:dd:ee:ff", 10)
 	if err != nil {
-		t.Fatalf("DeviceTopDomains: %v", err)
+		t.Fatalf("DeviceTopDomainsWithSource: %v", err)
 	}
 	if len(domains) != 2 {
 		t.Fatalf("got %d domains, want 2", len(domains))
 	}
-	if domains[0].Domain != "example.com" || domains[0].Count != 2 {
-		t.Errorf("top domain = %q count = %d, want example.com/2", domains[0].Domain, domains[0].Count)
+	if domains[0].Domain != "example.com" || domains[0].QueryCount != 2 {
+		t.Errorf("top domain = %q count = %d, want example.com/2", domains[0].Domain, domains[0].QueryCount)
 	}
 	if domains[0].Category != "tracking" {
 		t.Errorf("top domain category = %q, want tracking", domains[0].Category)
@@ -943,9 +948,9 @@ func TestDashboardTrends(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	queryTrend, trackerTrend, err := db.DashboardTrends()
+	queryTrend, trackerTrend, err := db.LoadTrendsAt(now, "")
 	if err != nil {
-		t.Fatalf("DashboardTrends: %v", err)
+		t.Fatalf("LoadTrendsAt: %v", err)
 	}
 
 	if queryTrend.Current != 3 {
@@ -988,9 +993,9 @@ func TestDashboardTrendsNoPriorData(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	queryTrend, trackerTrend, err := db.DashboardTrends()
+	queryTrend, trackerTrend, err := db.LoadTrendsAt(now, "")
 	if err != nil {
-		t.Fatalf("DashboardTrends: %v", err)
+		t.Fatalf("LoadTrendsAt: %v", err)
 	}
 
 	if queryTrend.Current != 2 || queryTrend.Previous != 0 || queryTrend.Change != 0 || queryTrend.HasPrior {
@@ -1014,9 +1019,9 @@ func TestDashboardTrendsNoCurrentData(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	queryTrend, trackerTrend, err := db.DashboardTrends()
+	queryTrend, trackerTrend, err := db.LoadTrendsAt(now, "")
 	if err != nil {
-		t.Fatalf("DashboardTrends: %v", err)
+		t.Fatalf("LoadTrendsAt: %v", err)
 	}
 
 	if queryTrend.Current != 0 || queryTrend.Previous != (2.0/7.0) || !queryTrend.HasPrior {
@@ -1030,9 +1035,9 @@ func TestDashboardTrendsNoCurrentData(t *testing.T) {
 func TestDashboardTrendsEmpty(t *testing.T) {
 	db := testDB(t)
 
-	queryTrend, trackerTrend, err := db.DashboardTrends()
+	queryTrend, trackerTrend, err := db.LoadTrendsAt(time.Now().UTC(), "")
 	if err != nil {
-		t.Fatalf("DashboardTrends: %v", err)
+		t.Fatalf("LoadTrendsAt: %v", err)
 	}
 
 	if queryTrend != (Trend{}) {
@@ -1059,9 +1064,9 @@ func TestDeviceTrends(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	queryTrend, trackerTrend, err := db.DeviceTrends("aa:bb:cc:dd:ee:ff")
+	queryTrend, trackerTrend, err := db.LoadTrendsAt(now, "device_mac = ?", "aa:bb:cc:dd:ee:ff")
 	if err != nil {
-		t.Fatalf("DeviceTrends: %v", err)
+		t.Fatalf("LoadTrendsAt: %v", err)
 	}
 
 	if queryTrend.Current != 1 || queryTrend.Previous != (2.0/7.0) || !queryTrend.HasPrior {
@@ -1091,9 +1096,9 @@ func TestListDevicesWithTrends(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	results, err := db.ListDevicesWithTrends()
+	results, err := db.ListDevicesWithTrendsAt(now)
 	if err != nil {
-		t.Fatalf("ListDevicesWithTrends: %v", err)
+		t.Fatalf("ListDevicesWithTrendsAt: %v", err)
 	}
 	if len(results) != 3 {
 		t.Fatalf("got %d devices, want 3", len(results))
@@ -1237,9 +1242,9 @@ func TestDevicePrivacySummary(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	summary, err := db.DevicePrivacySummary(mac)
+	summary, err := db.DevicePrivacySummaryAt(mac, now)
 	if err != nil {
-		t.Fatalf("DevicePrivacySummary: %v", err)
+		t.Fatalf("DevicePrivacySummaryAt: %v", err)
 	}
 	if summary.QueryCount != 4 {
 		t.Errorf("QueryCount = %d, want 4", summary.QueryCount)
@@ -1272,9 +1277,9 @@ func TestDevicePrivacySummaryEmpty(t *testing.T) {
 		t.Fatalf("UpsertDevice: %v", err)
 	}
 
-	summary, err := db.DevicePrivacySummary(mac)
+	summary, err := db.DevicePrivacySummaryAt(mac, now)
 	if err != nil {
-		t.Fatalf("DevicePrivacySummary: %v", err)
+		t.Fatalf("DevicePrivacySummaryAt: %v", err)
 	}
 	if summary.QueryCount != 0 {
 		t.Errorf("QueryCount = %d, want 0", summary.QueryCount)
