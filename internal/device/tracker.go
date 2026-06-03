@@ -162,7 +162,7 @@ func (t *Tracker) pollARP() {
 	entries := parseARPTable(data)
 	now := time.Now()
 	for _, e := range entries {
-		t.arpCache.Store(e.IP, e.MAC)
+		t.SetARPEntry(e.IP, e.MAC)
 		vendor := ""
 		if t.oui != nil {
 			vendor = t.oui.Lookup(e.MAC)

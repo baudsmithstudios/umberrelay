@@ -66,7 +66,7 @@ func (t *Tracker) parseDHCP(pkt []byte) {
 
 	now := time.Now()
 	if clientIP != "0.0.0.0" {
-		t.arpCache.Store(clientIP, mac)
+		t.SetARPEntry(clientIP, mac)
 	}
 	dev := store.Device{
 		MAC:       mac,
