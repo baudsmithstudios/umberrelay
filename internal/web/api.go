@@ -205,7 +205,7 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 	actorKey := q.Get("actor")
 	deviceMAC := q.Get("device")
 	domain := q.Get("domain")
-	category := strings.TrimSpace(q.Get("category"))
+	categoryFilter := strings.TrimSpace(q.Get("category"))
 	afterID := int64(0)
 	limit := 100
 
@@ -238,8 +238,8 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		Domain: domain,
 	}
 
-	if category != "" {
-		normalizedCategory, ok := normalizeQueryCategoryFilter(category)
+	if categoryFilter != "" {
+		normalizedCategory, ok := category.Normalize(categoryFilter)
 		if !ok {
 			writeJSONError(w, http.StatusBadRequest, "invalid category filter")
 			return
@@ -675,10 +675,6 @@ func parseBoundedInt(value string, min, max int) (int, error) {
 		return 0, fmt.Errorf("value must be between %d and %d", min, max)
 	}
 	return n, nil
-}
-
-func normalizeQueryCategoryFilter(categoryFilter string) (string, bool) {
-	return category.Normalize(categoryFilter)
 }
 
 func writeQueryStreamBatch(w http.ResponseWriter, queries []store.Query) (int64, error) {
