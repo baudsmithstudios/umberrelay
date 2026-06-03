@@ -86,14 +86,12 @@ func run(configPath string, demoData bool) error {
 		cancel()
 	}()
 
-	// Device tracker
 	oui := device.DefaultOUIDB()
 	tracker := device.NewTracker(db, oui)
 	if !demoData {
 		go tracker.Run(ctx)
 	}
 
-	// Classification manager
 	mgr := classify.NewManager(db)
 
 	if err := mgr.LoadOverrides(); err != nil {
@@ -122,10 +120,8 @@ func run(configPath string, demoData bool) error {
 		go mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour)
 	}
 
-	// Web server
 	srv := web.NewServer(db, mgr)
 
-	// DNS listener + async writer
 	records := make(chan dns.QueryRecord, 4096)
 	errCh := make(chan error, 2)
 	if !demoData {
@@ -153,7 +149,6 @@ func run(configPath string, demoData bool) error {
 		go writer.Run(ctx)
 	}
 
-	// Purge goroutine
 	if !demoData {
 		go runPurge(ctx, db)
 	}

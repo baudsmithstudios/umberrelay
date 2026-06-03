@@ -51,7 +51,6 @@ func NewManager(db *store.DB) *Manager {
 func (m *Manager) Classify(domain string) string {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
 
-	// Check overrides first
 	if cat, ok := m.overrides.Load(domain); ok {
 		return cat.(string)
 	}
@@ -167,7 +166,6 @@ func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 			combined[d] = cat
 			listDomains[d] = cat
 		}
-		// Cache to SQLite
 		if m.db != nil && src.ID > 0 {
 			if err := m.db.WriteListDomains(src.ID, listDomains); err != nil {
 				log.Printf("cache list %s: %v", src.Name, err)
