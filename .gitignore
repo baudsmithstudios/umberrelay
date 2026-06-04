@@ -5,6 +5,7 @@ DEV_NOTES/
 /umberrelay
 *.exe
 *.tar
+dist/
 
 # Database files
 *.db
@@ -33,7 +34,3 @@ coverage.out
 
 # Docker
 .env
-
-# Agents
-.claude/
-.codex
