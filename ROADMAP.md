@@ -2,7 +2,7 @@
 
 Last updated: April 19, 2026
 
-Umberrelay is actively evolving, and this roadmap is here to share where the project is headed next. Priorities may shift as we learn from real-world use, and items are intentionally not tied to fixed release dates.
+Umberrelay is actively evolving, and this roadmap shows where the project is headed next. Priorities may shift as we learn from real-world use, and items are intentionally not tied to fixed release dates.
 
 This is more of a directional guide, not a delivery contract.
 

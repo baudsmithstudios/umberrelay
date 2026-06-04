@@ -11,7 +11,7 @@
 
 ## Deployment Model
 
-Umberrelay is not just a dashboard. A live deployment means the Pi is running the DNS server your clients actually query.
+Umberrelay is more than a dashboard. A live deployment means the Pi is running the DNS server your clients query.
 
 That has a few consequences:
 
@@ -169,7 +169,7 @@ If that works but normal browsing does not show up, the client may be using encr
 
 ### Queries are visible, but attribution is weak
 
-Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices simply do not expose much identity information. Across routed VLANs, source-IP fallback actors are expected when MAC attribution is unavailable.
+Umberrelay depends on passive signals from the host network namespace. Host networking is required for the provided Docker deployment, and some devices do not expose much identity information. Across routed VLANs, source-IP fallback actors are expected when MAC attribution is unavailable.
 
 For deeper network-path troubleshooting and VLAN validation workflows, see [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md).
 

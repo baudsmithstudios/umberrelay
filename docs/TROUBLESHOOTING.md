@@ -30,7 +30,7 @@ docker compose restart umberrelay
 
 ### Where data lives
 
-The SQLite database lives at `/data/umberrelay.db` inside the container, which maps to whatever host path your compose file bind-mounts (or names a volume for) at `/data`. When debugging persistence — "did my queries survive a restart?" or "is the DB the size I expect?" — check that host path directly, not the path inside the container.
+The SQLite database lives at `/data/umberrelay.db` inside the container, which maps to whatever host path your compose file bind-mounts (or names a volume for) at `/data`. When debugging persistence (did my queries survive a restart? is the DB the size I expect?), check that host path directly, not the path inside the container.
 
 ## DNS Path Validation
 

@@ -16,7 +16,7 @@
 
 ## What It Does
 
-Umberrelay is a forwarding DNS server that logs every query, identifies which network actor made it, and classifies domains against community-maintained tracking lists. It gives you an attribution-focused picture of where your network traffic is going — and how much of it is talking to trackers.
+Umberrelay is a forwarding DNS server that logs every query, identifies which network actor made it, and classifies domains against community-maintained tracking lists. It gives you an attribution-focused picture of where your network traffic is going, and how much of it is talking to trackers.
 
 ## Features
 
@@ -63,7 +63,7 @@ Then point your router's DNS to the host running Umberrelay.
 
 ## Deployment Model
 
-Umberrelay works best when it is the DNS server your network actually uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
+Umberrelay works best when it is the DNS server your network uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
 
 ### Works With Pi-hole / AdGuard Home
 
@@ -93,7 +93,7 @@ Caveats:
 
 ## Configuration
 
-Umberrelay needs minimal bootstrap config — everything else is managed through the web UI.
+Umberrelay needs minimal bootstrap config. Everything else is managed through the web UI.
 
 ```toml
 # config.toml
@@ -112,7 +112,7 @@ http_port = 8080
 | `http_listen` | `0.0.0.0` | Web UI and API bind address (host/interface only) |
 | `http_port` | `8080` | Web UI and API port |
 
-All fields are optional — Umberrelay runs with sane defaults if no config file exists.
+All fields are optional. Umberrelay runs with sane defaults if no config file exists.
 
 ### Runtime Settings
 
@@ -134,7 +134,7 @@ Umberrelay uses four passive methods to build and maintain a device inventory:
 | **mDNS** | Hostnames from PTR/SRV records on `224.0.0.251:5353` |
 | **SSDP** | Device presence from announcements on `239.255.255.250:1900` |
 
-All discovery is passive — Umberrelay never sends probes or scans your network.
+All discovery is passive. Umberrelay never sends probes or scans your network.
 
 ## Classification
 
@@ -283,9 +283,9 @@ Filter precedence is `actor`, then `source`, then `device`.
 
 ## Docker Deployment
 
-The checked-in [`docker-compose.yml`](docker-compose.yml) builds from source and is aimed at local development and simple local Docker runs. It uses `network_mode: host` so Umberrelay can see DNS traffic and the ARP table, mounts config read-only, and stores `/data` in a named volume.
+The checked-in [`docker-compose.yml`](docker-compose.yml) builds from source and is aimed at local development and simple Docker runs. It uses `network_mode: host` so Umberrelay can see DNS traffic and the ARP table, mounts config read-only, and stores `/data` in a named volume.
 
-For Raspberry Pi deployment — building an ARM64 image on a faster machine and transferring it to the Pi — see the workflow in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The Pi runs its own compose file pinned to the prebuilt image.
+For Raspberry Pi deployment (building an ARM64 image on a faster machine and transferring it to the Pi), see the workflow in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The Pi runs its own compose file pinned to the prebuilt image.
 
 ### Runtime Requirements
 
@@ -307,7 +307,7 @@ The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `
 - **A device is missing** — confirm the device is actually using Umberrelay for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
 - **A bypass signal is unexpected** — `/api/bypass` is best-effort, not packet-level proof; validate with direct DNS tests (`dig @<umberrelay-ip> ...`) and your router DNS policy
 - **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears as a source fallback actor in the Devices page or `/api/actors`
-- **Devices appear but names are generic** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices simply do not advertise much
+- **Devices appear but names are generic** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices do not advertise much
 - **Tracker labels look wrong** — classifications come from community blocklists; use domain overrides when a list is too broad or out of date
 - **Some traffic is invisible** — Umberrelay does not see direct IP traffic or DNS that bypasses it, so partial visibility is an expected limitation in some networks
 

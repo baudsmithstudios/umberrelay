@@ -5,7 +5,7 @@ Thanks for your interest in contributing. Umberrelay is a small Raspberry Pi and
 ## Getting Started
 
 1. Fork the repo and clone your fork
-2. Make sure you have Go 1.26.1+ installed
+2. Make sure you have the Go version required by `go.mod` installed
 3. Run `go test ./...` to verify everything passes
 4. Create a branch for your change
 
@@ -39,6 +39,7 @@ The script:
 - Keep changes focused — one feature or fix per PR
 - Include tests for any new functionality
 - Make sure `go build ./...`, `go test ./...`, and `go vet ./...` pass before submitting
+- CI also runs `govulncheck`; you can check locally with `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`
 
 ## Reporting Bugs
 
