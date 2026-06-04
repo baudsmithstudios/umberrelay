@@ -65,23 +65,23 @@ func backfillHourlyRollups(conn *sql.DB) error {
 }
 
 type Device struct {
-	MAC       string
-	IP        string
-	Hostname  string
-	Vendor    string
-	Label     string
-	FirstSeen time.Time
-	LastSeen  time.Time
+	MAC       string    `json:"mac"`
+	IP        string    `json:"ip"`
+	Hostname  string    `json:"hostname"`
+	Vendor    string    `json:"vendor"`
+	Label     string    `json:"label"`
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
 }
 
 type Query struct {
-	ID        int64
-	DeviceMAC string
-	SourceIP  string
-	Domain    string
-	QueryType string
-	Category  string
-	Timestamp time.Time
+	ID        int64     `json:"id"`
+	DeviceMAC string    `json:"device_mac"`
+	SourceIP  string    `json:"source_ip"`
+	Domain    string    `json:"domain"`
+	QueryType string    `json:"query_type"`
+	Category  string    `json:"category"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type QueryFeedFilter struct {
@@ -778,12 +778,12 @@ func (d *DB) AddList(url, name, category string) (int64, error) {
 }
 
 type ListEntry struct {
-	ID        int64
-	URL       string
-	Name      string
-	Category  string
-	LastFetch *time.Time
-	Enabled   bool
+	ID        int64      `json:"id"`
+	URL       string     `json:"url"`
+	Name      string     `json:"name"`
+	Category  string     `json:"category"`
+	LastFetch *time.Time `json:"last_fetch"`
+	Enabled   bool       `json:"enabled"`
 }
 
 func (d *DB) ListLists() ([]ListEntry, error) {
@@ -948,20 +948,20 @@ func (d *DB) ListDomainOverrides() (map[string]string, error) {
 }
 
 type DashboardStats struct {
-	TotalQueries      int
-	TrackerPercent    float64
-	DeviceCount       int
-	UniqueDomainCount int
-	TopDevices        []DeviceSummary
+	TotalQueries      int             `json:"total_queries"`
+	TrackerPercent    float64         `json:"tracker_percent"`
+	DeviceCount       int             `json:"device_count"`
+	UniqueDomainCount int             `json:"unique_domain_count"`
+	TopDevices        []DeviceSummary `json:"top_devices"`
 }
 
 type DeviceSummary struct {
-	MAC            string
-	Hostname       string
-	Vendor         string
-	Label          string
-	QueryCount     int
-	TrackerPercent float64
+	MAC            string  `json:"mac"`
+	Hostname       string  `json:"hostname"`
+	Vendor         string  `json:"vendor"`
+	Label          string  `json:"label"`
+	QueryCount     int     `json:"query_count"`
+	TrackerPercent float64 `json:"tracker_percent"`
 }
 
 func (d *DB) DashboardSummary() (DashboardStats, error) {
@@ -1056,8 +1056,8 @@ func (d *DB) DeviceCategoryBreakdown(mac string) ([]CategoryCount, error) {
 
 type DeviceWithStats struct {
 	Device
-	QueryCount     int
-	TrackerPercent float64
+	QueryCount     int     `json:"query_count"`
+	TrackerPercent float64 `json:"tracker_percent"`
 }
 
 type DeviceWithTrends struct {

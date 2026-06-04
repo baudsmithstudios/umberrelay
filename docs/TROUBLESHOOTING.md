@@ -101,7 +101,7 @@ curl -s "http://<PI_IP>:8080/api/queries?limit=20"
 
 Expected result:
 - `/api/health` returns `{"status":"ok"}`
-- `TotalQueries` increases after test lookups
+- `total_queries` increases after test lookups
 - `/api/queries` shows fresh domains and timestamps
 
 ### 5. Confirm the UI reflects the API
@@ -157,7 +157,7 @@ sudo tcpdump -D
 
 ### Cross-subnet attribution uses source-IP fallback
 
-Across routed subnets the Pi rarely learns remote client MACs, so queries record `SourceIP` with `DeviceMAC` blank. Those appear as source-IP fallback actors in the Devices page and via `/api/actors`.
+Across routed subnets the Pi rarely learns remote client MACs, so queries record `source_ip` with `device_mac` blank. Those appear as source-IP fallback actors in the Devices page and via `/api/actors`.
 
 ## Result Triage
 
@@ -167,4 +167,4 @@ Across routed subnets the Pi rarely learns remote client MACs, so queries record
 | `dig @<PI_IP>` succeeds, `tcpdump` on Pi sees nothing | gateway-level DNS interception, wrong capture context, or wrong host/interface assumption |
 | `tcpdump` shows DNS packets, `/api/queries` is empty | query ingestion/storage issue |
 | `/api/queries` has rows, UI is stale/empty | UI rendering/filter issue |
-| `/api/queries` has `SourceIP` but blank `DeviceMAC` | expected routed-subnet behavior; verify source-IP fallback actor is present in UI or `/api/actors` |
+| `/api/queries` has `source_ip` but blank `device_mac` | expected routed-subnet behavior; verify source-IP fallback actor is present in UI or `/api/actors` |
