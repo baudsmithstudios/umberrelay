@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -99,7 +98,7 @@ func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, store.ErrNotFound) {
 			writeJSONError(w, http.StatusNotFound, "device not found")
 			return
 		}
@@ -414,35 +413,10 @@ func (s *Server) handleAPIAnomalies(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-
-	type anomalyResponse struct {
-		DeviceMAC           string  `json:"device_mac"`
-		DeviceName          string  `json:"device_name"`
-		Type                string  `json:"type"`
-		CurrentValue        float64 `json:"current_value"`
-		AverageValue        float64 `json:"average_value"`
-		Delta               float64 `json:"delta"`
-		TopDomain           string  `json:"top_domain"`
-		TopDomainCategory   string  `json:"top_domain_category"`
-		TopDomainSourceList string  `json:"top_domain_source_list"`
+	if anomalies == nil {
+		anomalies = []store.Anomaly{}
 	}
-
-	response := make([]anomalyResponse, 0, len(anomalies))
-	for _, anomaly := range anomalies {
-		response = append(response, anomalyResponse{
-			DeviceMAC:           anomaly.DeviceMAC,
-			DeviceName:          anomaly.DeviceName,
-			Type:                anomaly.Type,
-			CurrentValue:        anomaly.CurrentValue,
-			AverageValue:        anomaly.AverageValue,
-			Delta:               anomaly.Delta,
-			TopDomain:           anomaly.TopDomain,
-			TopDomainCategory:   anomaly.TopDomainCategory,
-			TopDomainSourceList: anomaly.TopDomainSourceList,
-		})
-	}
-
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, anomalies)
 }
 
 func (s *Server) handleAPIBypass(w http.ResponseWriter, r *http.Request) {

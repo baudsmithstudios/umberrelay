@@ -3,30 +3,9 @@ package web
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 )
-
-func decodeJSON(r *http.Request, dst interface{}) error {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		return unsupportedMediaTypeError{}
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(dst); err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			return requestEntityTooLargeError{}
-		}
-		return fmt.Errorf("invalid JSON request body")
-	}
-	if decoder.More() {
-		return fmt.Errorf("request body must contain a single JSON object")
-	}
-	return nil
-}
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -39,31 +18,25 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 }
 
 func decodeAPIJSON(w http.ResponseWriter, r *http.Request, dst interface{}) bool {
-	if err := decodeJSON(r, dst); err != nil {
-		var mediaErr unsupportedMediaTypeError
-		var tooLargeErr requestEntityTooLargeError
-		if errors.As(err, &mediaErr) {
-			writeJSONError(w, http.StatusUnsupportedMediaType, mediaErr.Error())
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		writeJSONError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+		return false
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dst); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "request body too large")
 			return false
 		}
-		if errors.As(err, &tooLargeErr) {
-			writeJSONError(w, http.StatusRequestEntityTooLarge, tooLargeErr.Error())
-			return false
-		}
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON request body")
+		return false
+	}
+	if decoder.More() {
+		writeJSONError(w, http.StatusBadRequest, "request body must contain a single JSON object")
 		return false
 	}
 	return true
-}
-
-type unsupportedMediaTypeError struct{}
-
-func (e unsupportedMediaTypeError) Error() string {
-	return "Content-Type must be application/json"
-}
-
-type requestEntityTooLargeError struct{}
-
-func (e requestEntityTooLargeError) Error() string {
-	return "request body too large"
 }

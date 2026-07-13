@@ -8,6 +8,13 @@ import (
 	"umberrelay/internal/store"
 )
 
+const (
+	RetentionDaysMin    = 1
+	RetentionDaysMax    = 365
+	ListRefreshHoursMin = 1
+	ListRefreshHoursMax = 168
+)
+
 type SettingsInput struct {
 	RetentionDays    *int
 	ListRefreshHours *int
@@ -19,7 +26,7 @@ func UpdateSettings(db *store.DB, mgr *classify.Manager, input SettingsInput) er
 	}
 
 	if input.RetentionDays != nil {
-		if err := validateSettingRange("retention_days", *input.RetentionDays, 1, 365); err != nil {
+		if err := validateSettingRange("retention_days", *input.RetentionDays, RetentionDaysMin, RetentionDaysMax); err != nil {
 			return err
 		}
 		if err := db.SetConfig("retention_days", strconv.Itoa(*input.RetentionDays)); err != nil {
@@ -28,7 +35,7 @@ func UpdateSettings(db *store.DB, mgr *classify.Manager, input SettingsInput) er
 	}
 
 	if input.ListRefreshHours != nil {
-		if err := validateSettingRange("list_refresh_hours", *input.ListRefreshHours, 1, 168); err != nil {
+		if err := validateSettingRange("list_refresh_hours", *input.ListRefreshHours, ListRefreshHoursMin, ListRefreshHoursMax); err != nil {
 			return err
 		}
 		if err := db.SetConfig("list_refresh_hours", strconv.Itoa(*input.ListRefreshHours)); err != nil {

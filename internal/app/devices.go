@@ -15,7 +15,3 @@ func UpdateDeviceLabel(db *store.DB, mac, label string) error {
 	}
 	return err
 }
-
-func UpdateSourceLabel(db *store.DB, sourceIP, label string) error {
-	return db.SetSourceLabel(sourceIP, label)
-}

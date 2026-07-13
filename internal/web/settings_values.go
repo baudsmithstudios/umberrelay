@@ -3,6 +3,7 @@ package web
 import (
 	"strconv"
 
+	"umberrelay/internal/app"
 	"umberrelay/internal/store"
 )
 
@@ -17,11 +18,11 @@ type runtimeSettings struct {
 }
 
 func loadRuntimeSettings(db *store.DB) (runtimeSettings, error) {
-	retentionDays, err := readConfigInt(db, "retention_days", defaultRetentionDays, 1, 365)
+	retentionDays, err := readConfigInt(db, "retention_days", defaultRetentionDays, app.RetentionDaysMin, app.RetentionDaysMax)
 	if err != nil {
 		return runtimeSettings{}, err
 	}
-	listRefreshHours, err := readConfigInt(db, "list_refresh_hours", defaultListRefreshHours, 1, 168)
+	listRefreshHours, err := readConfigInt(db, "list_refresh_hours", defaultListRefreshHours, app.ListRefreshHoursMin, app.ListRefreshHoursMax)
 	if err != nil {
 		return runtimeSettings{}, err
 	}
