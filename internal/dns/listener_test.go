@@ -27,7 +27,6 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 		t.Fatal("listener addr is empty")
 	}
 
-	// Send a DNS query over UDP
 	c := &mdns.Client{Net: "udp"}
 	m := new(mdns.Msg)
 	m.SetQuestion("example.com.", mdns.TypeA)
@@ -39,7 +38,6 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 		t.Errorf("Rcode = %d, want success", resp.Rcode)
 	}
 
-	// Verify a record was emitted
 	select {
 	case rec := <-records:
 		if rec.Domain != "example.com." {
@@ -70,7 +68,6 @@ func TestListenerForwardsTCPQuery(t *testing.T) {
 		t.Fatal("listener addr is empty")
 	}
 
-	// Send a DNS query over TCP
 	c := &mdns.Client{Net: "tcp"}
 	m := new(mdns.Msg)
 	m.SetQuestion("tcp.example.com.", mdns.TypeA)

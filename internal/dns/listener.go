@@ -108,7 +108,6 @@ func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
 
 	w.WriteMsg(resp)
 
-	// Emit query record (non-blocking)
 	if len(r.Question) > 0 {
 		q := r.Question[0]
 		rec := QueryRecord{

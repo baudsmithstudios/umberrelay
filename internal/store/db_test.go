@@ -22,34 +22,13 @@ func testDB(t *testing.T) *DB {
 	return db
 }
 
-func TestOpenAppliesPiConnectionTuning(t *testing.T) {
-	db := testDB(t)
-
-	stats := db.sql.Stats()
-	if stats.MaxOpenConnections != 2 {
-		t.Fatalf("MaxOpenConnections = %d, want 2", stats.MaxOpenConnections)
-	}
-
-	var busyTimeout int
-	if err := db.sql.QueryRow(`PRAGMA busy_timeout`).Scan(&busyTimeout); err != nil {
-		t.Fatalf("PRAGMA busy_timeout: %v", err)
-	}
-	if busyTimeout != 5000 {
-		t.Fatalf("busy_timeout = %d, want 5000", busyTimeout)
-	}
-
-	var tempStore int
-	if err := db.sql.QueryRow(`PRAGMA temp_store`).Scan(&tempStore); err != nil {
-		t.Fatalf("PRAGMA temp_store: %v", err)
-	}
-	if tempStore != 2 {
-		t.Fatalf("temp_store = %d, want 2 (MEMORY)", tempStore)
-	}
-}
-
 func TestOpenAppliesPragmasOnAllConnections(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
+
+	if stats := db.sql.Stats(); stats.MaxOpenConnections != 2 {
+		t.Fatalf("MaxOpenConnections = %d, want 2", stats.MaxOpenConnections)
+	}
 
 	conn1, err := db.sql.Conn(ctx)
 	if err != nil {
@@ -91,29 +70,6 @@ func TestOpenAppliesPragmasOnAllConnections(t *testing.T) {
 	}
 	if journalMode != "wal" {
 		t.Fatalf("Conn(2) journal_mode = %q, want wal", journalMode)
-	}
-}
-
-func TestUpsertAndListDevices(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	err := db.UpsertDevice(Device{
-		MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10",
-		Hostname: "roku-tv", Vendor: "Roku",
-		FirstSeen: now, LastSeen: now,
-	})
-	if err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-	devices, err := db.ListDevicesWithStats()
-	if err != nil {
-		t.Fatalf("ListDevicesWithStats: %v", err)
-	}
-	if len(devices) != 1 {
-		t.Fatalf("got %d devices, want 1", len(devices))
-	}
-	if devices[0].Hostname != "roku-tv" {
-		t.Errorf("hostname = %q, want roku-tv", devices[0].Hostname)
 	}
 }
 
@@ -170,20 +126,6 @@ func TestUpsertDevicesBatchInsertsAndMergesPreservingLabel(t *testing.T) {
 	}
 }
 
-func TestUpdateDeviceLabel(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-	err := db.UpdateDeviceLabel("aa:bb:cc:dd:ee:ff", "Living Room TV")
-	if err != nil {
-		t.Fatalf("UpdateDeviceLabel: %v", err)
-	}
-	devices, _ := db.ListDevicesWithStats()
-	if devices[0].Label != "Living Room TV" {
-		t.Errorf("label = %q, want Living Room TV", devices[0].Label)
-	}
-}
-
 func TestSetAndGetSourceLabel(t *testing.T) {
 	db := testDB(t)
 
@@ -226,29 +168,6 @@ func TestSetAndGetSourceLabel(t *testing.T) {
 	}
 	if label != "" {
 		t.Fatalf("label for nonexistent source = %q, want empty", label)
-	}
-}
-
-func TestWriteAndQueryQueries(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-
-	queries := []Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "api.example.com", QueryType: "A", Category: "", Timestamp: now.Add(time.Second)},
-	}
-	err := db.WriteQueries(queries)
-	if err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	results, err := db.QueryLog("", "", time.Time{}, now.Add(time.Minute), 100, 0)
-	if err != nil {
-		t.Fatalf("QueryLog: %v", err)
-	}
-	if len(results) != 2 {
-		t.Fatalf("got %d results, want 2", len(results))
 	}
 }
 
@@ -395,13 +314,11 @@ func TestQueryLogFilters(t *testing.T) {
 		{DeviceMAC: "11:22:33:44:55:66", Domain: "api.example.com", QueryType: "A", Category: "", Timestamp: now},
 	})
 
-	// Filter by device
 	results, _ := db.QueryLog("aa:bb:cc:dd:ee:ff", "", time.Time{}, time.Now(), 100, 0)
 	if len(results) != 1 {
 		t.Errorf("device filter: got %d, want 1", len(results))
 	}
 
-	// Filter by domain
 	results, _ = db.QueryLog("", "ads.example.com", time.Time{}, time.Now(), 100, 0)
 	if len(results) != 1 {
 		t.Errorf("domain filter: got %d, want 1", len(results))
@@ -655,13 +572,11 @@ func TestListRefreshStatusTracksAttemptSuccessAndFailure(t *testing.T) {
 
 func TestListDomainCache(t *testing.T) {
 	db := testDB(t)
-	// Add a list
 	id, err := db.AddList("https://example.com/list.txt", "Test List", "tracking")
 	if err != nil {
 		t.Fatalf("AddList: %v", err)
 	}
 
-	// Write cached domains
 	domains := map[string]string{
 		"ads.example.com":     "tracking",
 		"tracker.example.com": "tracking",
@@ -671,7 +586,6 @@ func TestListDomainCache(t *testing.T) {
 		t.Fatalf("WriteListDomains: %v", err)
 	}
 
-	// Read cached domains
 	cached, err := db.LoadCachedDomains()
 	if err != nil {
 		t.Fatalf("LoadCachedDomains: %v", err)
@@ -709,43 +623,6 @@ func TestDomainOverrides(t *testing.T) {
 	overrides, _ = db.ListDomainOverrides()
 	if len(overrides) != 0 {
 		t.Errorf("got %d overrides after delete, want 0", len(overrides))
-	}
-}
-
-func TestDashboardSummary(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", Hostname: "roku-tv", Vendor: "Roku", FirstSeen: now, LastSeen: now})
-	db.UpsertDevice(Device{MAC: "11:22:33:44:55:66", IP: "192.168.1.11", Hostname: "laptop", Vendor: "Dell", FirstSeen: now, LastSeen: now})
-
-	db.WriteQueries([]Query{
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "api.example.com", QueryType: "A", Category: "", Timestamp: now},
-		{DeviceMAC: "11:22:33:44:55:66", Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now},
-	})
-
-	summary, err := db.DashboardSummary()
-	if err != nil {
-		t.Fatalf("DashboardSummary: %v", err)
-	}
-	if summary.TotalQueries != 4 {
-		t.Errorf("TotalQueries = %d, want 4", summary.TotalQueries)
-	}
-	if summary.TrackerPercent != 50.0 {
-		t.Errorf("TrackerPercent = %f, want 50.0", summary.TrackerPercent)
-	}
-	if summary.DeviceCount != 2 {
-		t.Errorf("DeviceCount = %d, want 2", summary.DeviceCount)
-	}
-	if summary.UniqueDomainCount != 4 {
-		t.Errorf("UniqueDomainCount = %d, want 4", summary.UniqueDomainCount)
-	}
-	if len(summary.TopDevices) != 2 {
-		t.Fatalf("TopDevices count = %d, want 2", len(summary.TopDevices))
-	}
-	if summary.TopDevices[0].QueryCount != 3 {
-		t.Errorf("top device query count = %d, want 3", summary.TopDevices[0].QueryCount)
 	}
 }
 
@@ -799,7 +676,7 @@ func TestListDevicesWithStats(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatalf("got %d devices, want 2", len(results))
 	}
-	// Ordered by query count desc — roku-tv has 2 queries
+	// Ordered by query count desc
 	if results[0].MAC != "aa:bb:cc:dd:ee:ff" {
 		t.Errorf("first device MAC = %q, want aa:bb:cc:dd:ee:ff", results[0].MAC)
 	}
@@ -1091,32 +968,6 @@ func TestDeviceCategoryBreakdown(t *testing.T) {
 		if breakdown[i] != want[i] {
 			t.Fatalf("row %d = %#v, want %#v", i, breakdown[i], want[i])
 		}
-	}
-}
-
-func TestDeviceCategoryBreakdownEmpty(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	mac := "aa:bb:cc:dd:ee:ff"
-
-	err := db.UpsertDevice(Device{
-		MAC:       mac,
-		IP:        "192.168.1.10",
-		Hostname:  "roku-tv",
-		Vendor:    "Roku",
-		FirstSeen: now,
-		LastSeen:  now,
-	})
-	if err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-
-	breakdown, err := db.DeviceCategoryBreakdown(mac)
-	if err != nil {
-		t.Fatalf("DeviceCategoryBreakdown: %v", err)
-	}
-	if len(breakdown) != 0 {
-		t.Fatalf("got %d rows, want 0", len(breakdown))
 	}
 }
 

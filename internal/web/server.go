@@ -75,11 +75,9 @@ func parsePages() map[string]*template.Template {
 }
 
 func (s *Server) registerRoutes() {
-	// Static assets
 	staticFS, _ := fs.Sub(static.FS, ".")
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	// API routes
 	s.mux.HandleFunc("GET /api/health", s.handleHealth)
 	s.mux.HandleFunc("GET /api/summary", s.handleAPISummary)
 	s.mux.HandleFunc("GET /api/devices", s.handleAPIDevices)
@@ -103,7 +101,6 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/overrides/{domain}", s.handleAPISetOverride)
 	s.mux.HandleFunc("DELETE /api/overrides/{domain}", s.handleAPIDeleteOverride)
 
-	// Page routes
 	s.mux.HandleFunc("GET /{$}", s.handleHome)
 	s.mux.HandleFunc("GET /devices", s.handleDevices)
 	s.mux.HandleFunc("GET /devices/{mac}", s.handleDeviceDetail)

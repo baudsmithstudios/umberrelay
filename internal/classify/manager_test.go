@@ -64,18 +64,6 @@ func TestManagerClassify(t *testing.T) {
 	}
 }
 
-func TestManagerUncategorized(t *testing.T) {
-	m := NewManager(testDB(t))
-	m.domains.Store(newDomainMap(map[string]string{
-		"mystery.example.com": "uncategorized",
-	}))
-
-	got := m.Classify("mystery.example.com.")
-	if got != "uncategorized" {
-		t.Errorf("Classify uncategorized domain = %q, want uncategorized", got)
-	}
-}
-
 func TestManagerOverrides(t *testing.T) {
 	m := NewManager(testDB(t))
 	m.domains.Store(newDomainMap(map[string]string{

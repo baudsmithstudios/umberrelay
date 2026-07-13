@@ -43,16 +43,14 @@ func (t *Tracker) parseDHCP(pkt []byte) {
 	// byte 240+: options
 
 	if pkt[0] != 1 {
-		return // Only process client requests
+		return
 	}
 
-	// Extract MAC from chaddr (offset 28, 6 bytes)
 	mac := net.HardwareAddr(pkt[28:34]).String()
 	if mac == "00:00:00:00:00:00" {
 		return
 	}
 
-	// Parse options starting at byte 240 (after magic cookie)
 	hostname := ""
 	if len(pkt) > 240 {
 		hostname = parseDHCPOption12(pkt[240:])

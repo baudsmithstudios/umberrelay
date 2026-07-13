@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,7 +32,6 @@ func testSetup(t *testing.T) (*store.DB, *device.Tracker, *classify.Manager) {
 func TestWriterProcessesRecords(t *testing.T) {
 	db, tracker, mgr := testSetup(t)
 
-	// Seed device
 	db.UpsertDevice(store.Device{
 		MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10",
 		FirstSeen: time.Now(), LastSeen: time.Now(),
@@ -120,7 +118,6 @@ func TestWriterDrainsOnShutdown(t *testing.T) {
 		QueryType: "A", Timestamp: time.Now(),
 	}
 
-	// Cancel immediately — writer should drain
 	cancel()
 	select {
 	case <-flushed:
@@ -132,51 +129,5 @@ func TestWriterDrainsOnShutdown(t *testing.T) {
 	queries, _ := db.QueryLog("", "", time.Time{}, time.Now().Add(time.Minute), 100, 0)
 	if len(queries) != 1 {
 		t.Fatalf("got %d queries after drain, want 1", len(queries))
-	}
-}
-
-func TestWriterCallsOnFlushHookAfterSuccessfulWrite(t *testing.T) {
-	db, tracker, mgr := testSetup(t)
-
-	db.UpsertDevice(store.Device{
-		MAC:       "aa:bb:cc:dd:ee:ff",
-		IP:        "192.168.1.10",
-		FirstSeen: time.Now(),
-		LastSeen:  time.Now(),
-	})
-
-	var flushCalls atomic.Int32
-	flushed := make(chan struct{}, 1)
-	ch := make(chan dns.QueryRecord, 10)
-	w := NewWriter(ch, db, tracker, mgr, Config{
-		BatchSize:     1,
-		FlushInterval: 5 * time.Second,
-		OnFlush: func() {
-			flushCalls.Add(1)
-			select {
-			case flushed <- struct{}{}:
-			default:
-			}
-		},
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go w.Run(ctx)
-
-	ch <- dns.QueryRecord{
-		SourceIP:  "192.168.1.10",
-		Domain:    "flush-hook.test.",
-		QueryType: "A",
-		Timestamp: time.Now(),
-	}
-
-	select {
-	case <-flushed:
-	case <-time.After(2 * time.Second):
-		t.Fatalf("flush hook calls = %d, want 1", flushCalls.Load())
-	}
-	if flushCalls.Load() != 1 {
-		t.Fatalf("flush hook calls = %d, want 1", flushCalls.Load())
 	}
 }

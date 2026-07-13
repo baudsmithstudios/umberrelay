@@ -130,56 +130,33 @@ func TestRunStopsWhenContextCancelled(t *testing.T) {
 	}
 }
 
-func TestRunDHCPReturnsWhenDoneClosed(t *testing.T) {
-	tracker := NewTracker(testDB(t), NewOUIDB(nil))
-	done := make(chan struct{})
-	close(done)
-
-	finished := make(chan struct{})
-	go func() {
-		tracker.RunDHCP(done)
-		close(finished)
-	}()
-
-	select {
-	case <-finished:
-	case <-time.After(2 * time.Second):
-		t.Fatal("RunDHCP did not return")
+func TestListenersReturnWhenDoneClosed(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(*Tracker, <-chan struct{})
+	}{
+		{"dhcp", (*Tracker).RunDHCP},
+		{"mdns", (*Tracker).RunMDNS},
+		{"ssdp", (*Tracker).RunSSDP},
 	}
-}
 
-func TestRunMDNSReturnsWhenDoneClosed(t *testing.T) {
-	tracker := NewTracker(testDB(t), NewOUIDB(nil))
-	done := make(chan struct{})
-	close(done)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tracker := NewTracker(testDB(t), NewOUIDB(nil))
+			done := make(chan struct{})
+			close(done)
 
-	finished := make(chan struct{})
-	go func() {
-		tracker.RunMDNS(done)
-		close(finished)
-	}()
+			finished := make(chan struct{})
+			go func() {
+				tt.run(tracker, done)
+				close(finished)
+			}()
 
-	select {
-	case <-finished:
-	case <-time.After(2 * time.Second):
-		t.Fatal("RunMDNS did not return")
-	}
-}
-
-func TestRunSSDPReturnsWhenDoneClosed(t *testing.T) {
-	tracker := NewTracker(testDB(t), NewOUIDB(nil))
-	done := make(chan struct{})
-	close(done)
-
-	finished := make(chan struct{})
-	go func() {
-		tracker.RunSSDP(done)
-		close(finished)
-	}()
-
-	select {
-	case <-finished:
-	case <-time.After(2 * time.Second):
-		t.Fatal("RunSSDP did not return")
+			select {
+			case <-finished:
+			case <-time.After(2 * time.Second):
+				t.Fatalf("%s listener did not return", tt.name)
+			}
+		})
 	}
 }

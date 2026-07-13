@@ -7,8 +7,7 @@ import (
 )
 
 // These structs are serialized directly as API responses, so their JSON keys
-// are part of the public contract and must stay snake_case. Each case checks a
-// representative compound key.
+// are part of the public contract and must stay snake_case.
 func TestAPIResponseStructsUseSnakeCase(t *testing.T) {
 	cases := []struct {
 		name  string
