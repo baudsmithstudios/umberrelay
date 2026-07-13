@@ -406,3 +406,10 @@ Umberrelay fills a narrow niche: a fully local DNS forwarder that turns query lo
 | **Frontend styling** | [Pico CSS](https://picocss.com/) | Minimal classless CSS framework |
 | **Charts** | [uPlot](https://github.com/leeoniya/uPlot) | Fast canvas time-series plots |
 | **Containerization** | [Docker](https://github.com/moby/moby) | Multi-stage build |
+
+
+## Contributing
+
+Umberrelay is a personal project built in public. **It does not accept external pull
+requests**, but issues are welcome: bug reports, feature requests, and questions
+all help. See [CONTRIBUTING.md](CONTRIBUTING.md) for details, or [SECURITY.md](SECURITY.md) for vulnerability reports.

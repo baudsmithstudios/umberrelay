@@ -1,60 +1,13 @@
 # Contributing to Umberrelay
 
-Thanks for your interest in contributing. Umberrelay is a small Raspberry Pi and homelab project where focused contributions are welcome.
+Umberrelay is a small personal project, developed and maintained on my spare time. I am building in public to share ideas, keep myself (somewhat) accountable, and to maybe finish something that is marginally useful. To keep the project focused and maintainable, while also allowing myself space to experiment with different things, **I will not accept external pull requests.** Please don't spend time on a patch; it won't be merged.
 
-## Getting Started
+Issues and discussion, however, are welcomed:
 
-1. Fork the repo and clone your fork
-2. Make sure you have the Go version required by `go.mod` installed
-3. Run `go test ./...` to verify everything passes
-4. Create a branch for your change
+- **Bug reports** — open an issue with what you expected, what happened, steps to
+  reproduce, and your environment (OS, architecture, Docker version if relevant).
+- **Feature requests** — open an issue describing the problem or use case.
+- **Questions** — open an issue. There are no bad questions.
 
-## Raspberry Pi Deployment
-
-For cross-compilation, dev-machine image builds, and live Pi testing, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-## Local UI Preview
-
-For UI and UX work, start Umberrelay with representative local demo data from the repo root:
-
-```sh
-./scripts/umberrelay-demo.sh
-```
-
-To wipe the demo database and reseed it from scratch:
-
-```sh
-./scripts/umberrelay-demo.sh --reset
-```
-
-The script:
-- writes local config under `.demo/`
-- writes local demo data under `.demo/tmpdata`
-- starts the web UI on `http://localhost:8080`
-- seeds demo data only into an empty database, so normal restarts do not duplicate records
-
-## Submitting Changes
-
-- Open a pull request against `main`
-- Keep changes focused — one feature or fix per PR
-- Include tests for any new functionality
-- Make sure `go build ./...`, `go test ./...`, and `go vet ./...` pass before submitting
-- CI also runs `govulncheck`; you can check locally with `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`
-
-## Reporting Bugs
-
-Open an issue with:
-- What you expected to happen
-- What actually happened
-- Steps to reproduce
-- Your environment (OS, Go version, Docker version if relevant)
-
-## Code Style
-
-- Match the style of surrounding code
-- Keep it simple — no over-engineering
-- Run `gofmt` before committing
-
-## Questions?
-
-Please open an issue.
+For security vulnerabilities, please follow [SECURITY.md](SECURITY.md) instead of
+opening a public issue.
