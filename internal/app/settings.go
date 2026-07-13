@@ -43,9 +43,7 @@ func UpdateSettings(db *store.DB, mgr *classify.Manager, input SettingsInput) er
 		}
 	}
 
-	if mgr != nil {
-		mgr.NotifyConfigChanged()
-	}
+	mgr.NotifyConfigChanged()
 
 	return nil
 }

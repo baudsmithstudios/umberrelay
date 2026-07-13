@@ -948,7 +948,7 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := app.SetDomainOverride(s.db, s.classify, domain, normalizedCategory); err != nil {
+	if err := app.SetDomainOverride(s.classify, domain, normalizedCategory); err != nil {
 		if errors.Is(err, app.ErrInvalidCategory) {
 			http.Error(w, "invalid category", http.StatusBadRequest)
 			return
@@ -1073,10 +1073,6 @@ func (s *Server) handleUIDeleteList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUIRefreshLists(w http.ResponseWriter, r *http.Request) {
-	if s.classify == nil {
-		http.Error(w, "classify manager not available", http.StatusServiceUnavailable)
-		return
-	}
 	s.refreshClassificationAsync()
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +32,7 @@ type Server struct {
 	backgroundCtx          context.Context
 	backgroundCancel       context.CancelFunc
 	refreshRunning         atomic.Bool
+	refreshJobs            sync.WaitGroup
 	loadEnabledListSources func(*store.DB) ([]classify.ListSource, error)
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
@@ -49,11 +51,15 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 		backgroundCtx:          backgroundCtx,
 		backgroundCancel:       backgroundCancel,
 		loadEnabledListSources: app.EnabledListSources,
-		refreshListSources:     app.RefreshListSources,
+		refreshListSources:     refreshManagerSources,
 	}
 	s.registerRoutes()
 	s.handler = withSecurityHeaders(withMutationOriginGuard(withMutationBodyLimit(s.mux)))
 	return s
+}
+
+func refreshManagerSources(ctx context.Context, mgr *classify.Manager, sources []classify.ListSource) error {
+	return mgr.Refresh(ctx, sources)
 }
 
 func parsePages() map[string]*template.Template {
@@ -122,6 +128,7 @@ func (s *Server) Handler() http.Handler {
 // Close releases server-owned background resources.
 func (s *Server) Close() {
 	s.backgroundCancel()
+	s.refreshJobs.Wait()
 	s.queryHub.Close()
 }
 

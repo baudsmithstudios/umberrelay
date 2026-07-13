@@ -601,10 +601,6 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
-	if s.classify == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
-		return
-	}
 	s.refreshClassificationAsync()
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -621,7 +617,7 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "category is required")
 		return
 	}
-	if err := app.SetDomainOverride(s.db, s.classify, domain, body.Category); err != nil {
+	if err := app.SetDomainOverride(s.classify, domain, body.Category); err != nil {
 		if errors.Is(err, app.ErrInvalidCategory) {
 			writeJSONError(w, http.StatusBadRequest, "invalid category")
 			return
@@ -634,7 +630,7 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIDeleteOverride(w http.ResponseWriter, r *http.Request) {
 	domain := r.PathValue("domain")
-	if err := app.DeleteDomainOverride(s.db, s.classify, domain); err != nil {
+	if err := s.classify.RemoveOverride(domain); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -724,13 +720,12 @@ func parseBoolFormValue(value string) (bool, error) {
 }
 
 func (s *Server) refreshClassificationAsync() {
-	if s.classify == nil {
-		return
-	}
 	if !s.refreshRunning.CompareAndSwap(false, true) {
 		return
 	}
+	s.refreshJobs.Add(1)
 	go func() {
+		defer s.refreshJobs.Done()
 		defer s.refreshRunning.Store(false)
 
 		ctx, cancel := context.WithTimeout(s.backgroundCtx, 2*time.Minute)

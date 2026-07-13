@@ -27,7 +27,7 @@ func TestParseARPTable(t *testing.T) {
 }
 
 func TestResolveIP(t *testing.T) {
-	tracker := NewTracker(nil, nil)
+	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	tracker.arpCache.Store("192.168.1.10", "aa:bb:cc:dd:ee:ff")
 
 	mac := tracker.ResolveIP("192.168.1.10")
@@ -47,7 +47,7 @@ func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	tracker := NewTracker(db, nil)
+	tracker := NewTracker(db, NewOUIDB(nil))
 
 	var logs bytes.Buffer
 	prev := log.Writer()
@@ -69,7 +69,7 @@ func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
 
 func TestDeviceWriterCoalescesAndDrainsOnCancel(t *testing.T) {
 	db := testDB(t)
-	tracker := NewTracker(db, nil)
+	tracker := NewTracker(db, NewOUIDB(nil))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	writerDone := make(chan struct{})
@@ -113,7 +113,7 @@ func TestDeviceWriterCoalescesAndDrainsOnCancel(t *testing.T) {
 }
 
 func TestRunStopsWhenContextCancelled(t *testing.T) {
-	tracker := NewTracker(testDB(t), nil)
+	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -131,7 +131,7 @@ func TestRunStopsWhenContextCancelled(t *testing.T) {
 }
 
 func TestRunDHCPReturnsWhenDoneClosed(t *testing.T) {
-	tracker := NewTracker(testDB(t), nil)
+	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	done := make(chan struct{})
 	close(done)
 
@@ -149,7 +149,7 @@ func TestRunDHCPReturnsWhenDoneClosed(t *testing.T) {
 }
 
 func TestRunMDNSReturnsWhenDoneClosed(t *testing.T) {
-	tracker := NewTracker(testDB(t), nil)
+	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	done := make(chan struct{})
 	close(done)
 
@@ -167,7 +167,7 @@ func TestRunMDNSReturnsWhenDoneClosed(t *testing.T) {
 }
 
 func TestRunSSDPReturnsWhenDoneClosed(t *testing.T) {
-	tracker := NewTracker(testDB(t), nil)
+	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	done := make(chan struct{})
 	close(done)
 

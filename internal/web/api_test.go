@@ -235,7 +235,7 @@ func TestAPIUpdateDeviceReturnsNotFoundForMissingDevice(t *testing.T) {
 }
 
 func TestAPIAddListRejectsLocalURL(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 	body := bytes.NewBufferString(`{"url":"http://localhost/list.txt","name":"Local","category":"tracking"}`)
 	req := httptest.NewRequest("POST", "/api/lists", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -247,7 +247,7 @@ func TestAPIAddListRejectsLocalURL(t *testing.T) {
 }
 
 func TestAPIAddListReturnsInternalErrorWhenPersistenceFails(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 	if err := s.db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestAPIListListsReturnsJSON(t *testing.T) {
 }
 
 func TestAPISetOverrideAcceptsJSON(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 	body := bytes.NewBufferString(`{"category":"tracking"}`)
 	req := httptest.NewRequest("PUT", "/api/overrides/example.com", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -337,7 +337,7 @@ func TestAPISetOverrideAcceptsJSON(t *testing.T) {
 }
 
 func TestAPISetOverrideRejectsInvalidCategory(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 	body := bytes.NewBufferString(`{"category":"not-a-real-category"}`)
 	req := httptest.NewRequest("PUT", "/api/overrides/example.com", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -349,7 +349,7 @@ func TestAPISetOverrideRejectsInvalidCategory(t *testing.T) {
 }
 
 func TestAPIDeleteOverrideRemovesOverride(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 	if err := s.classify.SetOverride("example.com", "tracking"); err != nil {
 		t.Fatalf("SetOverride: %v", err)
 	}

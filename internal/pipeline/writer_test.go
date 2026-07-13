@@ -22,7 +22,7 @@ func testSetup(t *testing.T) (*store.DB, *device.Tracker, *classify.Manager) {
 	}
 	t.Cleanup(func() { db.Close() })
 
-	tracker := device.NewTracker(db, nil)
+	tracker := device.NewTracker(db, device.NewOUIDB(nil))
 	tracker.SetARPEntry("192.168.1.10", "aa:bb:cc:dd:ee:ff")
 
 	mgr := classify.NewManager(db)

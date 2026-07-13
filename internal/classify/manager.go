@@ -60,10 +60,8 @@ func (m *Manager) Classify(domain string) string {
 
 func (m *Manager) SetOverride(domain, category string) error {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
-	if m.db != nil {
-		if err := m.db.SetDomainOverride(domain, category); err != nil {
-			return err
-		}
+	if err := m.db.SetDomainOverride(domain, category); err != nil {
+		return err
 	}
 	m.overrides.Store(domain, category)
 	return nil
@@ -71,19 +69,14 @@ func (m *Manager) SetOverride(domain, category string) error {
 
 func (m *Manager) RemoveOverride(domain string) error {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
-	if m.db != nil {
-		if err := m.db.DeleteDomainOverride(domain); err != nil {
-			return err
-		}
+	if err := m.db.DeleteDomainOverride(domain); err != nil {
+		return err
 	}
 	m.overrides.Delete(domain)
 	return nil
 }
 
 func (m *Manager) LoadOverrides() error {
-	if m.db == nil {
-		return nil
-	}
 	overrides, err := m.db.ListDomainOverrides()
 	if err != nil {
 		return fmt.Errorf("load overrides: %w", err)
@@ -96,9 +89,6 @@ func (m *Manager) LoadOverrides() error {
 
 // Returns the number of domains loaded, or 0 if no cache exists.
 func (m *Manager) LoadFromCache() (int, error) {
-	if m.db == nil {
-		return 0, nil
-	}
 	cached, err := m.db.LoadCachedDomains()
 	if err != nil {
 		return 0, fmt.Errorf("load cached domains: %w", err)
@@ -134,9 +124,6 @@ func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 	attemptedAt := time.Now().UTC()
 	var refreshErr error
 	defer func() {
-		if m.db == nil {
-			return
-		}
 		if err := m.db.RecordListRefreshAttempt(attemptedAt, refreshErr); err != nil {
 			log.Printf("record list refresh status: %v", err)
 		}
@@ -162,7 +149,7 @@ func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
 			combined[d] = cat
 			listDomains[d] = cat
 		}
-		if m.db != nil && src.ID > 0 {
+		if src.ID > 0 {
 			if err := m.db.WriteListDomains(src.ID, listDomains); err != nil {
 				log.Printf("cache list %s: %v", src.Name, err)
 			}
@@ -210,9 +197,6 @@ func (m *Manager) Run(ctx context.Context, initialSources []ListSource, interval
 }
 
 func (m *Manager) refreshInterval(defaultInterval time.Duration) time.Duration {
-	if m.db == nil {
-		return defaultInterval
-	}
 	val, err := m.db.GetConfig("list_refresh_hours")
 	if err != nil || val == "" {
 		return defaultInterval
@@ -225,9 +209,6 @@ func (m *Manager) refreshInterval(defaultInterval time.Duration) time.Duration {
 }
 
 func (m *Manager) loadSourcesFromDB() ([]ListSource, error) {
-	if m.db == nil {
-		return nil, nil
-	}
 	lists, err := m.db.ListEnabledLists()
 	if err != nil {
 		return nil, err
