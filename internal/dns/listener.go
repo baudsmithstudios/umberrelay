@@ -24,14 +24,13 @@ type Listener struct {
 	ready    chan struct{}
 }
 
-func NewListener(addr string, upstream []string, out chan<- QueryRecord) (*Listener, error) {
-	l := &Listener{
+func NewListener(addr string, upstream []string, out chan<- QueryRecord) *Listener {
+	return &Listener{
 		addr:     addr,
 		upstream: upstream,
 		out:      out,
 		ready:    make(chan struct{}),
 	}
-	return l, nil
 }
 
 func (l *Listener) Run(ctx context.Context) error {

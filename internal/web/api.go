@@ -288,9 +288,7 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		afterID = lastID
 		flusher.Flush()
 	}
-	if s.queryHub != nil {
-		s.queryHub.AdvanceCursor(afterID)
-	}
+	s.queryHub.AdvanceCursor(afterID)
 	stream, cancel := s.queryHub.Subscribe()
 	defer cancel()
 	heartbeatTicker := time.NewTicker(15 * time.Second)
@@ -448,7 +446,7 @@ func (s *Server) handleAPIAnomalies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIBypass(w http.ResponseWriter, r *http.Request) {
-	signals, err := s.db.DeviceBypassSignals()
+	signals, err := s.db.DeviceBypassSignalsAt(time.Now())
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return

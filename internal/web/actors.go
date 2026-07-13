@@ -33,14 +33,14 @@ func parseActorKey(key string) (string, string, bool) {
 	return "", "", false
 }
 
-func normalizeActorSelection(raw string) (string, string, string, bool) {
+func normalizeActorSelection(raw string) (string, string, bool) {
 	if raw == "" {
-		return "", "", "", false
+		return "", "", false
 	}
 	if actorType, value, ok := parseActorKey(raw); ok {
-		return raw, actorType, value, true
+		return actorType, value, true
 	}
-	return actorKeyForDevice(raw), actorTypeDevice, raw, true
+	return actorTypeDevice, raw, true
 }
 
 func sourceActorDisplayName(sourceIP, label string) string {

@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"umberrelay/internal/app"
 	"umberrelay/internal/classify"
 	"umberrelay/internal/config"
 	"umberrelay/internal/demo"
@@ -125,10 +126,7 @@ func run(configPath string, demoData bool) error {
 	records := make(chan dns.QueryRecord, 4096)
 	errCh := make(chan error, 2)
 	if !demoData {
-		listener, err := dns.NewListener(cfg.Listen, cfg.Upstream, records)
-		if err != nil {
-			return fmt.Errorf("create dns listener: %w", err)
-		}
+		listener := dns.NewListener(cfg.Listen, cfg.Upstream, records)
 		go func() {
 			if err := listener.Run(ctx); err != nil && ctx.Err() == nil {
 				select {
@@ -288,10 +286,10 @@ func defaultListSources(db *store.DB) []classify.ListSource {
 			}
 		}
 	}
-	enabledLists, err := db.ListEnabledLists()
+	sources, err := app.EnabledListSources(db)
 	if err != nil {
 		log.Printf("load enabled lists: %v", err)
 		return nil
 	}
-	return classify.SourcesFromListEntries(enabledLists)
+	return sources
 }

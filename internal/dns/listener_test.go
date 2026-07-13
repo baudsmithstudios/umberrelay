@@ -15,10 +15,7 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 	upstreamAddr := startFakeUpstream(t, "udp")
 
 	records := make(chan QueryRecord, 10)
-	l, err := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
-	if err != nil {
-		t.Fatalf("NewListener: %v", err)
-	}
+	l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -62,10 +59,7 @@ func TestListenerForwardsTCPQuery(t *testing.T) {
 	upstreamAddr := startFakeUpstream(t, "tcp")
 
 	records := make(chan QueryRecord, 10)
-	l, err := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
-	if err != nil {
-		t.Fatalf("NewListener: %v", err)
-	}
+	l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -103,10 +97,7 @@ func TestListenerUpstreamFailure(t *testing.T) {
 
 	records := make(chan QueryRecord, 10)
 	// Point to a non-existent upstream
-	l, err := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
-	if err != nil {
-		t.Fatalf("NewListener: %v", err)
-	}
+	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

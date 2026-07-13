@@ -1671,9 +1671,9 @@ func TestDeviceTopDomainsWithSource(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	domains, err := db.DeviceTopDomainsWithSource(mac, 10)
+	domains, err := db.DeviceTopDomainsWithSourcePage(mac, 10, 0)
 	if err != nil {
-		t.Fatalf("DeviceTopDomainsWithSource: %v", err)
+		t.Fatalf("DeviceTopDomainsWithSourcePage: %v", err)
 	}
 	if len(domains) != 2 {
 		t.Fatalf("got %d domains, want 2", len(domains))
@@ -2047,12 +2047,12 @@ func TestSourceActorQueriesAndAggregations(t *testing.T) {
 		t.Fatalf("len(SourceRangedActivity) = %d, want 7", len(ranged))
 	}
 
-	top, err := db.SourceTopDomainsWithSource(sourceA, 10)
+	top, err := db.SourceTopDomainsWithSourcePage(sourceA, 10, 0)
 	if err != nil {
-		t.Fatalf("SourceTopDomainsWithSource: %v", err)
+		t.Fatalf("SourceTopDomainsWithSourcePage: %v", err)
 	}
 	if len(top) == 0 {
-		t.Fatal("SourceTopDomainsWithSource returned no rows")
+		t.Fatal("SourceTopDomainsWithSourcePage returned no rows")
 	}
 	foundTracker := false
 	for _, domain := range top {
@@ -2064,7 +2064,7 @@ func TestSourceActorQueriesAndAggregations(t *testing.T) {
 		}
 	}
 	if !foundTracker {
-		t.Fatalf("tracker.example.com not found in SourceTopDomainsWithSource: %+v", top)
+		t.Fatalf("tracker.example.com not found in SourceTopDomainsWithSourcePage: %+v", top)
 	}
 
 	trends, err := db.ListSourceWithTrendsAt(now)

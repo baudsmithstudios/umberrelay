@@ -768,7 +768,7 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	selectedRaw := r.PathValue("mac")
-	_, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
+	selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
 	if !hasSelected {
 		http.Redirect(w, r, "/devices", http.StatusSeeOther)
 		return
@@ -994,9 +994,9 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	actorType, actorValue, hasActor := parseActorKey(actorKey)
 	switch {
 	case hasActor && actorType == actorTypeDevice:
-		domains, err = s.db.DeviceTopDomainsWithSource(actorValue, 20)
+		domains, err = s.db.DeviceTopDomainsWithSourcePage(actorValue, 20, 0)
 	case hasActor && actorType == actorTypeSource:
-		domains, err = s.db.SourceTopDomainsWithSource(actorValue, 20)
+		domains, err = s.db.SourceTopDomainsWithSourcePage(actorValue, 20, 0)
 	default:
 		domains, err = s.db.TopDomainsWithSource(20)
 		rowActorKey = ""

@@ -10,7 +10,7 @@ import (
 
 func decodeJSON(r *http.Request, dst interface{}) error {
 	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		return unsupportedMediaTypeError{message: "Content-Type must be application/json"}
+		return unsupportedMediaTypeError{}
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -56,12 +56,10 @@ func decodeAPIJSON(w http.ResponseWriter, r *http.Request, dst interface{}) bool
 	return true
 }
 
-type unsupportedMediaTypeError struct {
-	message string
-}
+type unsupportedMediaTypeError struct{}
 
 func (e unsupportedMediaTypeError) Error() string {
-	return e.message
+	return "Content-Type must be application/json"
 }
 
 type requestEntityTooLargeError struct{}

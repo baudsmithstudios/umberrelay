@@ -121,18 +121,12 @@ func (s *Server) Handler() http.Handler {
 
 // Close releases server-owned background resources.
 func (s *Server) Close() {
-	if s.backgroundCancel != nil {
-		s.backgroundCancel()
-	}
-	if s.queryHub != nil {
-		s.queryHub.Close()
-	}
+	s.backgroundCancel()
+	s.queryHub.Close()
 }
 
 func (s *Server) NotifyNewQueries() {
-	if s.queryHub != nil {
-		s.queryHub.NotifyNewQueries()
-	}
+	s.queryHub.NotifyNewQueries()
 }
 
 func (s *Server) httpServer(addr string) *http.Server {

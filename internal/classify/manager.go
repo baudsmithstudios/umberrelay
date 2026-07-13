@@ -55,11 +55,7 @@ func (m *Manager) Classify(domain string) string {
 		return cat.(string)
 	}
 
-	dm := m.domains.Load()
-	if dm == nil {
-		return ""
-	}
-	return dm.m[domain]
+	return m.domains.Load().m[domain]
 }
 
 func (m *Manager) SetOverride(domain, category string) error {

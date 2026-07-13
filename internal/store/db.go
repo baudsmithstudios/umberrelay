@@ -429,10 +429,6 @@ func (d *DB) QueryLogBySource(sourceIP, domain string, from, to time.Time, limit
 }
 
 func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Query, error) {
-	if limit <= 0 {
-		limit = 100
-	}
-
 	var conditions []string
 	var args []any
 
@@ -1606,10 +1602,6 @@ func (d *DB) TopDomainsWithSource(limit int) ([]DomainWithSource, error) {
 	return out, rows.Err()
 }
 
-func (d *DB) DeviceTopDomainsWithSource(mac string, limit int) ([]DomainWithSource, error) {
-	return d.DeviceTopDomainsWithSourcePage(mac, limit, 0)
-}
-
 func (d *DB) DeviceTopDomainsWithSourcePage(mac string, limit, offset int) ([]DomainWithSource, error) {
 	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
 	rows, err := d.sql.Query(`
@@ -1642,10 +1634,6 @@ func (d *DB) DeviceTopDomainsWithSourcePage(mac string, limit, offset int) ([]Do
 		out = append(out, domain)
 	}
 	return out, rows.Err()
-}
-
-func (d *DB) SourceTopDomainsWithSource(sourceIP string, limit int) ([]DomainWithSource, error) {
-	return d.SourceTopDomainsWithSourcePage(sourceIP, limit, 0)
 }
 
 func (d *DB) SourceTopDomainsWithSourcePage(sourceIP string, limit, offset int) ([]DomainWithSource, error) {
@@ -1837,10 +1825,6 @@ func (d *DB) deviceTopVolumeSpikeDomain(mac string, currentStart, now, priorStar
 	return DomainWithSource{}, nil
 }
 
-func (d *DB) DeviceBypassSignals() ([]BypassSignal, error) {
-	return d.DeviceBypassSignalsAt(time.Now())
-}
-
 func (d *DB) DeviceBypassSignalsAt(now time.Time) ([]BypassSignal, error) {
 	now = now.UTC()
 	seenCutoff := now.Add(-20 * time.Minute)
@@ -1891,10 +1875,6 @@ func (d *DB) DeviceBypassSignalsAt(now time.Time) ([]BypassSignal, error) {
 		); err != nil {
 			return nil, err
 		}
-		if currentQueryCount > 0 || signal.PriorQueryCount == 0 {
-			continue
-		}
-
 		signal.LastSeen = time.Unix(0, lastSeenTS)
 		if lastQueryTS > 0 {
 			signal.LastQuery = time.Unix(0, lastQueryTS)
