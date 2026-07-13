@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Breaking:** API responses now use snake_case JSON keys (e.g. `device_mac`); update consumers relying on the old PascalCase keys.
 
+### Security
+
+- Patched stdlib and `x/net` advisories (Go 1.26.4, x/net 0.53.0).
+
 ## [0.1.0] - 2026-04-19
 
 Initial public release.
