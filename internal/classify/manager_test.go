@@ -41,7 +41,7 @@ tracker.example.com
 }
 
 func TestManagerClassify(t *testing.T) {
-	m := NewManager(nil)
+	m := NewManager(testDB(t))
 	m.domains.Store(newDomainMap(map[string]string{
 		"ads.example.com":     "advertising",
 		"tracker.example.com": "tracking",
@@ -64,20 +64,8 @@ func TestManagerClassify(t *testing.T) {
 	}
 }
 
-func TestManagerUncategorized(t *testing.T) {
-	m := NewManager(nil)
-	m.domains.Store(newDomainMap(map[string]string{
-		"mystery.example.com": "uncategorized",
-	}))
-
-	got := m.Classify("mystery.example.com.")
-	if got != "uncategorized" {
-		t.Errorf("Classify uncategorized domain = %q, want uncategorized", got)
-	}
-}
-
 func TestManagerOverrides(t *testing.T) {
-	m := NewManager(nil)
+	m := NewManager(testDB(t))
 	m.domains.Store(newDomainMap(map[string]string{
 		"ads.example.com": "advertising",
 	}))
@@ -205,7 +193,7 @@ func TestDialValidatedRemoteRejectsWhenOnlyPrivateResolvedAddresses(t *testing.T
 }
 
 func TestRefreshKeepsExistingDomainsWhenAllSourcesFail(t *testing.T) {
-	m := NewManager(nil)
+	m := NewManager(testDB(t))
 	m.domains.Store(newDomainMap(map[string]string{
 		"ads.example.com": "tracking",
 	}))
@@ -226,7 +214,8 @@ func TestRefreshKeepsExistingDomainsWhenAllSourcesFail(t *testing.T) {
 }
 
 func TestManagerRemoveOverride(t *testing.T) {
-	m := NewManager(nil)
+	db := testDB(t)
+	m := NewManager(db)
 	if err := m.SetOverride("ads.example.com", "tracking"); err != nil {
 		t.Fatalf("SetOverride: %v", err)
 	}
@@ -235,6 +224,30 @@ func TestManagerRemoveOverride(t *testing.T) {
 	}
 	if got := m.Classify("ads.example.com."); got != "" {
 		t.Fatalf("Classify after RemoveOverride = %q, want empty", got)
+	}
+	overrides, err := db.ListDomainOverrides()
+	if err != nil {
+		t.Fatalf("ListDomainOverrides: %v", err)
+	}
+	if _, ok := overrides["ads.example.com"]; ok {
+		t.Fatalf("override still persisted: %#v", overrides)
+	}
+}
+
+func TestManagerRemoveOverrideReturnsErrorWhenPersistenceFails(t *testing.T) {
+	db := testDB(t)
+	m := NewManager(db)
+	if err := m.SetOverride("ads.example.com", "tracking"); err != nil {
+		t.Fatalf("SetOverride: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := m.RemoveOverride("ads.example.com"); err == nil {
+		t.Fatal("RemoveOverride() error = nil, want non-nil")
+	}
+	if got := m.Classify("ads.example.com."); got != "tracking" {
+		t.Fatalf("Classify after failed remove = %q, want tracking", got)
 	}
 }
 
@@ -384,13 +397,13 @@ func TestManagerRunFallsBackToInitialSourcesWhenDBLoadFails(t *testing.T) {
 }
 
 func TestManagerNotifyConfigChangedDoesNotBlock(t *testing.T) {
-	m := NewManager(nil)
+	m := NewManager(testDB(t))
 	m.NotifyConfigChanged()
 	m.NotifyConfigChanged()
 }
 
 func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
-	m := NewManager(nil)
+	m := NewManager(testDB(t))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -408,7 +421,7 @@ func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
 }
 
 func TestManagerRunHandlesWakeSignal(t *testing.T) {
-	m := NewManager(nil)
+	m := NewManager(testDB(t))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

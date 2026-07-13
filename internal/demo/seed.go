@@ -283,7 +283,7 @@ func trafficPatterns() []deviceTraffic {
 			{"stitcher-ipv4.pluto.tv", "", 6},
 			{"siloh.pluto.tv", "analytics", 3},
 		}},
-		// Main phone — active all day, mix of apps, social, messaging
+		// Main phone
 		{mac: "aa:bb:cc:dd:ee:02", queries: []queryPattern{
 			{"api.apple.com", "", 15},
 			{"icloud-content.com", "", 12},
@@ -310,7 +310,7 @@ func trafficPatterns() []deviceTraffic {
 			{"cdn.branch.io", "tracking", 2},
 			{"api2.amplitude.com", "analytics", 3},
 		}},
-		// Kitchen Echo — voice assistant, music, smart home hub
+		// Kitchen Echo
 		{mac: "aa:bb:cc:dd:ee:03", queries: []queryPattern{
 			{"alexa.amazon.com", "", 15},
 			{"avs-alexa-14-na.amazon.com", "", 10},
@@ -370,7 +370,7 @@ func trafficPatterns() []deviceTraffic {
 			{"home.nest.com", "", 8},
 			{"grpc-web.production.nest.com", "", 5},
 		}},
-		// Samsung TV — notorious for tracking
+		// Samsung TV
 		{mac: "aa:bb:cc:dd:ee:06", queries: []queryPattern{
 			{"samsungcloudsolution.com", "", 8},
 			{"cdn.samsungcloudsolution.com", "", 6},
@@ -389,7 +389,7 @@ func trafficPatterns() []deviceTraffic {
 			{"play.hulu.com", "", 6},
 			{"ads-e-darwin.hulustream.com", "advertising", 3},
 		}},
-		// iPad — casual browsing, streaming, lighter usage
+		// iPad
 		{mac: "aa:bb:cc:dd:ee:07", queries: []queryPattern{
 			{"api.apple.com", "", 8},
 			{"identity.apple.com", "", 4},
@@ -405,7 +405,7 @@ func trafficPatterns() []deviceTraffic {
 			{"pixel.facebook.com", "tracking", 2},
 			{"connect.facebook.net", "tracking", 3},
 		}},
-		// PlayStation 5 — gaming, downloads, telemetry
+		// PlayStation 5
 		{mac: "aa:bb:cc:dd:ee:08", queries: []queryPattern{
 			{"ps5.np.playstation.net", "", 12},
 			{"telemetry.api.playstation.com", "telemetry", 6},
@@ -418,14 +418,14 @@ func trafficPatterns() []deviceTraffic {
 			{"accounts.api.playstation.com", "", 4},
 			{"trophy.api.np.km.playstation.net", "", 3},
 		}},
-		// Ecobee thermostat — steady, low-volume IoT heartbeat
+		// Ecobee thermostat
 		{mac: "aa:bb:cc:dd:ee:09", queries: []queryPattern{
 			{"api.ecobee.com", "", 15},
 			{"mqtt.ecobee.com", "", 20},
 			{"weather.ecobee.com", "", 10},
 			{"time.google.com", "", 4},
 		}},
-		// Ring doorbell — motion events, video clips, analytics
+		// Ring doorbell
 		{mac: "aa:bb:cc:dd:ee:0a", queries: []queryPattern{
 			{"fw.ring.com", "", 8},
 			{"app-analytics.ring.com", "analytics", 6},
@@ -436,7 +436,7 @@ func trafficPatterns() []deviceTraffic {
 			{"oauth.ring.com", "", 3},
 			{"prd-storage-mms.ring.com", "", 8},
 		}},
-		// Roomba — periodic checkins, mapping uploads
+		// Roomba
 		{mac: "aa:bb:cc:dd:ee:0b", queries: []queryPattern{
 			{"disc-prod.iot.irobotapi.com", "", 6},
 			{"data.iot.irobotapi.com", "telemetry", 4},
@@ -444,7 +444,7 @@ func trafficPatterns() []deviceTraffic {
 			{"global.iot.irobotapi.com", "", 3},
 			{"ntp.ubuntu.com", "", 2},
 		}},
-		// Desktop PC — development + gaming + general browsing
+		// Desktop PC
 		{mac: "aa:bb:cc:dd:ee:0c", queries: []queryPattern{
 			{"github.com", "", 12},
 			{"api.github.com", "", 8},
@@ -465,7 +465,7 @@ func trafficPatterns() []deviceTraffic {
 			{"fonts.googleapis.com", "", 4},
 			{"dns.nextdns.io", "", 2},
 		}},
-		// Hue bridge — periodic cloud sync
+		// Hue bridge
 		{mac: "aa:bb:cc:dd:ee:0e", queries: []queryPattern{
 			{"diagnostics.meethue.com", "telemetry", 4},
 			{"discovery.meethue.com", "", 3},
@@ -473,7 +473,7 @@ func trafficPatterns() []deviceTraffic {
 			{"ws.meethue.com", "", 6},
 			{"time.google.com", "", 3},
 		}},
-		// Synology NAS — always on, package updates, cloud sync
+		// Synology NAS
 		{mac: "aa:bb:cc:dd:ee:0f", queries: []queryPattern{
 			{"update.synology.com", "", 4},
 			{"checkip.synology.com", "", 6},
@@ -487,14 +487,14 @@ func trafficPatterns() []deviceTraffic {
 			{"my.plexapp.com", "", 3},
 			{"pubsub.plex.tv", "", 4},
 		}},
-		// HP Printer — sporadic, mostly checking for updates and phoning home
+		// HP Printer
 		{mac: "aa:bb:cc:dd:ee:10", queries: []queryPattern{
 			{"hp-updates.hpcloud.com", "", 3},
 			{"devmon.hpconnected.com", "telemetry", 2},
 			{"print-analytics.hpconnected.com", "analytics", 2},
 			{"ntp.ubuntu.com", "", 1},
 		}},
-		// Fire Stick — streaming, lots of Amazon tracking
+		// Fire Stick
 		{mac: "aa:bb:cc:dd:ee:11", queries: []queryPattern{
 			{"device-metrics-us.amazon.com", "analytics", 6},
 			{"fls-na.amazon.com", "tracking", 5},
@@ -510,7 +510,7 @@ func trafficPatterns() []deviceTraffic {
 			{"disney.api.edge.bamgrid.com", "", 5},
 			{"prod.bamgrid.com", "", 3},
 		}},
-		// Nintendo Switch — periodic checkins, game downloads
+		// Nintendo Switch
 		{mac: "aa:bb:cc:dd:ee:12", queries: []queryPattern{
 			{"conntest.nintendowifi.net", "", 3},
 			{"ctest.cdn.nintendo.net", "", 2},
@@ -520,7 +520,7 @@ func trafficPatterns() []deviceTraffic {
 			{"receive-lp1.er.srv.nintendo.net", "telemetry", 2},
 			{"bcat-topics-lp1.cdn.nintendo.net", "", 3},
 		}},
-		// Wyze Cam — video streams, analytics, cloud storage
+		// Wyze Cam
 		{mac: "aa:bb:cc:dd:ee:13", queries: []queryPattern{
 			{"api.wyzecam.com", "", 8},
 			{"wyze-mars-service.wyzecam.com", "", 6},
@@ -533,8 +533,7 @@ func trafficPatterns() []deviceTraffic {
 	}
 }
 
-// baselineQueries generates 30 days of traffic across all devices.
-// Query volume varies by time of day to simulate realistic usage patterns.
+// baselineQueries generates 30 days of traffic weighted toward each device's active hours.
 func baselineQueries(now time.Time, rng *rand.Rand) []store.Query {
 	patterns := trafficPatterns()
 	var out []store.Query
@@ -545,13 +544,11 @@ func baselineQueries(now time.Time, rng *rand.Rand) []store.Query {
 			minuteOffset := 0
 			for _, q := range device.queries {
 				reps := q.weight
-				// Weekend bump for entertainment devices
 				if isWeekend(dayStart) && isEntertainmentDevice(device.mac) {
 					reps = reps * 3 / 2
 				}
 				for rep := 0; rep < reps; rep++ {
 					hour := (minuteOffset / 60) % 24
-					// Weight queries toward active hours
 					if !isActiveHour(device.mac, hour) && rng.Intn(3) < 2 {
 						minuteOffset += 30 + rng.Intn(60)
 						continue
@@ -576,13 +573,11 @@ func baselineQueries(now time.Time, rng *rand.Rand) []store.Query {
 	return out
 }
 
-// isWeekend returns true if the given time falls on Saturday or Sunday.
 func isWeekend(t time.Time) bool {
 	wd := t.Weekday()
 	return wd == time.Saturday || wd == time.Sunday
 }
 
-// isEntertainmentDevice returns true for streaming/gaming devices.
 func isEntertainmentDevice(mac string) bool {
 	switch mac {
 	case "aa:bb:cc:dd:ee:01", // Roku TV
@@ -595,16 +590,15 @@ func isEntertainmentDevice(mac string) bool {
 	return false
 }
 
-// isActiveHour returns true if the given hour is an active period for this device type.
 func isActiveHour(mac string, hour int) bool {
 	switch mac {
-	case "aa:bb:cc:dd:ee:04": // Work laptop — mostly 8am-7pm
+	case "aa:bb:cc:dd:ee:04": // Work laptop
 		return hour >= 8 && hour <= 19
-	case "aa:bb:cc:dd:ee:01", "aa:bb:cc:dd:ee:06", "aa:bb:cc:dd:ee:11": // TVs — evening bias
+	case "aa:bb:cc:dd:ee:01", "aa:bb:cc:dd:ee:06", "aa:bb:cc:dd:ee:11": // TVs
 		return hour >= 17 || hour <= 1
-	case "aa:bb:cc:dd:ee:08", "aa:bb:cc:dd:ee:12": // Gaming — afternoon/evening
+	case "aa:bb:cc:dd:ee:08", "aa:bb:cc:dd:ee:12": // Gaming
 		return hour >= 14 || hour <= 2
-	case "aa:bb:cc:dd:ee:09", "aa:bb:cc:dd:ee:0e", "aa:bb:cc:dd:ee:0f", "aa:bb:cc:dd:ee:10": // IoT — always on
+	case "aa:bb:cc:dd:ee:09", "aa:bb:cc:dd:ee:0e", "aa:bb:cc:dd:ee:0f", "aa:bb:cc:dd:ee:10": // IoT
 		return true
 	default:
 		return true
@@ -617,7 +611,7 @@ var queryTypes = []string{"A", "AAAA", "A", "A"} // bias toward A records
 func spikeQueries(now time.Time, rng *rand.Rand) []store.Query {
 	var out []store.Query
 
-	// Roku tracker spike — sudden burst of ad/tracking domains
+	// Roku tracker spike
 	rokuSpikeDomains := []struct {
 		domain   string
 		category string
@@ -643,7 +637,7 @@ func spikeQueries(now time.Time, rng *rand.Rand) []store.Query {
 		})
 	}
 
-	// Samsung TV volume spike — 3x normal volume over 4 hours
+	// Samsung TV volume spike — 3x normal volume trips the volume_spike threshold
 	samsungSpikeDomains := []struct {
 		domain   string
 		category string
@@ -783,8 +777,7 @@ func sourceQueries(now time.Time, rng *rand.Rand) []store.Query {
 	return out
 }
 
-// bypassCandidateQueries generates historical queries for the guest laptop
-// that trigger the bypass detection heuristic.
+// bypassCandidateQueries seeds guest-laptop history that trips the bypass heuristic.
 func bypassCandidateQueries(now time.Time) []store.Query {
 	mac := "aa:bb:cc:dd:ee:0d"
 	var out []store.Query

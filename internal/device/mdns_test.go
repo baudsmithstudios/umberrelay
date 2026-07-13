@@ -29,7 +29,7 @@ func TestExtractMDNSHostname(t *testing.T) {
 
 func TestParseMDNSPersistsDiscoveredHostname(t *testing.T) {
 	db := testDB(t)
-	tracker := NewTracker(db, nil)
+	tracker := NewTracker(db, NewOUIDB(nil))
 	tracker.SetARPEntry("192.168.1.10", "aa:bb:cc:dd:ee:ff")
 
 	msg := new(mdns.Msg)
@@ -57,7 +57,7 @@ func TestParseMDNSPersistsDiscoveredHostname(t *testing.T) {
 
 func TestParseMDNSIgnoresUnknownSourceIP(t *testing.T) {
 	db := testDB(t)
-	tracker := NewTracker(db, nil)
+	tracker := NewTracker(db, NewOUIDB(nil))
 
 	msg := new(mdns.Msg)
 	msg.Answer = []mdns.RR{

@@ -24,14 +24,13 @@ type Listener struct {
 	ready    chan struct{}
 }
 
-func NewListener(addr string, upstream []string, out chan<- QueryRecord) (*Listener, error) {
-	l := &Listener{
+func NewListener(addr string, upstream []string, out chan<- QueryRecord) *Listener {
+	return &Listener{
 		addr:     addr,
 		upstream: upstream,
 		out:      out,
 		ready:    make(chan struct{}),
 	}
-	return l, nil
 }
 
 func (l *Listener) Run(ctx context.Context) error {
@@ -109,7 +108,6 @@ func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
 
 	w.WriteMsg(resp)
 
-	// Emit query record (non-blocking)
 	if len(r.Question) > 0 {
 		q := r.Question[0]
 		rec := QueryRecord{

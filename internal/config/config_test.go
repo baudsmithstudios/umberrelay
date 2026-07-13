@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -22,6 +23,16 @@ func TestDefaults(t *testing.T) {
 	}
 	if cfg.HTTPListen != "0.0.0.0" {
 		t.Errorf("HTTPListen = %q, want 0.0.0.0", cfg.HTTPListen)
+	}
+}
+
+func TestLoadMissingFileReturnsDefaults(t *testing.T) {
+	cfg, err := Load(filepath.Join(t.TempDir(), "missing.toml"))
+	if err != nil {
+		t.Fatalf("Load missing file: %v", err)
+	}
+	if !reflect.DeepEqual(cfg, Defaults()) {
+		t.Fatalf("cfg = %+v, want defaults", cfg)
 	}
 }
 

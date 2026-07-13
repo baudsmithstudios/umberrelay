@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -99,7 +98,7 @@ func (s *Server) handleAPIDevice(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	dev, err := s.db.GetDevice(mac)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, store.ErrNotFound) {
 			writeJSONError(w, http.StatusNotFound, "device not found")
 			return
 		}
@@ -288,9 +287,7 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		afterID = lastID
 		flusher.Flush()
 	}
-	if s.queryHub != nil {
-		s.queryHub.AdvanceCursor(afterID)
-	}
+	s.queryHub.AdvanceCursor(afterID)
 	stream, cancel := s.queryHub.Subscribe()
 	defer cancel()
 	heartbeatTicker := time.NewTicker(15 * time.Second)
@@ -416,39 +413,14 @@ func (s *Server) handleAPIAnomalies(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-
-	type anomalyResponse struct {
-		DeviceMAC           string  `json:"device_mac"`
-		DeviceName          string  `json:"device_name"`
-		Type                string  `json:"type"`
-		CurrentValue        float64 `json:"current_value"`
-		AverageValue        float64 `json:"average_value"`
-		Delta               float64 `json:"delta"`
-		TopDomain           string  `json:"top_domain"`
-		TopDomainCategory   string  `json:"top_domain_category"`
-		TopDomainSourceList string  `json:"top_domain_source_list"`
+	if anomalies == nil {
+		anomalies = []store.Anomaly{}
 	}
-
-	response := make([]anomalyResponse, 0, len(anomalies))
-	for _, anomaly := range anomalies {
-		response = append(response, anomalyResponse{
-			DeviceMAC:           anomaly.DeviceMAC,
-			DeviceName:          anomaly.DeviceName,
-			Type:                anomaly.Type,
-			CurrentValue:        anomaly.CurrentValue,
-			AverageValue:        anomaly.AverageValue,
-			Delta:               anomaly.Delta,
-			TopDomain:           anomaly.TopDomain,
-			TopDomainCategory:   anomaly.TopDomainCategory,
-			TopDomainSourceList: anomaly.TopDomainSourceList,
-		})
-	}
-
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, anomalies)
 }
 
 func (s *Server) handleAPIBypass(w http.ResponseWriter, r *http.Request) {
-	signals, err := s.db.DeviceBypassSignals()
+	signals, err := s.db.DeviceBypassSignalsAt(time.Now())
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -629,10 +601,6 @@ func (s *Server) handleAPIDeleteList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPIRefreshLists(w http.ResponseWriter, r *http.Request) {
-	if s.classify == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "classify manager not available")
-		return
-	}
 	s.refreshClassificationAsync()
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -649,7 +617,7 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "category is required")
 		return
 	}
-	if err := app.SetDomainOverride(s.db, s.classify, domain, body.Category); err != nil {
+	if err := app.SetDomainOverride(s.classify, domain, body.Category); err != nil {
 		if errors.Is(err, app.ErrInvalidCategory) {
 			writeJSONError(w, http.StatusBadRequest, "invalid category")
 			return
@@ -662,7 +630,7 @@ func (s *Server) handleAPISetOverride(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIDeleteOverride(w http.ResponseWriter, r *http.Request) {
 	domain := r.PathValue("domain")
-	if err := app.DeleteDomainOverride(s.db, s.classify, domain); err != nil {
+	if err := s.classify.RemoveOverride(domain); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -752,13 +720,12 @@ func parseBoolFormValue(value string) (bool, error) {
 }
 
 func (s *Server) refreshClassificationAsync() {
-	if s.classify == nil {
-		return
-	}
 	if !s.refreshRunning.CompareAndSwap(false, true) {
 		return
 	}
+	s.refreshJobs.Add(1)
 	go func() {
+		defer s.refreshJobs.Done()
 		defer s.refreshRunning.Store(false)
 
 		ctx, cancel := context.WithTimeout(s.backgroundCtx, 2*time.Minute)

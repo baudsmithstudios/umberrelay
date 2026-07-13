@@ -25,9 +25,6 @@ type queryStreamHub struct {
 }
 
 func newQueryStreamHub(fetch queryFeedFetcher, batchSize int) *queryStreamHub {
-	if batchSize <= 0 {
-		batchSize = 100
-	}
 	return &queryStreamHub{
 		fetch:       fetch,
 		batchSize:   batchSize,

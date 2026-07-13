@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +32,7 @@ type Server struct {
 	backgroundCtx          context.Context
 	backgroundCancel       context.CancelFunc
 	refreshRunning         atomic.Bool
+	refreshJobs            sync.WaitGroup
 	loadEnabledListSources func(*store.DB) ([]classify.ListSource, error)
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
@@ -49,11 +51,15 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 		backgroundCtx:          backgroundCtx,
 		backgroundCancel:       backgroundCancel,
 		loadEnabledListSources: app.EnabledListSources,
-		refreshListSources:     app.RefreshListSources,
+		refreshListSources:     refreshManagerSources,
 	}
 	s.registerRoutes()
 	s.handler = withSecurityHeaders(withMutationOriginGuard(withMutationBodyLimit(s.mux)))
 	return s
+}
+
+func refreshManagerSources(ctx context.Context, mgr *classify.Manager, sources []classify.ListSource) error {
+	return mgr.Refresh(ctx, sources)
 }
 
 func parsePages() map[string]*template.Template {
@@ -69,11 +75,9 @@ func parsePages() map[string]*template.Template {
 }
 
 func (s *Server) registerRoutes() {
-	// Static assets
 	staticFS, _ := fs.Sub(static.FS, ".")
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	// API routes
 	s.mux.HandleFunc("GET /api/health", s.handleHealth)
 	s.mux.HandleFunc("GET /api/summary", s.handleAPISummary)
 	s.mux.HandleFunc("GET /api/devices", s.handleAPIDevices)
@@ -97,7 +101,6 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/overrides/{domain}", s.handleAPISetOverride)
 	s.mux.HandleFunc("DELETE /api/overrides/{domain}", s.handleAPIDeleteOverride)
 
-	// Page routes
 	s.mux.HandleFunc("GET /{$}", s.handleHome)
 	s.mux.HandleFunc("GET /devices", s.handleDevices)
 	s.mux.HandleFunc("GET /devices/{mac}", s.handleDeviceDetail)
@@ -121,18 +124,13 @@ func (s *Server) Handler() http.Handler {
 
 // Close releases server-owned background resources.
 func (s *Server) Close() {
-	if s.backgroundCancel != nil {
-		s.backgroundCancel()
-	}
-	if s.queryHub != nil {
-		s.queryHub.Close()
-	}
+	s.backgroundCancel()
+	s.refreshJobs.Wait()
+	s.queryHub.Close()
 }
 
 func (s *Server) NotifyNewQueries() {
-	if s.queryHub != nil {
-		s.queryHub.NotifyNewQueries()
-	}
+	s.queryHub.NotifyNewQueries()
 }
 
 func (s *Server) httpServer(addr string) *http.Server {

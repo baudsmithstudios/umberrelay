@@ -23,21 +23,6 @@ func testServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(db, nil)
-	t.Cleanup(func() {
-		s.Close()
-		db.Close()
-	})
-	return s
-}
-
-func testServerWithClassify(t *testing.T) *Server {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "test.db")
-	db, err := store.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
 	s := NewServer(db, classify.NewManager(db))
 	t.Cleanup(func() {
 		s.Close()
@@ -229,7 +214,7 @@ func TestListenAndServeAllowsInFlightRequestOnCancel(t *testing.T) {
 }
 
 func TestRefreshClassificationAsyncCancelsOnServerClose(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 
 	started := make(chan struct{}, 1)
 	finished := make(chan struct{}, 1)
@@ -259,7 +244,7 @@ func TestRefreshClassificationAsyncCancelsOnServerClose(t *testing.T) {
 }
 
 func TestRefreshClassificationAsyncSkipsWhenRefreshRunning(t *testing.T) {
-	s := testServerWithClassify(t)
+	s := testServer(t)
 
 	release := make(chan struct{})
 	started := make(chan struct{}, 2)

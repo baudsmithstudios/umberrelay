@@ -15,10 +15,7 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 	upstreamAddr := startFakeUpstream(t, "udp")
 
 	records := make(chan QueryRecord, 10)
-	l, err := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
-	if err != nil {
-		t.Fatalf("NewListener: %v", err)
-	}
+	l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -30,7 +27,6 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 		t.Fatal("listener addr is empty")
 	}
 
-	// Send a DNS query over UDP
 	c := &mdns.Client{Net: "udp"}
 	m := new(mdns.Msg)
 	m.SetQuestion("example.com.", mdns.TypeA)
@@ -42,7 +38,6 @@ func TestListenerForwardsUDPQuery(t *testing.T) {
 		t.Errorf("Rcode = %d, want success", resp.Rcode)
 	}
 
-	// Verify a record was emitted
 	select {
 	case rec := <-records:
 		if rec.Domain != "example.com." {
@@ -62,10 +57,7 @@ func TestListenerForwardsTCPQuery(t *testing.T) {
 	upstreamAddr := startFakeUpstream(t, "tcp")
 
 	records := make(chan QueryRecord, 10)
-	l, err := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
-	if err != nil {
-		t.Fatalf("NewListener: %v", err)
-	}
+	l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -76,7 +68,6 @@ func TestListenerForwardsTCPQuery(t *testing.T) {
 		t.Fatal("listener addr is empty")
 	}
 
-	// Send a DNS query over TCP
 	c := &mdns.Client{Net: "tcp"}
 	m := new(mdns.Msg)
 	m.SetQuestion("tcp.example.com.", mdns.TypeA)
@@ -103,10 +94,7 @@ func TestListenerUpstreamFailure(t *testing.T) {
 
 	records := make(chan QueryRecord, 10)
 	// Point to a non-existent upstream
-	l, err := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
-	if err != nil {
-		t.Fatalf("NewListener: %v", err)
-	}
+	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

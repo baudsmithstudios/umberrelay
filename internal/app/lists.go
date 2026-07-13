@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"umberrelay/internal/category"
@@ -60,11 +59,4 @@ func EnabledListSources(db *store.DB) ([]classify.ListSource, error) {
 		return nil, err
 	}
 	return classify.SourcesFromListEntries(lists), nil
-}
-
-func RefreshListSources(ctx context.Context, mgr *classify.Manager, sources []classify.ListSource) error {
-	if mgr == nil {
-		return fmt.Errorf("classify manager not available")
-	}
-	return mgr.Refresh(ctx, sources)
 }

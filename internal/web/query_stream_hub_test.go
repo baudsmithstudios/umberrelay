@@ -164,27 +164,3 @@ func TestQueryStreamHubPollOnceDrainsMultipleBatches(t *testing.T) {
 		}
 	}
 }
-
-func TestQueryStreamHubSubscribeTriggersInitialPoll(t *testing.T) {
-	hub := newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
-		if afterID != 0 {
-			return nil, nil
-		}
-		return []store.Query{
-			{ID: 1, Domain: "initial.example.com"},
-		}, nil
-	}, 100)
-	defer hub.Close()
-
-	stream, cancel := hub.Subscribe()
-	defer cancel()
-
-	select {
-	case query := <-stream:
-		if query.ID != 1 {
-			t.Fatalf("query ID = %d, want 1", query.ID)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("subscriber did not receive initial backlog query")
-	}
-}

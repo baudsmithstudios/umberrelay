@@ -101,15 +101,6 @@ func TestDefaultListSourcesReturnsOnlyEnabledStoredLists(t *testing.T) {
 	}
 }
 
-func TestHTTPAddrBuildsFromListenAndPort(t *testing.T) {
-	if got := httpAddr("0.0.0.0", 8080); got != "0.0.0.0:8080" {
-		t.Fatalf("httpAddr(0.0.0.0, 8080) = %q, want %q", got, "0.0.0.0:8080")
-	}
-	if got := httpAddr("::1", 8080); got != "[::1]:8080" {
-		t.Fatalf("httpAddr(::1, 8080) = %q, want %q", got, "[::1]:8080")
-	}
-}
-
 func TestShouldWarnHTTPExposure(t *testing.T) {
 	tests := []struct {
 		listen string

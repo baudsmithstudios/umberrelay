@@ -28,7 +28,7 @@ func TestParseDHCPOption12ReturnsEmptyForMalformedOptions(t *testing.T) {
 
 func TestParseDHCPPersistsHostnameAndAddress(t *testing.T) {
 	db := testDB(t)
-	tracker := NewTracker(db, nil)
+	tracker := NewTracker(db, NewOUIDB(nil))
 
 	hostname := "kitchen-speaker"
 	packet := makeDHCPDiscoverPacket("aa:bb:cc:dd:ee:ff", "192.168.1.20", hostname)
@@ -51,7 +51,7 @@ func TestParseDHCPPersistsHostnameAndAddress(t *testing.T) {
 
 func TestParseDHCPIgnoresNonRequestPackets(t *testing.T) {
 	db := testDB(t)
-	tracker := NewTracker(db, nil)
+	tracker := NewTracker(db, NewOUIDB(nil))
 
 	packet := makeDHCPDiscoverPacket("aa:bb:cc:dd:ee:ff", "192.168.1.20", "kitchen-speaker")
 	packet[0] = 2

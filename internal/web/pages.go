@@ -555,6 +555,34 @@ func findSource(sources []store.SourceWithTrends, sourceIP string) *store.Source
 	return nil
 }
 
+func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePrivacySummary, queryTrend, trackerTrend store.Trend, categoryCounts []store.CategoryCount, topDomains []store.DomainWithSource, pagination detailDomainPagination) privacyDetail {
+	domains := make([]privacyDomainRow, 0, len(topDomains))
+	for _, domain := range topDomains {
+		domains = append(domains, makePrivacyDomainRow(domain, totalActors, actorKey))
+	}
+
+	return privacyDetail{
+		LiveActorKey:     actorKey,
+		CategoryOptions:  category.Options(),
+		PrivacySummary:   summary,
+		QueryTrend:       formatTrend(queryTrend, false),
+		TrackerTrend:     formatTrend(trackerTrend, true),
+		Breakdown:        makeBreakdownRows(summary.QueryCount, categoryCounts),
+		Domains:          domains,
+		RangeQuery:       "actor=" + url.QueryEscape(actorKey),
+		ChartDescription: "Tracker rate and volume over time",
+		EmptyMessage:     "No domains in the last 24 hours.",
+		DomainPage:       pagination.Page,
+		DomainPageCount:  pagination.PageCount,
+		DomainPageStart:  pagination.Start,
+		DomainPageEnd:    pagination.End,
+		DomainHasPrev:    pagination.HasPrev,
+		DomainHasNext:    pagination.HasNext,
+		DomainPrevPage:   pagination.PrevPage,
+		DomainNextPage:   pagination.NextPage,
+	}
+}
+
 func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActors int, domainsPage int) (privacyDetail, error) {
 	privacySummary, err := s.db.DevicePrivacySummaryAt(device.MAC, now)
 	if err != nil {
@@ -574,38 +602,15 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 		return privacyDetail{}, err
 	}
 
-	domains := make([]privacyDomainRow, 0, len(topDomains))
-	for _, domain := range topDomains {
-		domains = append(domains, makePrivacyDomainRow(domain, totalActors, actorKeyForDevice(device.MAC)))
-	}
-
-	return privacyDetail{
-		Mode:             "device",
-		Title:            "Device Detail",
-		Subtitle:         detailSubtitle(device),
-		LiveActorKey:     actorKeyForDevice(device.MAC),
-		CategoryOptions:  category.Options(),
-		Device:           device,
-		DeviceName:       deviceDisplayName(device),
-		PrivacySummary:   privacySummary,
-		QueryTrend:       formatTrend(queryTrend, false),
-		TrackerTrend:     formatTrend(trackerTrend, true),
-		Breakdown:        makeBreakdownRows(privacySummary.QueryCount, categoryCounts),
-		Domains:          domains,
-		RangeQuery:       "actor=" + url.QueryEscape(actorKeyForDevice(device.MAC)),
-		ChartID:          "device-trend-chart",
-		ChartTitle:       "Device Trend",
-		ChartDescription: "Tracker rate and volume over time",
-		EmptyMessage:     "No domains in the last 24 hours.",
-		DomainPage:       pagination.Page,
-		DomainPageCount:  pagination.PageCount,
-		DomainPageStart:  pagination.Start,
-		DomainPageEnd:    pagination.End,
-		DomainHasPrev:    pagination.HasPrev,
-		DomainHasNext:    pagination.HasNext,
-		DomainPrevPage:   pagination.PrevPage,
-		DomainNextPage:   pagination.NextPage,
-	}, nil
+	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, queryTrend, trackerTrend, categoryCounts, topDomains, pagination)
+	detail.Mode = "device"
+	detail.Title = "Device Detail"
+	detail.Subtitle = detailSubtitle(device)
+	detail.Device = device
+	detail.DeviceName = deviceDisplayName(device)
+	detail.ChartID = "device-trend-chart"
+	detail.ChartTitle = "Device Trend"
+	return detail, nil
 }
 
 func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors int, domainsPage int) (privacyDetail, error) {
@@ -631,45 +636,21 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		return privacyDetail{}, err
 	}
 
-	domains := make([]privacyDomainRow, 0, len(topDomains))
-	for _, domain := range topDomains {
-		domains = append(domains, makePrivacyDomainRow(domain, totalActors, actorKeyForSource(sourceIP)))
-	}
-
-	deviceName := sourceActorDisplayName(sourceIP, label)
 	subtitle := "Unattributed source · " + sourceIP
 	if label != "" {
 		subtitle = sourceIP
 	}
 
-	return privacyDetail{
-		Mode:             "source",
-		Title:            "Source Detail",
-		Subtitle:         subtitle,
-		LiveActorKey:     actorKeyForSource(sourceIP),
-		CategoryOptions:  category.Options(),
-		DeviceName:       deviceName,
-		SourceIP:         sourceIP,
-		SourceLabel:      label,
-		PrivacySummary:   privacySummary,
-		QueryTrend:       formatTrend(queryTrend, false),
-		TrackerTrend:     formatTrend(trackerTrend, true),
-		Breakdown:        makeBreakdownRows(privacySummary.QueryCount, categoryCounts),
-		Domains:          domains,
-		RangeQuery:       "actor=" + url.QueryEscape(actorKeyForSource(sourceIP)),
-		ChartID:          "source-trend-chart",
-		ChartTitle:       "Source Trend",
-		ChartDescription: "Tracker rate and volume over time",
-		EmptyMessage:     "No domains in the last 24 hours.",
-		DomainPage:       pagination.Page,
-		DomainPageCount:  pagination.PageCount,
-		DomainPageStart:  pagination.Start,
-		DomainPageEnd:    pagination.End,
-		DomainHasPrev:    pagination.HasPrev,
-		DomainHasNext:    pagination.HasNext,
-		DomainPrevPage:   pagination.PrevPage,
-		DomainNextPage:   pagination.NextPage,
-	}, nil
+	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, queryTrend, trackerTrend, categoryCounts, topDomains, pagination)
+	detail.Mode = "source"
+	detail.Title = "Source Detail"
+	detail.Subtitle = subtitle
+	detail.DeviceName = sourceActorDisplayName(sourceIP, label)
+	detail.SourceIP = sourceIP
+	detail.SourceLabel = label
+	detail.ChartID = "source-trend-chart"
+	detail.ChartTitle = "Source Trend"
+	return detail, nil
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -768,7 +749,7 @@ func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	selectedRaw := r.PathValue("mac")
-	_, selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
+	selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
 	if !hasSelected {
 		http.Redirect(w, r, "/devices", http.StatusSeeOther)
 		return
@@ -924,7 +905,7 @@ func (s *Server) handleUIUpdateSourceLabel(w http.ResponseWriter, r *http.Reques
 	}
 
 	sourceIP := r.PathValue("ip")
-	if err := app.UpdateSourceLabel(s.db, sourceIP, r.FormValue("label")); err != nil {
+	if err := s.db.SetSourceLabel(sourceIP, r.FormValue("label")); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -967,7 +948,7 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := app.SetDomainOverride(s.db, s.classify, domain, normalizedCategory); err != nil {
+	if err := app.SetDomainOverride(s.classify, domain, normalizedCategory); err != nil {
 		if errors.Is(err, app.ErrInvalidCategory) {
 			http.Error(w, "invalid category", http.StatusBadRequest)
 			return
@@ -994,9 +975,9 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	actorType, actorValue, hasActor := parseActorKey(actorKey)
 	switch {
 	case hasActor && actorType == actorTypeDevice:
-		domains, err = s.db.DeviceTopDomainsWithSource(actorValue, 20)
+		domains, err = s.db.DeviceTopDomainsWithSourcePage(actorValue, 20, 0)
 	case hasActor && actorType == actorTypeSource:
-		domains, err = s.db.SourceTopDomainsWithSource(actorValue, 20)
+		domains, err = s.db.SourceTopDomainsWithSourcePage(actorValue, 20, 0)
 	default:
 		domains, err = s.db.TopDomainsWithSource(20)
 		rowActorKey = ""
@@ -1092,10 +1073,6 @@ func (s *Server) handleUIDeleteList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUIRefreshLists(w http.ResponseWriter, r *http.Request) {
-	if s.classify == nil {
-		http.Error(w, "classify manager not available", http.StatusServiceUnavailable)
-		return
-	}
 	s.refreshClassificationAsync()
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
@@ -1114,14 +1091,14 @@ func parseUIForm(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func settingsInputFromForm(r *http.Request) (app.SettingsInput, error) {
-	retentionDays, err := parseBoundedInt(r.FormValue("retention_days"), 1, 365)
+	retentionDays, err := parseBoundedInt(r.FormValue("retention_days"), app.RetentionDaysMin, app.RetentionDaysMax)
 	if err != nil {
-		return app.SettingsInput{}, fmt.Errorf("retention_days must be between 1 and 365")
+		return app.SettingsInput{}, fmt.Errorf("retention_days must be between %d and %d", app.RetentionDaysMin, app.RetentionDaysMax)
 	}
 
-	listRefreshHours, err := parseBoundedInt(r.FormValue("list_refresh_hours"), 1, 168)
+	listRefreshHours, err := parseBoundedInt(r.FormValue("list_refresh_hours"), app.ListRefreshHoursMin, app.ListRefreshHoursMax)
 	if err != nil {
-		return app.SettingsInput{}, fmt.Errorf("list_refresh_hours must be between 1 and 168")
+		return app.SettingsInput{}, fmt.Errorf("list_refresh_hours must be between %d and %d", app.ListRefreshHoursMin, app.ListRefreshHoursMax)
 	}
 
 	return app.SettingsInput{

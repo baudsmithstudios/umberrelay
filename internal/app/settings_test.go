@@ -1,13 +1,17 @@
 package app
 
-import "testing"
+import (
+	"testing"
+
+	"umberrelay/internal/classify"
+)
 
 func TestUpdateSettingsPersistsValues(t *testing.T) {
 	db := testDB(t)
 	retentionDays := 7
 	refreshHours := 12
 
-	err := UpdateSettings(db, nil, SettingsInput{
+	err := UpdateSettings(db, classify.NewManager(db), SettingsInput{
 		RetentionDays:    &retentionDays,
 		ListRefreshHours: &refreshHours,
 	})

@@ -254,10 +254,9 @@ func TestUIMutationRejectsOversizedBody(t *testing.T) {
 
 func TestUIListActionsRedirectBackToSettings(t *testing.T) {
 	tests := []struct {
-		name       string
-		withClassy bool
-		makeReq    func(t *testing.T, s *Server) *http.Request
-		assertDB   func(t *testing.T, s *Server)
+		name     string
+		makeReq  func(t *testing.T, s *Server) *http.Request
+		assertDB func(t *testing.T, s *Server)
 	}{
 		{
 			name: "toggle enabled",
@@ -305,8 +304,7 @@ func TestUIListActionsRedirectBackToSettings(t *testing.T) {
 			},
 		},
 		{
-			name:       "refresh lists",
-			withClassy: true,
+			name: "refresh lists",
 			makeReq: func(_ *testing.T, _ *Server) *http.Request {
 				return httptest.NewRequest("POST", "/ui/lists/refresh", nil)
 			},
@@ -316,12 +314,7 @@ func TestUIListActionsRedirectBackToSettings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var s *Server
-			if tt.withClassy {
-				s = testServerWithClassify(t)
-			} else {
-				s = testServer(t)
-			}
+			s := testServer(t)
 			req := tt.makeReq(t, s)
 			w := httptest.NewRecorder()
 			s.Handler().ServeHTTP(w, req)

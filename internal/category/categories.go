@@ -43,8 +43,3 @@ func Normalize(value string) (string, bool) {
 	}
 	return "", false
 }
-
-func IsAllowed(value string) bool {
-	_, ok := Normalize(value)
-	return ok
-}

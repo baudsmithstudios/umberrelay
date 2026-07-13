@@ -58,9 +58,6 @@ func (t *Tracker) SetARPEntry(ip, mac string) {
 }
 
 func (t *Tracker) saveDiscoveredDevice(dev store.Device, source string) {
-	if t.db == nil {
-		return
-	}
 	if t.writerActive.Load() {
 		select {
 		case t.deviceWrites <- pendingDevice{dev: dev, source: source}:
@@ -124,9 +121,7 @@ func (t *Tracker) runDeviceWriter(ctx context.Context) {
 }
 
 func (t *Tracker) Run(ctx context.Context) {
-	if t.db != nil {
-		go t.runDeviceWriter(ctx)
-	}
+	go t.runDeviceWriter(ctx)
 
 	t.pollARP()
 
@@ -163,10 +158,7 @@ func (t *Tracker) pollARP() {
 	now := time.Now()
 	for _, e := range entries {
 		t.SetARPEntry(e.IP, e.MAC)
-		vendor := ""
-		if t.oui != nil {
-			vendor = t.oui.Lookup(e.MAC)
-		}
+		vendor := t.oui.Lookup(e.MAC)
 		t.saveDiscoveredDevice(store.Device{
 			MAC:       e.MAC,
 			IP:        e.IP,
