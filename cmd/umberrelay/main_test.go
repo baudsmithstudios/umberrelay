@@ -36,6 +36,28 @@ func TestPurgeRemovesRowsOlderThanConfiguredRetention(t *testing.T) {
 	}
 }
 
+func TestPurgeRemovesBacklogLargerThanOneStoreChunk(t *testing.T) {
+	db := testDB(t)
+	stale := time.Now().Add(-40 * 24 * time.Hour)
+	queries := make([]store.Query, 2000)
+	for i := range queries {
+		queries[i] = store.Query{SourceIP: "10.0.0.1", Domain: "stale.example.com", QueryType: "A", Timestamp: stale.Add(time.Duration(i) * time.Second)}
+	}
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	purge(db)
+
+	remaining, err := db.QueryLog("", "", time.Time{}, time.Now(), len(queries), 0)
+	if err != nil {
+		t.Fatalf("QueryLog: %v", err)
+	}
+	if len(remaining) != 0 {
+		t.Fatalf("len(remaining) = %d, want 0", len(remaining))
+	}
+}
+
 func TestRunPurgeRunsImmediateCycleBeforeWaiting(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

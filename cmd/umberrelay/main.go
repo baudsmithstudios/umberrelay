@@ -247,7 +247,7 @@ func purge(db *store.DB) {
 			return
 		}
 		totalDeleted += deleted
-		if deleted < purgeBatchSize {
+		if deleted == 0 {
 			break
 		}
 	}
