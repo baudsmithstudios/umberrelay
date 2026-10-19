@@ -309,7 +309,7 @@ func TestManagerRefreshIntervalReadsConfig(t *testing.T) {
 	}
 }
 
-func TestManagerLoadSourcesFromDBReturnsEnabledOnly(t *testing.T) {
+func TestEnabledSourcesReturnsOnlyEnabledLists(t *testing.T) {
 	db := testDB(t)
 	firstID, err := db.AddList("https://example.com/one.txt", "One", "tracking")
 	if err != nil {
@@ -323,10 +323,9 @@ func TestManagerLoadSourcesFromDBReturnsEnabledOnly(t *testing.T) {
 		t.Fatalf("UpdateListEnabled: %v", err)
 	}
 
-	m := NewManager(db)
-	sources, err := m.loadSourcesFromDB()
+	sources, err := EnabledSources(db)
 	if err != nil {
-		t.Fatalf("loadSourcesFromDB: %v", err)
+		t.Fatalf("EnabledSources: %v", err)
 	}
 	if len(sources) != 1 {
 		t.Fatalf("len(sources) = %d, want 1", len(sources))

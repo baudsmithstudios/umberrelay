@@ -8,6 +8,28 @@ import (
 	"umberrelay/internal/store"
 )
 
+const (
+	macRokuTV      = "aa:bb:cc:dd:ee:01"
+	macPhone       = "aa:bb:cc:dd:ee:02"
+	macEchoDot     = "aa:bb:cc:dd:ee:03"
+	macWorkLaptop  = "aa:bb:cc:dd:ee:04"
+	macNestHub     = "aa:bb:cc:dd:ee:05"
+	macSamsungTV   = "aa:bb:cc:dd:ee:06"
+	macIPad        = "aa:bb:cc:dd:ee:07"
+	macPlayStation = "aa:bb:cc:dd:ee:08"
+	macThermostat  = "aa:bb:cc:dd:ee:09"
+	macDoorbell    = "aa:bb:cc:dd:ee:0a"
+	macRoomba      = "aa:bb:cc:dd:ee:0b"
+	macDesktop     = "aa:bb:cc:dd:ee:0c"
+	macGuestLaptop = "aa:bb:cc:dd:ee:0d"
+	macHueBridge   = "aa:bb:cc:dd:ee:0e"
+	macNAS         = "aa:bb:cc:dd:ee:0f"
+	macPrinter     = "aa:bb:cc:dd:ee:10"
+	macFireStick   = "aa:bb:cc:dd:ee:11"
+	macSwitch      = "aa:bb:cc:dd:ee:12"
+	macWyzeCam     = "aa:bb:cc:dd:ee:13"
+)
+
 // Seed fills an empty database with demo data; it does nothing once queries exist.
 func Seed(db *store.DB, now time.Time) error {
 	existing, err := db.QueryLog("", "", time.Time{}, now.Add(24*time.Hour), 1, 0)
@@ -67,7 +89,7 @@ func Seed(db *store.DB, now time.Time) error {
 func demoDevices(now time.Time) []store.Device {
 	return []store.Device{
 		{
-			MAC:       "aa:bb:cc:dd:ee:01",
+			MAC:       macRokuTV,
 			IP:        "192.168.1.10",
 			Hostname:  "roku-tv",
 			Vendor:    "Roku",
@@ -75,7 +97,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-10 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:02",
+			MAC:       macPhone,
 			IP:        "192.168.1.20",
 			Hostname:  "wireless-phone",
 			Vendor:    "Apple",
@@ -83,7 +105,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-2 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:03",
+			MAC:       macEchoDot,
 			IP:        "192.168.1.30",
 			Hostname:  "echo-dot",
 			Vendor:    "Amazon",
@@ -91,7 +113,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-1 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:04",
+			MAC:       macWorkLaptop,
 			IP:        "192.168.1.40",
 			Hostname:  "work-laptop",
 			Vendor:    "Apple",
@@ -99,7 +121,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-1 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:05",
+			MAC:       macNestHub,
 			IP:        "192.168.1.50",
 			Hostname:  "nest-hub",
 			Vendor:    "Google",
@@ -107,7 +129,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-3 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:06",
+			MAC:       macSamsungTV,
 			IP:        "192.168.1.60",
 			Hostname:  "samsung-tv",
 			Vendor:    "Samsung",
@@ -115,7 +137,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-5 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:07",
+			MAC:       macIPad,
 			IP:        "192.168.1.70",
 			Hostname:  "ipad",
 			Vendor:    "Apple",
@@ -123,7 +145,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-12 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:08",
+			MAC:       macPlayStation,
 			IP:        "192.168.1.80",
 			Hostname:  "playstation-5",
 			Vendor:    "Sony",
@@ -131,7 +153,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-20 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:09",
+			MAC:       macThermostat,
 			IP:        "192.168.1.90",
 			Hostname:  "ecobee-thermostat",
 			Vendor:    "Ecobee",
@@ -139,7 +161,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-4 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:0a",
+			MAC:       macDoorbell,
 			IP:        "192.168.1.100",
 			Hostname:  "ring-doorbell",
 			Vendor:    "Ring",
@@ -147,7 +169,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-6 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:0b",
+			MAC:       macRoomba,
 			IP:        "192.168.1.110",
 			Hostname:  "roomba",
 			Vendor:    "iRobot",
@@ -155,7 +177,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-15 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:0c",
+			MAC:       macDesktop,
 			IP:        "192.168.1.120",
 			Hostname:  "desktop-tower",
 			Vendor:    "Dell",
@@ -163,7 +185,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-3 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:0d",
+			MAC:       macGuestLaptop,
 			IP:        "192.168.1.130",
 			Hostname:  "guest-laptop",
 			Vendor:    "Lenovo",
@@ -171,7 +193,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-2 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:0e",
+			MAC:       macHueBridge,
 			IP:        "192.168.1.140",
 			Hostname:  "hue-bridge",
 			Vendor:    "Signify",
@@ -179,7 +201,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-8 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:0f",
+			MAC:       macNAS,
 			IP:        "192.168.1.150",
 			Hostname:  "synology-nas",
 			Vendor:    "Synology",
@@ -187,7 +209,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-1 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:10",
+			MAC:       macPrinter,
 			IP:        "192.168.1.160",
 			Hostname:  "hp-printer",
 			Vendor:    "HP",
@@ -195,7 +217,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-25 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:11",
+			MAC:       macFireStick,
 			IP:        "192.168.1.170",
 			Hostname:  "fire-stick",
 			Vendor:    "Amazon",
@@ -203,7 +225,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-45 * time.Minute),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:12",
+			MAC:       macSwitch,
 			IP:        "192.168.1.180",
 			Hostname:  "nintendo-switch",
 			Vendor:    "Nintendo",
@@ -211,7 +233,7 @@ func demoDevices(now time.Time) []store.Device {
 			LastSeen:  now.Add(-4 * time.Hour),
 		},
 		{
-			MAC:       "aa:bb:cc:dd:ee:13",
+			MAC:       macWyzeCam,
 			IP:        "192.168.1.190",
 			Hostname:  "wyze-cam",
 			Vendor:    "Wyze",
@@ -223,25 +245,25 @@ func demoDevices(now time.Time) []store.Device {
 
 func demoLabels() map[string]string {
 	return map[string]string{
-		"aa:bb:cc:dd:ee:01": "Living Room TV",
-		"aa:bb:cc:dd:ee:02": "Main Phone",
-		"aa:bb:cc:dd:ee:03": "Kitchen Echo",
-		"aa:bb:cc:dd:ee:04": "Work Laptop",
-		"aa:bb:cc:dd:ee:05": "Living Room Hub",
-		"aa:bb:cc:dd:ee:06": "Bedroom TV",
-		"aa:bb:cc:dd:ee:07": "Tablet",
-		"aa:bb:cc:dd:ee:08": "Gaming Console",
-		"aa:bb:cc:dd:ee:09": "Thermostat",
-		"aa:bb:cc:dd:ee:0a": "Front Door Cam",
-		"aa:bb:cc:dd:ee:0b": "Robot Vacuum",
-		"aa:bb:cc:dd:ee:0c": "Desktop PC",
-		"aa:bb:cc:dd:ee:0d": "Guest Laptop",
-		"aa:bb:cc:dd:ee:0e": "Smart Lights",
-		"aa:bb:cc:dd:ee:0f": "NAS",
-		"aa:bb:cc:dd:ee:10": "Office Printer",
-		"aa:bb:cc:dd:ee:11": "Fire Stick",
-		"aa:bb:cc:dd:ee:12": "Switch",
-		"aa:bb:cc:dd:ee:13": "Garage Cam",
+		macRokuTV:      "Living Room TV",
+		macPhone:       "Main Phone",
+		macEchoDot:     "Kitchen Echo",
+		macWorkLaptop:  "Work Laptop",
+		macNestHub:     "Living Room Hub",
+		macSamsungTV:   "Bedroom TV",
+		macIPad:        "Tablet",
+		macPlayStation: "Gaming Console",
+		macThermostat:  "Thermostat",
+		macDoorbell:    "Front Door Cam",
+		macRoomba:      "Robot Vacuum",
+		macDesktop:     "Desktop PC",
+		macGuestLaptop: "Guest Laptop",
+		macHueBridge:   "Smart Lights",
+		macNAS:         "NAS",
+		macPrinter:     "Office Printer",
+		macFireStick:   "Fire Stick",
+		macSwitch:      "Switch",
+		macWyzeCam:     "Garage Cam",
 	}
 }
 
@@ -265,7 +287,7 @@ type queryPattern struct {
 
 func trafficPatterns() []deviceTraffic {
 	return []deviceTraffic{
-		{mac: "aa:bb:cc:dd:ee:01", queries: []queryPattern{
+		{mac: macRokuTV, queries: []queryPattern{
 			{"captive.roku.com", "", 12},
 			{"scribe.logs.roku.com", "tracking", 10},
 			{"ads.roku.com", "advertising", 8},
@@ -282,8 +304,7 @@ func trafficPatterns() []deviceTraffic {
 			{"stitcher-ipv4.pluto.tv", "", 6},
 			{"siloh.pluto.tv", "analytics", 3},
 		}},
-		// Main phone
-		{mac: "aa:bb:cc:dd:ee:02", queries: []queryPattern{
+		{mac: macPhone, queries: []queryPattern{
 			{"api.apple.com", "", 15},
 			{"icloud-content.com", "", 12},
 			{"gsp-ssl.ls.apple.com", "", 6},
@@ -309,8 +330,7 @@ func trafficPatterns() []deviceTraffic {
 			{"cdn.branch.io", "tracking", 2},
 			{"api2.amplitude.com", "analytics", 3},
 		}},
-		// Kitchen Echo
-		{mac: "aa:bb:cc:dd:ee:03", queries: []queryPattern{
+		{mac: macEchoDot, queries: []queryPattern{
 			{"alexa.amazon.com", "", 15},
 			{"avs-alexa-14-na.amazon.com", "", 10},
 			{"device-metrics-us.amazon.com", "analytics", 8},
@@ -324,7 +344,7 @@ func trafficPatterns() []deviceTraffic {
 			{"todo.amazon.com", "", 3},
 			{"dcape-na.amazon.com", "telemetry", 4},
 		}},
-		{mac: "aa:bb:cc:dd:ee:04", queries: []queryPattern{
+		{mac: macWorkLaptop, queries: []queryPattern{
 			{"github.com", "", 25},
 			{"api.github.com", "", 15},
 			{"copilot-proxy.githubusercontent.com", "", 10},
@@ -354,7 +374,7 @@ func trafficPatterns() []deviceTraffic {
 			{"stackoverflow.com", "", 8},
 			{"cdn.sstatic.net", "", 5},
 		}},
-		{mac: "aa:bb:cc:dd:ee:05", queries: []queryPattern{
+		{mac: macNestHub, queries: []queryPattern{
 			{"clients4.google.com", "", 10},
 			{"play.googleapis.com", "", 6},
 			{"connectivitycheck.gstatic.com", "", 12},
@@ -369,8 +389,7 @@ func trafficPatterns() []deviceTraffic {
 			{"home.nest.com", "", 8},
 			{"grpc-web.production.nest.com", "", 5},
 		}},
-		// Samsung TV
-		{mac: "aa:bb:cc:dd:ee:06", queries: []queryPattern{
+		{mac: macSamsungTV, queries: []queryPattern{
 			{"samsungcloudsolution.com", "", 8},
 			{"cdn.samsungcloudsolution.com", "", 6},
 			{"samsung-ads.com", "advertising", 10},
@@ -388,8 +407,7 @@ func trafficPatterns() []deviceTraffic {
 			{"play.hulu.com", "", 6},
 			{"ads-e-darwin.hulustream.com", "advertising", 3},
 		}},
-		// iPad
-		{mac: "aa:bb:cc:dd:ee:07", queries: []queryPattern{
+		{mac: macIPad, queries: []queryPattern{
 			{"api.apple.com", "", 8},
 			{"identity.apple.com", "", 4},
 			{"icloud.com", "", 6},
@@ -404,8 +422,7 @@ func trafficPatterns() []deviceTraffic {
 			{"pixel.facebook.com", "tracking", 2},
 			{"connect.facebook.net", "tracking", 3},
 		}},
-		// PlayStation 5
-		{mac: "aa:bb:cc:dd:ee:08", queries: []queryPattern{
+		{mac: macPlayStation, queries: []queryPattern{
 			{"ps5.np.playstation.net", "", 12},
 			{"telemetry.api.playstation.com", "telemetry", 6},
 			{"store.playstation.com", "", 8},
@@ -417,15 +434,13 @@ func trafficPatterns() []deviceTraffic {
 			{"accounts.api.playstation.com", "", 4},
 			{"trophy.api.np.km.playstation.net", "", 3},
 		}},
-		// Ecobee thermostat
-		{mac: "aa:bb:cc:dd:ee:09", queries: []queryPattern{
+		{mac: macThermostat, queries: []queryPattern{
 			{"api.ecobee.com", "", 15},
 			{"mqtt.ecobee.com", "", 20},
 			{"weather.ecobee.com", "", 10},
 			{"time.google.com", "", 4},
 		}},
-		// Ring doorbell
-		{mac: "aa:bb:cc:dd:ee:0a", queries: []queryPattern{
+		{mac: macDoorbell, queries: []queryPattern{
 			{"fw.ring.com", "", 8},
 			{"app-analytics.ring.com", "analytics", 6},
 			{"ntp-g7g.amazon.com", "", 3},
@@ -435,16 +450,14 @@ func trafficPatterns() []deviceTraffic {
 			{"oauth.ring.com", "", 3},
 			{"prd-storage-mms.ring.com", "", 8},
 		}},
-		// Roomba
-		{mac: "aa:bb:cc:dd:ee:0b", queries: []queryPattern{
+		{mac: macRoomba, queries: []queryPattern{
 			{"disc-prod.iot.irobotapi.com", "", 6},
 			{"data.iot.irobotapi.com", "telemetry", 4},
 			{"api.irobot.com", "", 5},
 			{"global.iot.irobotapi.com", "", 3},
 			{"ntp.ubuntu.com", "", 2},
 		}},
-		// Desktop PC
-		{mac: "aa:bb:cc:dd:ee:0c", queries: []queryPattern{
+		{mac: macDesktop, queries: []queryPattern{
 			{"github.com", "", 12},
 			{"api.github.com", "", 8},
 			{"cdn.jsdelivr.net", "", 6},
@@ -464,16 +477,14 @@ func trafficPatterns() []deviceTraffic {
 			{"fonts.googleapis.com", "", 4},
 			{"dns.nextdns.io", "", 2},
 		}},
-		// Hue bridge
-		{mac: "aa:bb:cc:dd:ee:0e", queries: []queryPattern{
+		{mac: macHueBridge, queries: []queryPattern{
 			{"diagnostics.meethue.com", "telemetry", 4},
 			{"discovery.meethue.com", "", 3},
 			{"firmware.meethue.com", "", 2},
 			{"ws.meethue.com", "", 6},
 			{"time.google.com", "", 3},
 		}},
-		// Synology NAS
-		{mac: "aa:bb:cc:dd:ee:0f", queries: []queryPattern{
+		{mac: macNAS, queries: []queryPattern{
 			{"update.synology.com", "", 4},
 			{"checkip.synology.com", "", 6},
 			{"ddns.synology.com", "", 3},
@@ -486,15 +497,13 @@ func trafficPatterns() []deviceTraffic {
 			{"my.plexapp.com", "", 3},
 			{"pubsub.plex.tv", "", 4},
 		}},
-		// HP Printer
-		{mac: "aa:bb:cc:dd:ee:10", queries: []queryPattern{
+		{mac: macPrinter, queries: []queryPattern{
 			{"hp-updates.hpcloud.com", "", 3},
 			{"devmon.hpconnected.com", "telemetry", 2},
 			{"print-analytics.hpconnected.com", "analytics", 2},
 			{"ntp.ubuntu.com", "", 1},
 		}},
-		// Fire Stick
-		{mac: "aa:bb:cc:dd:ee:11", queries: []queryPattern{
+		{mac: macFireStick, queries: []queryPattern{
 			{"device-metrics-us.amazon.com", "analytics", 6},
 			{"fls-na.amazon.com", "tracking", 5},
 			{"mads-adz.amazon.com", "advertising", 4},
@@ -509,8 +518,7 @@ func trafficPatterns() []deviceTraffic {
 			{"disney.api.edge.bamgrid.com", "", 5},
 			{"prod.bamgrid.com", "", 3},
 		}},
-		// Nintendo Switch
-		{mac: "aa:bb:cc:dd:ee:12", queries: []queryPattern{
+		{mac: macSwitch, queries: []queryPattern{
 			{"conntest.nintendowifi.net", "", 3},
 			{"ctest.cdn.nintendo.net", "", 2},
 			{"dauth-lp1.ndas.srv.nintendo.net", "", 3},
@@ -519,8 +527,7 @@ func trafficPatterns() []deviceTraffic {
 			{"receive-lp1.er.srv.nintendo.net", "telemetry", 2},
 			{"bcat-topics-lp1.cdn.nintendo.net", "", 3},
 		}},
-		// Wyze Cam
-		{mac: "aa:bb:cc:dd:ee:13", queries: []queryPattern{
+		{mac: macWyzeCam, queries: []queryPattern{
 			{"api.wyzecam.com", "", 8},
 			{"wyze-mars-service.wyzecam.com", "", 6},
 			{"wyze-general-api.wyzecam.com", "", 4},
@@ -579,11 +586,11 @@ func isWeekend(t time.Time) bool {
 
 func isEntertainmentDevice(mac string) bool {
 	switch mac {
-	case "aa:bb:cc:dd:ee:01", // Roku TV
-		"aa:bb:cc:dd:ee:06", // Samsung TV
-		"aa:bb:cc:dd:ee:08", // PlayStation
-		"aa:bb:cc:dd:ee:11", // Fire Stick
-		"aa:bb:cc:dd:ee:12": // Nintendo Switch
+	case macRokuTV,
+		macSamsungTV,
+		macPlayStation,
+		macFireStick,
+		macSwitch:
 		return true
 	}
 	return false
@@ -591,13 +598,13 @@ func isEntertainmentDevice(mac string) bool {
 
 func isActiveHour(mac string, hour int) bool {
 	switch mac {
-	case "aa:bb:cc:dd:ee:04": // Work laptop
+	case macWorkLaptop:
 		return hour >= 8 && hour <= 19
-	case "aa:bb:cc:dd:ee:01", "aa:bb:cc:dd:ee:06", "aa:bb:cc:dd:ee:11": // TVs
+	case macRokuTV, macSamsungTV, macFireStick:
 		return hour >= 17 || hour <= 1
-	case "aa:bb:cc:dd:ee:08", "aa:bb:cc:dd:ee:12": // Gaming
+	case macPlayStation, macSwitch:
 		return hour >= 14 || hour <= 2
-	case "aa:bb:cc:dd:ee:09", "aa:bb:cc:dd:ee:0e", "aa:bb:cc:dd:ee:0f", "aa:bb:cc:dd:ee:10": // IoT
+	case macThermostat, macHueBridge, macNAS, macPrinter:
 		return true
 	default:
 		return true
@@ -628,7 +635,7 @@ func spikeQueries(now time.Time, rng *rand.Rand) []store.Query {
 	for i := 0; i < 35; i++ {
 		sd := rokuSpikeDomains[i%len(rokuSpikeDomains)]
 		out = append(out, store.Query{
-			DeviceMAC: "aa:bb:cc:dd:ee:01",
+			DeviceMAC: macRokuTV,
 			Domain:    sd.domain,
 			QueryType: queryTypes[rng.Intn(len(queryTypes))],
 			Category:  sd.category,
@@ -654,7 +661,7 @@ func spikeQueries(now time.Time, rng *rand.Rand) []store.Query {
 	for i := 0; i < 90; i++ {
 		sd := samsungSpikeDomains[i%len(samsungSpikeDomains)]
 		out = append(out, store.Query{
-			DeviceMAC: "aa:bb:cc:dd:ee:06",
+			DeviceMAC: macSamsungTV,
 			Domain:    sd.domain,
 			QueryType: queryTypes[rng.Intn(len(queryTypes))],
 			Category:  sd.category,
@@ -700,13 +707,12 @@ func recentQueries(now time.Time, rng *rand.Rand) []store.Query {
 }
 
 func paginationShowcaseQueries(now time.Time) []store.Query {
-	const workLaptopMAC = "aa:bb:cc:dd:ee:04"
 
 	out := make([]store.Query, 0, 24)
 	base := now.Add(-90 * time.Minute)
 	for i := 1; i <= 24; i++ {
 		out = append(out, store.Query{
-			DeviceMAC: workLaptopMAC,
+			DeviceMAC: macWorkLaptop,
 			Domain:    fmt.Sprintf("workbench-%02d.demo.umberrelay.local", i),
 			QueryType: "A",
 			Category:  "",
@@ -776,27 +782,26 @@ func sourceQueries(now time.Time, rng *rand.Rand) []store.Query {
 }
 
 func bypassCandidateQueries(now time.Time) []store.Query {
-	mac := "aa:bb:cc:dd:ee:0d"
 	var out []store.Query
 
 	for day := 5; day >= 1; day-- {
 		base := now.Add(-time.Duration(day) * 24 * time.Hour)
 		out = append(out, store.Query{
-			DeviceMAC: mac,
+			DeviceMAC: macGuestLaptop,
 			Domain:    "dns.google",
 			QueryType: "A",
 			Category:  "",
 			Timestamp: base.Add(2 * time.Hour),
 		})
 		out = append(out, store.Query{
-			DeviceMAC: mac,
+			DeviceMAC: macGuestLaptop,
 			Domain:    "example.com",
 			QueryType: "A",
 			Category:  "",
 			Timestamp: base.Add(4 * time.Hour),
 		})
 		out = append(out, store.Query{
-			DeviceMAC: mac,
+			DeviceMAC: macGuestLaptop,
 			Domain:    "www.google.com",
 			QueryType: "A",
 			Category:  "",
@@ -805,14 +810,14 @@ func bypassCandidateQueries(now time.Time) []store.Query {
 	}
 
 	out = append(out, store.Query{
-		DeviceMAC: mac,
+		DeviceMAC: macGuestLaptop,
 		Domain:    "dns.google",
 		QueryType: "A",
 		Category:  "",
 		Timestamp: now.Add(-3 * time.Hour),
 	})
 	out = append(out, store.Query{
-		DeviceMAC: mac,
+		DeviceMAC: macGuestLaptop,
 		Domain:    "clients.l.google.com",
 		QueryType: "A",
 		Category:  "",

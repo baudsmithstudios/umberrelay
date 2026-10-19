@@ -52,11 +52,3 @@ func DeleteList(db *store.DB, id int64) error {
 	}
 	return err
 }
-
-func EnabledListSources(db *store.DB) ([]classify.ListSource, error) {
-	lists, err := db.ListEnabledLists()
-	if err != nil {
-		return nil, err
-	}
-	return classify.SourcesFromListEntries(lists), nil
-}

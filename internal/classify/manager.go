@@ -105,7 +105,11 @@ type ListSource struct {
 	Category string
 }
 
-func SourcesFromListEntries(entries []store.ListEntry) []ListSource {
+func EnabledSources(db *store.DB) ([]ListSource, error) {
+	entries, err := db.ListEnabledLists()
+	if err != nil {
+		return nil, err
+	}
 	sources := make([]ListSource, 0, len(entries))
 	for _, entry := range entries {
 		sources = append(sources, ListSource{
@@ -115,7 +119,7 @@ func SourcesFromListEntries(entries []store.ListEntry) []ListSource {
 			Category: entry.Category,
 		})
 	}
-	return sources
+	return sources, nil
 }
 
 func (m *Manager) Refresh(ctx context.Context, sources []ListSource) error {
@@ -182,7 +186,7 @@ func (m *Manager) Run(ctx context.Context, initialSources []ListSource, interval
 			timer.Stop()
 			continue
 		case <-timer.C:
-			sources, err := m.loadSourcesFromDB()
+			sources, err := EnabledSources(m.db)
 			if err != nil {
 				log.Printf("load list sources from db: %v", err)
 				sources = initialSources
@@ -204,14 +208,6 @@ func (m *Manager) refreshInterval(defaultInterval time.Duration) time.Duration {
 		return defaultInterval
 	}
 	return n
-}
-
-func (m *Manager) loadSourcesFromDB() ([]ListSource, error) {
-	lists, err := m.db.ListEnabledLists()
-	if err != nil {
-		return nil, err
-	}
-	return SourcesFromListEntries(lists), nil
 }
 
 const maxListBytes int64 = 20 << 20
