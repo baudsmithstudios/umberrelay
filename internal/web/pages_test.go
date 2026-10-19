@@ -776,3 +776,14 @@ func TestNetworkRowDeviceCountMatchesHeadline(t *testing.T) {
 		t.Fatalf("network row count differs from headline: %q", row)
 	}
 }
+
+func TestNoPicoAssetsServed(t *testing.T) {
+	s := testServer(t)
+	for _, path := range []string{"/static/css/pico.min.css", "/static/js/uplot.min.js"} {
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != http.StatusNotFound {
+			t.Errorf("GET %s status = %d, want 404", path, w.Code)
+		}
+	}
+}

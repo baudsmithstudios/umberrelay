@@ -24,7 +24,7 @@ Umberrelay is a forwarding DNS server that logs every query, identifies which ne
 - **Attribution with source-IP fallback** — maps queries to devices via ARP table polling, DHCP snooping, mDNS, and SSDP discovery, and surfaces source IP when MAC is unavailable
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
-- **Web UI** — Home, Devices, and Settings pages covering query volume, tracker percentage, actor breakdown (device or source fallback), domain rankings, per-device detail, and runtime configuration
+- **Web UI** — an Activity view that lists every device and source-IP actor beside a detail pane for the whole network or the selected actor (tracker rate against a baseline, blocklist matches by category, tracker-rate chart, domains with overrides, live query stream), plus a Settings page for runtime configuration
 - **Best-effort DoH/DoT bypass signal** — flags devices that appear active on LAN but stop using local DNS, with higher confidence when encrypted-DNS bootstrap domains were seen
 - **REST API** — JSON API for actors, devices, queries, activity, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
@@ -306,7 +306,7 @@ The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `
 
 - **A device is missing** — confirm the device is actually using Umberrelay for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
 - **A bypass signal is unexpected** — `/api/bypass` is best-effort, not packet-level proof; validate with direct DNS tests (`dig @<umberrelay-ip> ...`) and your router DNS policy
-- **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears as a source fallback actor in the Devices page or `/api/actors`
+- **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears under *Unattributed sources* in the Activity roster or in `/api/actors`
 - **Devices appear but names are generic** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices do not advertise much
 - **Tracker labels look wrong** — classifications come from community blocklists; use domain overrides when a list is too broad or out of date
 - **Some traffic is invisible** — Umberrelay does not see direct IP traffic or DNS that bypasses it, so partial visibility is an expected limitation in some networks
@@ -344,7 +344,7 @@ Purge Loop (goroutine)
     └─ Delete queries older than retention_days (daily)
 
 Web Server
-    ├─ Home, Devices, and Settings pages
+    ├─ Activity and Settings pages
     ├─ Per-device detail view
     ├─ HTMX fragment handlers for settings, overrides, and list management
     └─ REST API
@@ -403,8 +403,8 @@ Umberrelay fills a narrow niche: a fully local DNS forwarder that turns query lo
 | **Database** | [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) | Pure-Go SQLite driver (CGo-free) |
 | **Config parsing** | [BurntSushi/toml](https://github.com/BurntSushi/toml) | TOML configuration file parser |
 | **Frontend interactivity** | [HTMX](https://htmx.org/) | Server-rendered HTML with inline fragment swaps |
-| **Frontend styling** | [Pico CSS](https://picocss.com/) | Minimal classless CSS framework |
-| **Charts** | [uPlot](https://github.com/leeoniya/uPlot) | Fast canvas time-series plots |
+| **Frontend styling** | [ElumKit](https://github.com/baudsmithstudios/elumkit) | Terminal-style HTML-first components, copied into the app as source |
+| **Charts** | Canvas 2D | Single-series tracker-rate chart drawn in `charts.js` |
 | **Containerization** | [Docker](https://github.com/moby/moby) | Multi-stage build |
 
 

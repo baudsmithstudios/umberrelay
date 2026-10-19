@@ -113,7 +113,7 @@ http://<PI_IP>:8080/
 ```
 
 Expected result:
-- the Home page loads
+- the Activity page loads
 - top-level query counters increase
 - the domain list updates after fresh DNS activity
 
@@ -157,7 +157,7 @@ sudo tcpdump -D
 
 ### Cross-subnet attribution uses source-IP fallback
 
-Across routed subnets the Pi rarely learns remote client MACs, so queries record `source_ip` with `device_mac` blank. Those appear as source-IP fallback actors in the Devices page and via `/api/actors`.
+Across routed subnets the Pi rarely learns remote client MACs, so queries record `source_ip` with `device_mac` blank. Those appear under *Unattributed sources* in the Activity roster and via `/api/actors`.
 
 ## Result Triage
 

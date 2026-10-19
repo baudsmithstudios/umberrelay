@@ -3,6 +3,10 @@ Copyright 2026 Thomas Smith
 
 This product includes software developed by Thomas Smith for the Umberrelay project.
 
+This product includes ElumKit (https://github.com/baudsmithstudios/elumkit),
+licensed under the MIT License, and the JetBrains Mono font, licensed under
+the SIL Open Font License 1.1.
+
 Licensed under the Apache License, Version 2.0.
 You may obtain a copy of the License at:
 
