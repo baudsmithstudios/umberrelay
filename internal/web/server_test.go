@@ -24,6 +24,7 @@ func testServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	s := NewServer(db, classify.NewManager(db))
+	s.refreshListSources = func(context.Context, *classify.Manager, []classify.ListSource) error { return nil }
 	t.Cleanup(func() {
 		s.Close()
 		db.Close()

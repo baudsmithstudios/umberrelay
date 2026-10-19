@@ -1,8 +1,10 @@
 package classify
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"net"
 	"net/netip"
 	"path/filepath"
@@ -193,6 +195,7 @@ func TestDialValidatedRemoteRejectsWhenOnlyPrivateResolvedAddresses(t *testing.T
 }
 
 func TestRefreshKeepsExistingDomainsWhenAllSourcesFail(t *testing.T) {
+	logs := captureLogs(t)
 	m := NewManager(testDB(t))
 	m.domains.Store(newDomainMap(map[string]string{
 		"ads.example.com": "tracking",
@@ -210,6 +213,9 @@ func TestRefreshKeepsExistingDomainsWhenAllSourcesFail(t *testing.T) {
 	}
 	if got := m.Classify("ads.example.com."); got != "tracking" {
 		t.Fatalf("Classify after failed refresh = %q, want %q", got, "tracking")
+	}
+	if !strings.Contains(logs.String(), "fetch list broken") {
+		t.Fatalf("logs = %q, want fetch failure for list broken", logs.String())
 	}
 }
 
@@ -366,6 +372,7 @@ func TestManagerRunDoesNotFallbackToInitialSourcesWhenNoListsEnabled(t *testing.
 }
 
 func TestManagerRunFallsBackToInitialSourcesWhenDBLoadFails(t *testing.T) {
+	logs := captureLogs(t)
 	db := testDB(t)
 	if err := db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
@@ -394,6 +401,9 @@ func TestManagerRunFallsBackToInitialSourcesWhenDBLoadFails(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("Run did not trigger refresh")
 	}
+	if !strings.Contains(logs.String(), "load list sources from db") {
+		t.Fatalf("logs = %q, want source load failure", logs.String())
+	}
 }
 
 func TestManagerNotifyConfigChangedDoesNotBlock(t *testing.T) {
@@ -421,6 +431,7 @@ func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
 }
 
 func TestManagerRunHandlesWakeSignal(t *testing.T) {
+	captureLogs(t)
 	m := NewManager(testDB(t))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -474,4 +485,13 @@ func testDB(t *testing.T) *store.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	return db
+}
+
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var logs bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	return &logs
 }

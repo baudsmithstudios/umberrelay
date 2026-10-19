@@ -2,7 +2,9 @@ package dns
 
 import (
 	"context"
+	"log"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,6 +94,11 @@ func TestListenerForwardsTCPQuery(t *testing.T) {
 func TestListenerUpstreamFailure(t *testing.T) {
 	requirePacketConn(t, "udp", "127.0.0.1:0")
 
+	logged := make(chanWriter, 10)
+	prev := log.Writer()
+	log.SetOutput(logged)
+	t.Cleanup(func() { log.SetOutput(prev) })
+
 	records := make(chan QueryRecord, 10)
 	// Point to a non-existent upstream
 	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
@@ -111,6 +118,21 @@ func TestListenerUpstreamFailure(t *testing.T) {
 	if resp.Rcode != mdns.RcodeServerFailure {
 		t.Errorf("Rcode = %d, want SERVFAIL (%d)", resp.Rcode, mdns.RcodeServerFailure)
 	}
+	select {
+	case line := <-logged:
+		if !strings.Contains(line, "all upstreams failed") {
+			t.Fatalf("log = %q, want upstream failure", line)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("upstream failure was not logged")
+	}
+}
+
+type chanWriter chan string
+
+func (w chanWriter) Write(p []byte) (int, error) {
+	w <- string(p)
+	return len(p), nil
 }
 
 func TestFormatQuestionForLogOmitsDomainName(t *testing.T) {

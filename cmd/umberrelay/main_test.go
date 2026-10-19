@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"log"
 	"path/filepath"
 	"testing"
 	"time"
@@ -10,6 +12,7 @@ import (
 )
 
 func TestPurgeRemovesRowsOlderThanConfiguredRetention(t *testing.T) {
+	captureLogs(t)
 	db := testDB(t)
 	now := time.Now()
 	if err := db.SetConfig("retention_days", "1"); err != nil {
@@ -37,6 +40,7 @@ func TestPurgeRemovesRowsOlderThanConfiguredRetention(t *testing.T) {
 }
 
 func TestRunPurgeRunsImmediateCycleBeforeWaiting(t *testing.T) {
+	captureLogs(t)
 	db := testDB(t)
 	now := time.Now()
 	if err := db.SetConfig("retention_days", "1"); err != nil {
@@ -131,4 +135,13 @@ func testDB(t *testing.T) *store.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	return db
+}
+
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var logs bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	return &logs
 }

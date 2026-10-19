@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"path/filepath"
 	"strings"
@@ -414,83 +413,6 @@ func TestQueryFeedFiltersAndCursor(t *testing.T) {
 		if row.Category != "" && row.Category != "uncategorized" {
 			t.Fatalf("unexpected category %q in uncategorized filter", row.Category)
 		}
-	}
-}
-
-func TestPurgeQueriesOlderThanChunk(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	mac := "aa:bb:cc:dd:ee:ff"
-	if err := db.UpsertDevice(Device{
-		MAC:       mac,
-		IP:        "192.168.1.10",
-		FirstSeen: now,
-		LastSeen:  now,
-	}); err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-
-	old := now.Add(-48 * time.Hour)
-	var queries []Query
-	for i := 0; i < 5; i++ {
-		queries = append(queries, Query{
-			DeviceMAC: mac,
-			Domain:    fmt.Sprintf("old-%d.example.com", i),
-			QueryType: "A",
-			Timestamp: old.Add(time.Duration(i) * time.Second),
-		})
-	}
-	for i := 0; i < 2; i++ {
-		queries = append(queries, Query{
-			DeviceMAC: mac,
-			Domain:    fmt.Sprintf("new-%d.example.com", i),
-			QueryType: "A",
-			Timestamp: now.Add(time.Duration(i) * time.Second),
-		})
-	}
-	if err := db.WriteQueries(queries); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	cutoff := now.Add(-24 * time.Hour)
-	deleted, err := db.PurgeQueriesOlderThanChunk(cutoff, 2)
-	if err != nil {
-		t.Fatalf("PurgeQueriesOlderThanChunk(first): %v", err)
-	}
-	if deleted != 2 {
-		t.Fatalf("deleted first chunk = %d, want 2", deleted)
-	}
-
-	deleted, err = db.PurgeQueriesOlderThanChunk(cutoff, 2)
-	if err != nil {
-		t.Fatalf("PurgeQueriesOlderThanChunk(second): %v", err)
-	}
-	if deleted != 2 {
-		t.Fatalf("deleted second chunk = %d, want 2", deleted)
-	}
-
-	deleted, err = db.PurgeQueriesOlderThanChunk(cutoff, 2)
-	if err != nil {
-		t.Fatalf("PurgeQueriesOlderThanChunk(third): %v", err)
-	}
-	if deleted != 1 {
-		t.Fatalf("deleted third chunk = %d, want 1", deleted)
-	}
-
-	deleted, err = db.PurgeQueriesOlderThanChunk(cutoff, 2)
-	if err != nil {
-		t.Fatalf("PurgeQueriesOlderThanChunk(final): %v", err)
-	}
-	if deleted != 0 {
-		t.Fatalf("deleted final chunk = %d, want 0", deleted)
-	}
-
-	remaining, err := db.QueryLog("", "", time.Time{}, now.Add(24*time.Hour), 100, 0)
-	if err != nil {
-		t.Fatalf("QueryLog: %v", err)
-	}
-	if len(remaining) != 2 {
-		t.Fatalf("remaining rows = %d, want 2", len(remaining))
 	}
 }
 
@@ -1939,5 +1861,56 @@ func TestSourceActorQueriesAndAggregations(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("source trend for %s not found", sourceA)
+	}
+}
+
+func TestPurgeQueriesOlderThanRemovesEveryExpiredRow(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	queries := make([]Query, 2*purgeChunkSize+1)
+	for i := range queries {
+		queries[i] = Query{SourceIP: "10.0.0.1", Domain: "stale.example.com", QueryType: "A", Timestamp: now.Add(-48*time.Hour + time.Duration(i)*time.Millisecond)}
+	}
+	queries = append(queries, Query{SourceIP: "10.0.0.1", Domain: "fresh.example.com", QueryType: "A", Timestamp: now})
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	deleted, err := db.PurgeQueriesOlderThan(now.Add(-24 * time.Hour))
+	if err != nil {
+		t.Fatalf("PurgeQueriesOlderThan: %v", err)
+	}
+	if want := int64(len(queries) - 1); deleted != want {
+		t.Fatalf("deleted = %d, want %d", deleted, want)
+	}
+	remaining, err := db.QueryLog("", "", time.Time{}, now.Add(time.Hour), len(queries), 0)
+	if err != nil {
+		t.Fatalf("QueryLog: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0].Domain != "fresh.example.com" {
+		t.Fatalf("remaining = %+v, want only fresh.example.com", remaining)
+	}
+}
+
+func TestPurgeQueriesOlderThanRebuildsPartlyPurgedRollup(t *testing.T) {
+	db := testDB(t)
+	hour := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	if err := db.WriteQueries([]Query{
+		{SourceIP: "10.0.0.1", Domain: "expired.example.com", QueryType: "A", Timestamp: hour.Add(10 * time.Minute)},
+		{SourceIP: "10.0.0.1", Domain: "kept.example.com", QueryType: "A", Timestamp: hour.Add(50 * time.Minute)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	if _, err := db.PurgeQueriesOlderThan(hour.Add(30 * time.Minute)); err != nil {
+		t.Fatalf("PurgeQueriesOlderThan: %v", err)
+	}
+
+	var total int
+	if err := db.sql.QueryRow(`SELECT COALESCE(SUM(total_count), 0) FROM query_rollups_hourly WHERE bucket_start = ?`, hour.UnixNano()).Scan(&total); err != nil {
+		t.Fatalf("read rollup: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("rollup total = %d, want 1", total)
 	}
 }

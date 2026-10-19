@@ -1,10 +1,8 @@
 package device
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"testing"
 	"time"
@@ -49,12 +47,7 @@ func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
 
 	tracker := NewTracker(db, NewOUIDB(nil))
 
-	var logs bytes.Buffer
-	prev := log.Writer()
-	log.SetOutput(&logs)
-	t.Cleanup(func() {
-		log.SetOutput(prev)
-	})
+	logs := captureLogs(t)
 
 	tracker.saveDiscoveredDevice(store.Device{
 		MAC:       "aa:bb:cc:dd:ee:ff",
@@ -113,6 +106,7 @@ func TestDeviceWriterCoalescesAndDrainsOnCancel(t *testing.T) {
 }
 
 func TestRunStopsWhenContextCancelled(t *testing.T) {
+	captureLogs(t)
 	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -142,6 +136,7 @@ func TestListenersReturnWhenDoneClosed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			captureLogs(t)
 			tracker := NewTracker(testDB(t), NewOUIDB(nil))
 			done := make(chan struct{})
 			close(done)
