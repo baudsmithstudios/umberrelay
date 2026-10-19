@@ -529,8 +529,14 @@ func TestActivityDeviceSelected(t *testing.T) {
 	seedPrivacyPageData(t, s, now)
 
 	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
-	if row := rowFor(t, body, "/devices/device:aa:bb:cc:dd:ee:ff"); !strings.Contains(row, `data-selected="true"`) {
+	row := rowFor(t, body, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(row, `data-selected="true"`) {
 		t.Fatalf("device row not selected: %q", row)
+	}
+	for _, want := range []string{`data-actor-key="device:aa:bb:cc:dd:ee:ff"`, `data-tracker-percent="66.67"`, `data-query-count="3"`, `data-name="Living Room TV"`} {
+		if !strings.Contains(row, want) {
+			t.Errorf("device row missing %s", want)
+		}
 	}
 	if row := rowFor(t, body, "/"); strings.Contains(row, `data-selected="true"`) {
 		t.Fatalf("network row selected on a device page: %q", row)

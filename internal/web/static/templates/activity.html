@@ -247,7 +247,7 @@
 </div>
 {{end}}
 
-{{define "roster-row"}}<a class="elum-row" href="{{.Href}}"{{if .Selected}} data-selected="true" aria-current="true"{{end}}>
+{{define "roster-row"}}<a class="elum-row" href="{{.Href}}"{{if .ActorKey}} data-actor-key="{{.ActorKey}}" data-name="{{.Name}}" data-tracker-percent="{{printf "%.2f" .TrackerPercent}}" data-query-count="{{.QueryCount}}"{{end}}{{if .Selected}} data-selected="true" aria-current="true"{{end}}>
     <span class="elum-row-main">
         <span class="elum-row-title">{{.Name}}</span>
         <span class="elum-row-meta">{{.Meta}}</span>
