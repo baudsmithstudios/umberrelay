@@ -9,10 +9,13 @@ import (
 
 type queryFeedFetcher func(afterID int64, limit int) ([]store.Query, error)
 
+type latestQueryIDFetcher func() (int64, error)
+
 const maxPollBatchesPerWake = 3
 
 type queryStreamHub struct {
 	fetch     queryFeedFetcher
+	latestID  latestQueryIDFetcher
 	batchSize int
 
 	mu          sync.Mutex
@@ -21,15 +24,18 @@ type queryStreamHub struct {
 	lastID      int64
 	running     bool
 	stop        chan struct{}
+	stopped     chan struct{}
 	wake        chan struct{}
 }
 
-func newQueryStreamHub(fetch queryFeedFetcher, batchSize int) *queryStreamHub {
+func newQueryStreamHub(fetch queryFeedFetcher, latestID latestQueryIDFetcher, batchSize int) *queryStreamHub {
 	return &queryStreamHub{
 		fetch:       fetch,
+		latestID:    latestID,
 		batchSize:   batchSize,
 		subscribers: make(map[int]chan store.Query),
 		stop:        make(chan struct{}),
+		stopped:     make(chan struct{}),
 		wake:        make(chan struct{}, 1),
 	}
 }
@@ -39,7 +45,10 @@ func (h *queryStreamHub) startLocked() {
 		return
 	}
 	h.running = true
-	go h.run()
+	go func() {
+		defer close(h.stopped)
+		h.run()
+	}()
 }
 
 func (h *queryStreamHub) run() {
@@ -70,10 +79,25 @@ func (h *queryStreamHub) Close() {
 	default:
 		close(h.stop)
 	}
+	h.mu.Lock()
+	running := h.running
+	h.mu.Unlock()
+	if running {
+		<-h.stopped
+	}
 }
 
-func (h *queryStreamHub) Subscribe() (<-chan store.Query, func()) {
+func (h *queryStreamHub) Subscribe() (<-chan store.Query, func(), error) {
 	h.mu.Lock()
+	if len(h.subscribers) == 0 {
+		// The cursor stops advancing while nobody listens; skip that backlog.
+		latest, err := h.latestID()
+		if err != nil {
+			h.mu.Unlock()
+			return nil, nil, err
+		}
+		h.lastID = latest
+	}
 	h.startLocked()
 
 	id := h.nextSubID
@@ -87,7 +111,7 @@ func (h *queryStreamHub) Subscribe() (<-chan store.Query, func()) {
 
 	return ch, func() {
 		h.unsubscribe(id)
-	}
+	}, nil
 }
 
 func (h *queryStreamHub) unsubscribe(id int) {
@@ -99,14 +123,6 @@ func (h *queryStreamHub) unsubscribe(id int) {
 	}
 	delete(h.subscribers, id)
 	close(ch)
-}
-
-func (h *queryStreamHub) AdvanceCursor(id int64) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if id > h.lastID {
-		h.lastID = id
-	}
 }
 
 func (h *queryStreamHub) NotifyNewQueries() {

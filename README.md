@@ -249,7 +249,7 @@ When `actor` is set, it takes precedence over `device`.
 | `device` | Filter by device MAC |
 | `domain` | Filter by domain |
 | `category` | Filter by category (`tracking`, `advertising`, `analytics`, `telemetry`, `malware`, `uncategorized`) |
-| `after` | Only emit events with query ID greater than this cursor |
+| `after` | Only emit events with query ID greater than this cursor (default: the latest query ID, so only new queries stream) |
 | `limit` | Batch size per poll (default 100, max 500) |
 
 When `actor` is set, it takes precedence over `device`.

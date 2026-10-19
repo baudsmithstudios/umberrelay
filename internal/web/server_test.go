@@ -92,29 +92,6 @@ func TestHTTPServerDisablesWriteTimeoutForStreaming(t *testing.T) {
 	}
 }
 
-func TestNotifyNewQueriesWakesHub(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	if err := s.db.WriteQueries([]store.Query{
-		{SourceIP: "10.0.0.7", Domain: "wake.example.com", QueryType: "A", Timestamp: now},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	stream, cancel := s.queryHub.Subscribe()
-	defer cancel()
-	s.NotifyNewQueries()
-
-	select {
-	case query := <-stream:
-		if query.Domain != "wake.example.com" {
-			t.Fatalf("domain = %q, want %q", query.Domain, "wake.example.com")
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for query hub notification")
-	}
-}
-
 func TestListenAndServeReturnsWhenContextCancelled(t *testing.T) {
 	s := testServer(t)
 	ctx, cancel := context.WithCancel(context.Background())

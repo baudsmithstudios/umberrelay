@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -428,7 +429,7 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
-	req := httptest.NewRequest("GET", "/api/queries/stream?actor=device:aa:bb:cc:dd:ee:ff&category=tracking", nil).WithContext(ctx)
+	req := httptest.NewRequest("GET", "/api/queries/stream?after=0&actor=device:aa:bb:cc:dd:ee:ff&category=tracking", nil).WithContext(ctx)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -451,6 +452,127 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 	}
 	if strings.Contains(body, "ignore.example.com") {
 		t.Fatalf("stream response included non-matching query: %q", body)
+	}
+}
+
+func TestAPIQueryStreamAfterParamDoesNotHideRowsFromOtherClients(t *testing.T) {
+	s := testServer(t)
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	lines := openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
+	waitForStreamSubscribers(t, s.queryHub, 1)
+
+	otherCtx, otherCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer otherCancel()
+	other := httptest.NewRequest("GET", "/api/queries/stream?after=999999999", nil).WithContext(otherCtx)
+	s.Handler().ServeHTTP(httptest.NewRecorder(), other)
+
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "live.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	s.NotifyNewQueries()
+
+	waitForStreamLine(t, lines, "live.example.com")
+}
+
+func TestAPIQueryStreamSendsHeadersBeforeFirstEvent(t *testing.T) {
+	s := testServer(t)
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
+}
+
+func TestAPIQueryStreamWithoutCursorSendsOnlyNewQueries(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "history.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	lines := openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
+
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "live.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	s.NotifyNewQueries()
+
+	for _, line := range waitForStreamLine(t, lines, "live.example.com") {
+		if strings.Contains(line, "history.example.com") {
+			t.Fatal("stream replayed a query written before the client connected")
+		}
+	}
+}
+
+func openQueryStream(t *testing.T, ctx context.Context, url string) <-chan string {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+
+	lines := make(chan string)
+	go func() {
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			select {
+			case lines <- scanner.Text():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return lines
+}
+
+func waitForStreamLine(t *testing.T, lines <-chan string, want string) []string {
+	t.Helper()
+	var seen []string
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case line := <-lines:
+			if strings.Contains(line, want) {
+				return seen
+			}
+			seen = append(seen, line)
+		case <-timeout:
+			t.Fatalf("stream never sent a line containing %q", want)
+		}
+	}
+}
+
+func waitForStreamSubscribers(t *testing.T, hub *queryStreamHub, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		hub.mu.Lock()
+		got := len(hub.subscribers)
+		hub.mu.Unlock()
+		if got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("subscribers = %d, want %d", got, want)
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 

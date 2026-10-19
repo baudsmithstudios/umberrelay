@@ -206,6 +206,7 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 	domain := q.Get("domain")
 	categoryFilter := strings.TrimSpace(q.Get("category"))
 	afterID := int64(0)
+	hasCursor := false
 	limit := 100
 
 	if v := q.Get("after"); v != "" {
@@ -215,6 +216,7 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		afterID = n
+		hasCursor = true
 	} else if v := strings.TrimSpace(r.Header.Get("Last-Event-ID")); v != "" {
 		n, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || n < 0 {
@@ -222,6 +224,7 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		afterID = n
+		hasCursor = true
 	}
 
 	if v := q.Get("limit"); v != "" {
@@ -261,6 +264,21 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		filter.DeviceMAC = deviceMAC
 	}
 
+	stream, cancel, err := s.queryHub.Subscribe()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	defer cancel()
+
+	if !hasCursor {
+		afterID, err = s.db.LatestQueryID()
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+
 	initial, err := s.db.QueryFeed(afterID, filter, limit)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
@@ -285,11 +303,8 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(initial) > 0 {
 		afterID = lastID
-		flusher.Flush()
 	}
-	s.queryHub.AdvanceCursor(afterID)
-	stream, cancel := s.queryHub.Subscribe()
-	defer cancel()
+	flusher.Flush()
 	heartbeatTicker := time.NewTicker(15 * time.Second)
 	defer heartbeatTicker.Stop()
 
