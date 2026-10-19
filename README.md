@@ -300,7 +300,7 @@ docker compose logs -f      # logs
 docker compose down          # stop
 ```
 
-The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `alpine:3.19` with just the binary and CA certificates.
+The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `alpine:3.22` with just the binary and CA certificates.
 
 ## Troubleshooting
 
