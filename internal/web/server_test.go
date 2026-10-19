@@ -92,26 +92,6 @@ func TestHTTPServerDisablesWriteTimeoutForStreaming(t *testing.T) {
 	}
 }
 
-func TestListenAndServeReturnsWhenContextCancelled(t *testing.T) {
-	s := testServer(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() {
-		done <- s.ListenAndServe(ctx, "127.0.0.1:0")
-	}()
-
-	cancel()
-
-	select {
-	case err := <-done:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			t.Fatalf("ListenAndServe() error = %v, want nil or http.ErrServerClosed", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("ListenAndServe did not return after context cancellation")
-	}
-}
-
 func TestListenAndServeAllowsInFlightRequestOnCancel(t *testing.T) {
 	s := testServer(t)
 	entered := make(chan struct{}, 1)

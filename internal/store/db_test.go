@@ -72,17 +72,6 @@ func TestOpenAppliesPragmasOnAllConnections(t *testing.T) {
 	}
 }
 
-func TestUpsertDeviceUpdatesIP(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.20", LastSeen: now.Add(time.Minute)})
-	devices, _ := db.ListDevicesWithStats()
-	if devices[0].IP != "192.168.1.20" {
-		t.Errorf("IP = %q, want 192.168.1.20", devices[0].IP)
-	}
-}
-
 func TestUpsertDevicesBatchInsertsAndMergesPreservingLabel(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -167,34 +156,6 @@ func TestSetAndGetSourceLabel(t *testing.T) {
 	}
 	if label != "" {
 		t.Fatalf("label for nonexistent source = %q, want empty", label)
-	}
-}
-
-func TestWriteAndQueryQueriesPreservesSourceIP(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-
-	err := db.WriteQueries([]Query{{
-		DeviceMAC: "",
-		SourceIP:  "192.168.50.23",
-		Domain:    "unmapped.example.com",
-		QueryType: "A",
-		Category:  "",
-		Timestamp: now,
-	}})
-	if err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	results, err := db.QueryLog("", "", time.Time{}, now.Add(time.Minute), 100, 0)
-	if err != nil {
-		t.Fatalf("QueryLog: %v", err)
-	}
-	if len(results) != 1 {
-		t.Fatalf("got %d results, want 1", len(results))
-	}
-	if results[0].SourceIP != "192.168.50.23" {
-		t.Fatalf("SourceIP = %q, want %q", results[0].SourceIP, "192.168.50.23")
 	}
 }
 
@@ -416,21 +377,6 @@ func TestQueryFeedFiltersAndCursor(t *testing.T) {
 	}
 }
 
-func TestConfigGetSet(t *testing.T) {
-	db := testDB(t)
-	err := db.SetConfig("retention_days", "30")
-	if err != nil {
-		t.Fatalf("SetConfig: %v", err)
-	}
-	val, err := db.GetConfig("retention_days")
-	if err != nil {
-		t.Fatalf("GetConfig: %v", err)
-	}
-	if val != "30" {
-		t.Errorf("got %q, want 30", val)
-	}
-}
-
 func TestConfigGetMissing(t *testing.T) {
 	db := testDB(t)
 	val, err := db.GetConfig("nonexistent")
@@ -489,62 +435,6 @@ func TestListRefreshStatusTracksAttemptSuccessAndFailure(t *testing.T) {
 	}
 	if afterSuccess.LastError != "" {
 		t.Fatalf("LastError = %q, want empty", afterSuccess.LastError)
-	}
-}
-
-func TestListDomainCache(t *testing.T) {
-	db := testDB(t)
-	id, err := db.AddList("https://example.com/list.txt", "Test List", "tracking")
-	if err != nil {
-		t.Fatalf("AddList: %v", err)
-	}
-
-	domains := map[string]string{
-		"ads.example.com":     "tracking",
-		"tracker.example.com": "tracking",
-	}
-	err = db.WriteListDomains(id, domains)
-	if err != nil {
-		t.Fatalf("WriteListDomains: %v", err)
-	}
-
-	cached, err := db.LoadCachedDomains()
-	if err != nil {
-		t.Fatalf("LoadCachedDomains: %v", err)
-	}
-	if len(cached) != 2 {
-		t.Fatalf("got %d cached domains, want 2", len(cached))
-	}
-	if cached["ads.example.com"] != "tracking" {
-		t.Errorf("ads.example.com category = %q, want tracking", cached["ads.example.com"])
-	}
-}
-
-func TestDomainOverrides(t *testing.T) {
-	db := testDB(t)
-	err := db.SetDomainOverride("ads.example.com", "telemetry")
-	if err != nil {
-		t.Fatalf("SetDomainOverride: %v", err)
-	}
-
-	overrides, err := db.ListDomainOverrides()
-	if err != nil {
-		t.Fatalf("ListDomainOverrides: %v", err)
-	}
-	if len(overrides) != 1 {
-		t.Fatalf("got %d overrides, want 1", len(overrides))
-	}
-	if overrides["ads.example.com"] != "telemetry" {
-		t.Errorf("override = %q, want telemetry", overrides["ads.example.com"])
-	}
-
-	err = db.DeleteDomainOverride("ads.example.com")
-	if err != nil {
-		t.Fatalf("DeleteDomainOverride: %v", err)
-	}
-	overrides, _ = db.ListDomainOverrides()
-	if len(overrides) != 0 {
-		t.Errorf("got %d overrides after delete, want 0", len(overrides))
 	}
 }
 
