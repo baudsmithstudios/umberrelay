@@ -292,8 +292,8 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(initial) > 0 {
 		afterID = lastID
-		flusher.Flush()
 	}
+	flusher.Flush()
 	heartbeatTicker := time.NewTicker(15 * time.Second)
 	defer heartbeatTicker.Stop()
 

@@ -457,25 +457,11 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 
 func TestAPIQueryStreamAfterParamDoesNotHideRowsFromOtherClients(t *testing.T) {
 	s := testServer(t)
-	if err := s.db.WriteQueries([]store.Query{
-		{SourceIP: "10.0.0.7", Domain: "initial.example.com", QueryType: "A", Timestamp: time.Now()},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
 	srv := httptest.NewServer(s.Handler())
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/queries/stream", nil)
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("GET stream: %v", err)
-	}
-	defer resp.Body.Close()
+	lines := openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
 	waitForStreamSubscribers(t, s.queryHub, 1)
 
 	otherCtx, otherCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -490,6 +476,31 @@ func TestAPIQueryStreamAfterParamDoesNotHideRowsFromOtherClients(t *testing.T) {
 	}
 	s.NotifyNewQueries()
 
+	waitForStreamLine(t, lines, "live.example.com")
+}
+
+func TestAPIQueryStreamSendsHeadersBeforeFirstEvent(t *testing.T) {
+	s := testServer(t)
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
+}
+
+func openQueryStream(t *testing.T, ctx context.Context, url string) <-chan string {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+
 	lines := make(chan string)
 	go func() {
 		scanner := bufio.NewScanner(resp.Body)
@@ -501,15 +512,20 @@ func TestAPIQueryStreamAfterParamDoesNotHideRowsFromOtherClients(t *testing.T) {
 			}
 		}
 	}()
+	return lines
+}
+
+func waitForStreamLine(t *testing.T, lines <-chan string, want string) {
+	t.Helper()
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case line := <-lines:
-			if strings.Contains(line, "live.example.com") {
+			if strings.Contains(line, want) {
 				return
 			}
 		case <-timeout:
-			t.Fatal("first client never received the new query")
+			t.Fatalf("stream never sent a line containing %q", want)
 		}
 	}
 }
