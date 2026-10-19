@@ -67,7 +67,6 @@ func TestListenerUpstreamFailure(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(prev) })
 
 	records := make(chan QueryRecord, 10)
-	// Point to a non-existent upstream
 	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -132,7 +131,6 @@ func requireListener(t *testing.T, network, address string) {
 	ln.Close()
 }
 
-// startFakeUpstream runs a DNS server on the given network that responds with 127.0.0.1 to any A query.
 func startFakeUpstream(t *testing.T, network string) string {
 	t.Helper()
 

@@ -1,7 +1,4 @@
-/* ── Device detail page ── */
-
 .device-detail-page {
-    /* width constrained by main.container */
     margin-top: -1.5rem;
     padding-bottom: 40px;
 }

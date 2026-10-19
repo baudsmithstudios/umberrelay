@@ -5,7 +5,7 @@ import (
 )
 
 type OUIDB struct {
-	prefixes map[string]string // "AA:BB:CC" -> "Vendor"
+	prefixes map[string]string
 }
 
 // Keys must be uppercase "AA:BB:CC" format.
@@ -18,6 +18,6 @@ func (db *OUIDB) Lookup(mac string) string {
 	if len(mac) < 8 {
 		return ""
 	}
-	prefix := mac[:8] // "AA:BB:CC"
+	prefix := mac[:8]
 	return db.prefixes[prefix]
 }

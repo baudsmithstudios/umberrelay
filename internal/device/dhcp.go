@@ -35,13 +35,7 @@ func (t *Tracker) RunDHCP(done <-chan struct{}) {
 }
 
 func (t *Tracker) parseDHCP(pkt []byte) {
-	// DHCP packet layout:
-	// byte 0: op (1=request, 2=reply)
-	// byte 12-15: ciaddr (client IP)
-	// byte 28-33: chaddr (first 6 bytes are MAC)
-	// byte 236-239: magic cookie
-	// byte 240+: options
-
+	// BOOTP offsets: op 0 (1=request), ciaddr 12-15, chaddr 28-33, options 240+.
 	if pkt[0] != 1 {
 		return
 	}

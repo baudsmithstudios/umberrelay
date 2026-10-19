@@ -8,8 +8,7 @@ import (
 	"umberrelay/internal/store"
 )
 
-// Seed populates an empty database with representative demo data for local UI work.
-// If queries already exist, it leaves the database unchanged.
+// Seed fills an empty database with demo data; it does nothing once queries exist.
 func Seed(db *store.DB, now time.Time) error {
 	existing, err := db.QueryLog("", "", time.Time{}, now.Add(24*time.Hour), 1, 0)
 	if err != nil {
@@ -717,7 +716,6 @@ func paginationShowcaseQueries(now time.Time) []store.Query {
 	return out
 }
 
-// sourceQueries generates queries from source-only IPs (no associated device).
 func sourceQueries(now time.Time, rng *rand.Rand) []store.Query {
 	type sourcePattern struct {
 		ip      string
@@ -777,7 +775,6 @@ func sourceQueries(now time.Time, rng *rand.Rand) []store.Query {
 	return out
 }
 
-// bypassCandidateQueries seeds guest-laptop history that trips the bypass heuristic.
 func bypassCandidateQueries(now time.Time) []store.Query {
 	mac := "aa:bb:cc:dd:ee:0d"
 	var out []store.Query

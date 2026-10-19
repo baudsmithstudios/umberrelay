@@ -1,7 +1,4 @@
-/* ── Devices list page ── */
-
 .devices-page {
-    /* width constrained by main.container */
     padding-bottom: 40px;
 }
 
@@ -29,8 +26,6 @@
     max-width: 100%;
     width: max-content;
 }
-
-/* ── Device card grid ── */
 
 .devices-page .device-grid {
     display: grid;
@@ -65,8 +60,6 @@
 .devices-page .device-card.anomaly-bypass {
     border-left: 2px solid var(--umberrelay-warn);
 }
-
-/* ── Card internals ── */
 
 .devices-page .device-card-header {
     align-items: center;
@@ -126,8 +119,6 @@
 .devices-page .device-card-trends {
     display: none;
 }
-
-/* ── Responsive: mobile ── */
 
 @media (max-width: 767px) {
     .devices-page .devices-controls {

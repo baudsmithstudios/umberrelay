@@ -122,7 +122,6 @@ func (s *Server) Handler() http.Handler {
 	return s.handler
 }
 
-// Close releases server-owned background resources.
 func (s *Server) Close() {
 	s.backgroundCancel()
 	s.refreshJobs.Wait()

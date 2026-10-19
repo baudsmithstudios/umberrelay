@@ -27,7 +27,6 @@ func newDomainMap(m map[string]string) *domainMap {
 	return &domainMap{m: m}
 }
 
-// Manager fetches and caches classification lists.
 type Manager struct {
 	db        *store.DB
 	domains   atomic.Pointer[domainMap]
@@ -46,8 +45,7 @@ func NewManager(db *store.DB) *Manager {
 	return m
 }
 
-// Classify returns the category for a domain, or empty string if unclassified.
-// Domain should include trailing dot (DNS format); it is stripped before lookup.
+// Classify returns domain's category, or "" if unlisted. Case and a trailing dot are ignored.
 func (m *Manager) Classify(domain string) string {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
 
@@ -273,7 +271,6 @@ func fetchList(ctx context.Context, rawURL string) ([]string, error) {
 	if int64(len(body)) > maxListBytes {
 		return nil, fmt.Errorf("GET %s: response exceeds %d bytes", rawURL, maxListBytes)
 	}
-	// Try hosts file format first, fall back to domain list
 	domains := parseHostsFile(body)
 	if len(domains) == 0 {
 		domains = parseDomainList(body)

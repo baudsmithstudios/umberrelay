@@ -143,7 +143,7 @@ var ErrNotFound = errors.New("not found")
 
 var ErrInvalidRange = errors.New("invalid range")
 
-// actorFilter narrows a query to one attribution actor; the zero value matches all.
+// The zero value matches every actor.
 type actorFilter struct {
 	where string
 	args  []any
