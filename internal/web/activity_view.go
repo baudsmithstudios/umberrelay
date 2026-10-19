@@ -192,7 +192,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 	for _, d := range devices {
 		key := actorKeyForDevice(d.MAC)
 		flag, flagged := flags[d.MAC]
-		note := formatTrend(d.TrackerTrend, true).Text
+		note := trackerTrendText(d.TrackerTrend)
 		if flagged {
 			note = flag.Word
 		}
@@ -203,7 +203,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 			Meta:           joinMeta(d.Vendor, fmt.Sprintf("%d q", d.QueryCount), note),
 			TrackerPercent: d.TrackerPercent,
 			QueryCount:     d.QueryCount,
-			Hot:            flagged && flag.Word == "tracker spike",
+			Hot:            flagged && flag.Tone == "error",
 			Selected:       key == selectedKey,
 		})
 	}
@@ -213,7 +213,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 			ActorKey:       key,
 			Href:           "/devices/" + key,
 			Name:           sourceActorDisplayName(src.SourceIP, src.Label),
-			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), formatTrend(src.TrackerTrend, true).Text),
+			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), trackerTrendText(src.TrackerTrend)),
 			TrackerPercent: src.TrackerPercent,
 			QueryCount:     src.QueryCount,
 			Selected:       key == selectedKey,

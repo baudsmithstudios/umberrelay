@@ -60,7 +60,7 @@
             <input type="hidden" name="actor_key" value="{{.ActorKey}}">
             <select class="elum-select" name="category" aria-label="Override category for {{.Domain}}">
                 {{$row := .}}
-                {{range .CategoryOptions}}
+                {{range categoryOptions}}
                 <option value="{{.Value}}"{{if or (eq $row.Category .Value) (and (eq $row.Category "") (eq .Value "uncategorized"))}} selected{{end}}>{{.Label}}</option>
                 {{end}}
             </select>

@@ -21,15 +21,9 @@ type pageData struct {
 	Active string
 }
 
-type TrendDisplay struct {
-	Text  string
-	Class string
-}
-
 type privacyDomainRow struct {
 	Domain              string
 	Category            string
-	CategoryOptions     []category.Option
 	CategoryLabel       string
 	SourceList          string
 	QueryCount          int
@@ -53,7 +47,6 @@ type privacyDetail struct {
 	IdentifiedBy    string
 	Domains         []privacyDomainRow
 	RangeQuery      string
-	EmptyMessage    string
 	DomainPage      int
 	DomainPageCount int
 	DomainPageStart int
@@ -126,30 +119,14 @@ func listRefreshStatusView(status store.ListRefreshStatus) (string, string) {
 	return fmt.Sprintf("Last refresh succeeded at %s.", status.LastSuccessAt.Local().Format("2006-01-02 15:04:05")), "success"
 }
 
-func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
+func trackerTrendText(t store.Trend) string {
 	if !t.HasPrior {
-		return TrendDisplay{}
+		return ""
 	}
-
-	display := TrendDisplay{}
-	switch {
-	case math.Abs(t.Change) < 0.5:
-		display.Class = "trend-flat"
-	case t.Change > 0:
-		display.Class = "trend-up"
-	default:
-		display.Class = "trend-down"
+	if math.Abs(t.Change) < 0.5 {
+		return "0pp"
 	}
-
-	suffix := "%"
-	if isTrackerPct {
-		suffix = "pp"
-	}
-	display.Text = fmt.Sprintf("%+d%s", int(math.Round(t.Change)), suffix)
-	if display.Class == "trend-flat" {
-		display.Text = fmt.Sprintf("%d%s", int(math.Round(t.Change)), suffix)
-	}
-	return display
+	return fmt.Sprintf("%+dpp", int(math.Round(t.Change)))
 }
 
 func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}) {
@@ -208,7 +185,6 @@ func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorK
 	row := privacyDomainRow{
 		Domain:              domain.Domain,
 		Category:            domain.Category,
-		CategoryOptions:     category.Options(),
 		CategoryLabel:       categoryLabel(domain.Category),
 		SourceList:          domain.SourceList,
 		QueryCount:          domain.QueryCount,
@@ -336,7 +312,6 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 		Tracker:         tracker,
 		Domains:         domains,
 		RangeQuery:      "actor=" + url.QueryEscape(actorKey),
-		EmptyMessage:    "No domains in the last 24 hours.",
 		DomainPage:      pagination.Page,
 		DomainPageCount: pagination.PageCount,
 		DomainPageStart: pagination.Start,

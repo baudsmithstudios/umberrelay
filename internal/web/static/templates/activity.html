@@ -164,7 +164,7 @@
                     </thead>
                     <tbody role="rowgroup" id="domain-rows">
                         {{range .Domains}}{{template "domain-row" .}}{{else}}
-                        <tr role="row"><td colspan="4" role="cell">{{.EmptyMessage}}</td></tr>
+                        <tr role="row"><td colspan="4" role="cell">No domains in the last 24 hours.</td></tr>
                         {{end}}
                     </tbody>
                 </table>
