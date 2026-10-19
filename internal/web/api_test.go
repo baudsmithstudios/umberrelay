@@ -429,7 +429,7 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
-	req := httptest.NewRequest("GET", "/api/queries/stream?actor=device:aa:bb:cc:dd:ee:ff&category=tracking", nil).WithContext(ctx)
+	req := httptest.NewRequest("GET", "/api/queries/stream?after=0&actor=device:aa:bb:cc:dd:ee:ff&category=tracking", nil).WithContext(ctx)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -487,6 +487,42 @@ func TestAPIQueryStreamSendsHeadersBeforeFirstEvent(t *testing.T) {
 	defer cancel()
 
 	openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
+}
+
+func TestAPIQueryStreamWithoutCursorSendsOnlyNewQueries(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "history.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	lines := openQueryStream(t, ctx, srv.URL+"/api/queries/stream")
+
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "live.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	s.NotifyNewQueries()
+
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case line := <-lines:
+			if strings.Contains(line, "history.example.com") {
+				t.Fatal("stream replayed a query written before the client connected")
+			}
+			if strings.Contains(line, "live.example.com") {
+				return
+			}
+		case <-timeout:
+			t.Fatal("stream never sent the new query")
+		}
+	}
 }
 
 func openQueryStream(t *testing.T, ctx context.Context, url string) <-chan string {
