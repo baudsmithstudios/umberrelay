@@ -416,6 +416,12 @@ func scanQueries(rows *sql.Rows) ([]Query, error) {
 	return out, rows.Err()
 }
 
+func (d *DB) LatestQueryID() (int64, error) {
+	var id int64
+	err := d.sql.QueryRow(`SELECT COALESCE(MAX(id), 0) FROM queries`).Scan(&id)
+	return id, err
+}
+
 func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Query, error) {
 	var conditions []string
 	var args []any

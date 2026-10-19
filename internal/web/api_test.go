@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -451,6 +452,82 @@ func TestAPIQueryStreamEmitsFilteredSSEEvent(t *testing.T) {
 	}
 	if strings.Contains(body, "ignore.example.com") {
 		t.Fatalf("stream response included non-matching query: %q", body)
+	}
+}
+
+func TestAPIQueryStreamAfterParamDoesNotHideRowsFromOtherClients(t *testing.T) {
+	s := testServer(t)
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "initial.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/queries/stream", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET stream: %v", err)
+	}
+	defer resp.Body.Close()
+	waitForStreamSubscribers(t, s.queryHub, 1)
+
+	otherCtx, otherCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer otherCancel()
+	other := httptest.NewRequest("GET", "/api/queries/stream?after=999999999", nil).WithContext(otherCtx)
+	s.Handler().ServeHTTP(httptest.NewRecorder(), other)
+
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "10.0.0.7", Domain: "live.example.com", QueryType: "A", Timestamp: time.Now()},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+	s.NotifyNewQueries()
+
+	lines := make(chan string)
+	go func() {
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			select {
+			case lines <- scanner.Text():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case line := <-lines:
+			if strings.Contains(line, "live.example.com") {
+				return
+			}
+		case <-timeout:
+			t.Fatal("first client never received the new query")
+		}
+	}
+}
+
+func waitForStreamSubscribers(t *testing.T, hub *queryStreamHub, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		hub.mu.Lock()
+		got := len(hub.subscribers)
+		hub.mu.Unlock()
+		if got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("subscribers = %d, want %d", got, want)
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 

@@ -261,6 +261,13 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		filter.DeviceMAC = deviceMAC
 	}
 
+	stream, cancel, err := s.queryHub.Subscribe()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	defer cancel()
+
 	initial, err := s.db.QueryFeed(afterID, filter, limit)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal error")
@@ -287,9 +294,6 @@ func (s *Server) handleAPIQueryStream(w http.ResponseWriter, r *http.Request) {
 		afterID = lastID
 		flusher.Flush()
 	}
-	s.queryHub.AdvanceCursor(afterID)
-	stream, cancel := s.queryHub.Subscribe()
-	defer cancel()
 	heartbeatTicker := time.NewTicker(15 * time.Second)
 	defer heartbeatTicker.Stop()
 

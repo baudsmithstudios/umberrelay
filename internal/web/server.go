@@ -44,7 +44,7 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 		classify: classify,
 		queryHub: newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
 			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
-		}, 500),
+		}, db.LatestQueryID, 500),
 		mux:                    http.NewServeMux(),
 		pages:                  parsePages(),
 		now:                    time.Now,

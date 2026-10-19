@@ -94,15 +94,12 @@ func TestHTTPServerDisablesWriteTimeoutForStreaming(t *testing.T) {
 
 func TestNotifyNewQueriesWakesHub(t *testing.T) {
 	s := testServer(t)
-	now := time.Now().UTC()
+	stream := subscribe(t, s.queryHub)
 	if err := s.db.WriteQueries([]store.Query{
-		{SourceIP: "10.0.0.7", Domain: "wake.example.com", QueryType: "A", Timestamp: now},
+		{SourceIP: "10.0.0.7", Domain: "wake.example.com", QueryType: "A", Timestamp: time.Now().UTC()},
 	}); err != nil {
 		t.Fatalf("WriteQueries: %v", err)
 	}
-
-	stream, cancel := s.queryHub.Subscribe()
-	defer cancel()
 	s.NotifyNewQueries()
 
 	select {

@@ -1,162 +1,113 @@
 package web
 
 import (
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
 	"umberrelay/internal/store"
 )
 
-func TestQueryStreamHubPollsOnceAndBroadcastsToAllSubscribers(t *testing.T) {
-	var fetchCalls atomic.Int32
-	hub := newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
-		fetchCalls.Add(1)
-		if afterID != 0 {
-			t.Fatalf("afterID = %d, want 0", afterID)
-		}
-		return []store.Query{
-			{ID: 1, Domain: "ads.example.com", QueryType: "A", Category: "tracking"},
-		}, nil
-	}, 100)
-	defer hub.Close()
+type fakeQueryFeed struct {
+	mu   sync.Mutex
+	rows []store.Query
+}
 
-	first, cancelFirst := hub.Subscribe()
-	defer cancelFirst()
-	second, cancelSecond := hub.Subscribe()
-	defer cancelSecond()
-
-	hub.pollOnce()
-
-	select {
-	case query := <-first:
-		if query.ID != 1 {
-			t.Fatalf("first subscriber query ID = %d, want 1", query.ID)
-		}
-	default:
-		t.Fatalf("first subscriber did not receive broadcast query")
-	}
-
-	select {
-	case query := <-second:
-		if query.ID != 1 {
-			t.Fatalf("second subscriber query ID = %d, want 1", query.ID)
-		}
-	default:
-		t.Fatalf("second subscriber did not receive broadcast query")
-	}
-
-	if fetchCalls.Load() != 1 {
-		t.Fatalf("fetch call count = %d, want 1", fetchCalls.Load())
+func (f *fakeQueryFeed) add(ids ...int64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, id := range ids {
+		f.rows = append(f.rows, store.Query{ID: id, Domain: "example.com"})
 	}
 }
 
-func TestQueryStreamHubAdvanceCursorSkipsOlderRows(t *testing.T) {
-	hub := newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
-		if afterID != 5 {
-			t.Fatalf("afterID = %d, want 5", afterID)
+func (f *fakeQueryFeed) fetch(afterID int64, limit int) ([]store.Query, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []store.Query
+	for _, row := range f.rows {
+		if row.ID > afterID && len(out) < limit {
+			out = append(out, row)
 		}
-		return []store.Query{
-			{ID: 3, Domain: "old.example.com"},
-			{ID: 6, Domain: "new.example.com"},
-		}, nil
-	}, 100)
-	defer hub.Close()
-
-	stream, cancel := hub.Subscribe()
-	defer cancel()
-	hub.AdvanceCursor(5)
-
-	hub.pollOnce()
-
-	select {
-	case query := <-stream:
-		if query.ID != 6 {
-			t.Fatalf("query ID = %d, want 6", query.ID)
-		}
-	default:
-		t.Fatalf("subscriber did not receive newer query")
 	}
+	return out, nil
 }
 
-func TestQueryStreamHubOnlyPollsAfterNotify(t *testing.T) {
-	var fetchCalls atomic.Int32
-	hub := newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
-		call := fetchCalls.Add(1)
-		return []store.Query{
-			{ID: int64(call), Domain: "ads.example.com"},
-		}, nil
-	}, 100)
-	defer hub.Close()
-
-	stream, cancel := hub.Subscribe()
-	defer cancel()
-
-	select {
-	case query := <-stream:
-		if query.ID != 1 {
-			t.Fatalf("initial query ID = %d, want 1", query.ID)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("subscriber did not receive initial query after subscribe")
+func (f *fakeQueryFeed) latestID() (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.rows) == 0 {
+		return 0, nil
 	}
+	return f.rows[len(f.rows)-1].ID, nil
+}
 
+func subscribe(t *testing.T, hub *queryStreamHub) <-chan store.Query {
+	t.Helper()
+	stream, cancel, err := hub.Subscribe()
+	if err != nil {
+		t.Fatalf("Subscribe: %v", err)
+	}
+	t.Cleanup(cancel)
+	return stream
+}
+
+func receiveQueryIDs(t *testing.T, stream <-chan store.Query, n int) []int64 {
+	t.Helper()
+	var got []int64
+	for len(got) < n {
+		select {
+		case query := <-stream:
+			got = append(got, query.ID)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("received IDs %v, want %d queries", got, n)
+		}
+	}
+	return got
+}
+
+func TestQueryStreamHubBroadcastsToAllSubscribers(t *testing.T) {
+	feed := &fakeQueryFeed{}
+	hub := newQueryStreamHub(feed.fetch, feed.latestID, 100)
+	defer hub.Close()
+	first := subscribe(t, hub)
+	second := subscribe(t, hub)
+
+	feed.add(1)
 	hub.NotifyNewQueries()
 
-	select {
-	case query := <-stream:
-		if query.ID != 2 {
-			t.Fatalf("query ID = %d, want 2", query.ID)
+	for _, stream := range []<-chan store.Query{first, second} {
+		if got := receiveQueryIDs(t, stream, 1); got[0] != 1 {
+			t.Fatalf("query ID = %d, want 1", got[0])
 		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("subscriber did not receive query after notify")
-	}
-
-	if fetchCalls.Load() < 2 {
-		t.Fatalf("fetch call count after notify = %d, want at least 2", fetchCalls.Load())
 	}
 }
 
-func TestQueryStreamHubPollOnceDrainsMultipleBatches(t *testing.T) {
-	var fetchCalls atomic.Int32
-	hub := newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
-		fetchCalls.Add(1)
-		switch afterID {
-		case 0:
-			return []store.Query{
-				{ID: 1, Domain: "one.example.com"},
-				{ID: 2, Domain: "two.example.com"},
-			}, nil
-		case 2:
-			return []store.Query{
-				{ID: 3, Domain: "three.example.com"},
-				{ID: 4, Domain: "four.example.com"},
-			}, nil
-		case 4:
-			return []store.Query{
-				{ID: 5, Domain: "five.example.com"},
-			}, nil
-		default:
-			return nil, nil
-		}
-	}, 2)
+func TestQueryStreamHubSkipsRowsWrittenBeforeFirstSubscriber(t *testing.T) {
+	feed := &fakeQueryFeed{}
+	feed.add(1, 2)
+	hub := newQueryStreamHub(feed.fetch, feed.latestID, 100)
 	defer hub.Close()
+	stream := subscribe(t, hub)
 
-	stream, cancel := hub.Subscribe()
-	defer cancel()
+	feed.add(3)
+	hub.NotifyNewQueries()
 
-	hub.pollOnce()
-
-	var got []int64
-	for i := 0; i < 5; i++ {
-		select {
-		case q := <-stream:
-			got = append(got, q.ID)
-		default:
-			t.Fatalf("missing streamed query at index %d; got IDs: %v", i, got)
-		}
+	if got := receiveQueryIDs(t, stream, 1); got[0] != 3 {
+		t.Fatalf("query ID = %d, want 3", got[0])
 	}
+}
 
+func TestQueryStreamHubDrainsMultipleBatches(t *testing.T) {
+	feed := &fakeQueryFeed{}
+	hub := newQueryStreamHub(feed.fetch, feed.latestID, 2)
+	defer hub.Close()
+	stream := subscribe(t, hub)
+
+	feed.add(1, 2, 3, 4, 5)
+	hub.NotifyNewQueries()
+
+	got := receiveQueryIDs(t, stream, 5)
 	want := []int64{1, 2, 3, 4, 5}
 	for i := range want {
 		if got[i] != want[i] {
