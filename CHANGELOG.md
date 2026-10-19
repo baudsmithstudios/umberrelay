@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-18
+
 ### Changed
 
 - **Breaking:** API responses now use snake_case JSON keys (e.g. `device_mac`); update consumers relying on the old PascalCase keys.
@@ -21,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 - Patched stdlib and `x/net` advisories (Go 1.26.9, x/net 0.60.0).
+- Docker image now runs on `alpine:3.22`; `3.19` is past end of support.
 
 ## [0.1.0] - 2026-04-19
 
@@ -40,5 +43,6 @@ Initial public release.
 - `--version` flag
 - Docker deployment (`network_mode: host`); ARM64 build for Raspberry Pi
 
-[Unreleased]: https://github.com/baudsmithstudios/umberrelay/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/baudsmithstudios/umberrelay/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/baudsmithstudios/umberrelay/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/baudsmithstudios/umberrelay/releases/tag/v0.1.0
