@@ -787,3 +787,26 @@ func TestNoPicoAssetsServed(t *testing.T) {
 		}
 	}
 }
+
+func TestNetworkMeterOmitsReferenceWithoutPriorData(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if strings.Contains(body, "prior 7d") && !strings.Contains(body, "vs prior 7d") {
+		t.Fatalf("meter claims a prior-7d reference with no prior data")
+	}
+	if strings.Contains(body, `class="tick"`) {
+		t.Fatalf("meter draws a reference tick with no prior data")
+	}
+}
+
+func TestMainIsNotALiveRegion(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	if strings.Contains(body, `<main id="main" aria-live`) {
+		t.Fatalf("main is a live region, so every live feed row is announced")
+	}
+}

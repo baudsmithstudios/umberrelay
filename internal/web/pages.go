@@ -508,12 +508,14 @@ func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, netw
 	pane := networkPane{
 		Stats: stats,
 		Tracker: trackerSummary{
-			Percent:  stats.TrackerPercent,
-			Badge:    trackerBadge(networkTrend),
-			RefPct:   networkTrend.Previous,
-			RefLabel: fmt.Sprintf("prior 7d %.1f%%", networkTrend.Previous),
-			Matches:  makeListMatches(counts),
+			Percent: stats.TrackerPercent,
+			Badge:   trackerBadge(networkTrend),
+			Matches: makeListMatches(counts),
 		},
+	}
+	if networkTrend.HasPrior {
+		pane.Tracker.RefPct = networkTrend.Previous
+		pane.Tracker.RefLabel = fmt.Sprintf("prior 7d %.1f%%", networkTrend.Previous)
 	}
 	for _, anomaly := range anomalies {
 		pane.Flags = append(pane.Flags, flagFor(anomaly))

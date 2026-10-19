@@ -206,9 +206,11 @@
             <span class="elum-meter-value">{{printf "%.1f" .Percent}}%{{if .Badge}} <span class="elum-badge" data-tone="error">[{{.Badge}}]</span>{{end}}</span>
         </div>
         <div class="ur-ref">
-            <div class="elum-meter-track" role="meter" aria-valuenow="{{printf "%.1f" .Percent}}" aria-valuemin="0" aria-valuemax="100" aria-valuetext="{{printf "%.1f" .Percent}}%, {{.RefLabel}}" aria-labelledby="tracker-rate-label" data-tone="error" style="--elum-meter-fill-width: {{printf "%.1f" .Percent}}%"></div>
+            <div class="elum-meter-track" role="meter" aria-valuenow="{{printf "%.1f" .Percent}}" aria-valuemin="0" aria-valuemax="100" aria-valuetext="{{printf "%.1f" .Percent}}%{{with .RefLabel}}, {{.}}{{end}}" aria-labelledby="tracker-rate-label" data-tone="error" style="--elum-meter-fill-width: {{printf "%.1f" .Percent}}%"></div>
+            {{if .RefLabel}}
             <span class="tick" aria-hidden="true" style="left: {{printf "%.1f" .RefPct}}%"></span>
             <span class="tick-label" aria-hidden="true" style="left: {{printf "%.1f" .RefPct}}%">{{.RefLabel}}</span>
+            {{end}}
         </div>
     </div>
     {{template "list-matches" .Matches}}
