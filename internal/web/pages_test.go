@@ -138,7 +138,7 @@ func TestDeviceDetailPageDomainPagination(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	req := httptest.NewRequest("GET", "/devices/"+mac+"?page=2", nil)
+	req := httptest.NewRequest("GET", "/devices/"+mac+"?tab=domains&page=2", nil)
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -149,7 +149,8 @@ func TestDeviceDetailPageDomainPagination(t *testing.T) {
 	for _, want := range []string{
 		"showing 21-25",
 		"Page 2 of 2",
-		`href="?page=1"`,
+		`href="?tab=domains&page=1"`,
+		`id="tab-domains" role="tab" aria-selected="true"`,
 		"domain-21.example.com",
 	} {
 		if !strings.Contains(body, want) {
@@ -417,6 +418,9 @@ func TestUIOverrideReturnsUpdatedDomainRow(t *testing.T) {
 	if !strings.Contains(body, "tracking · manual") {
 		t.Fatalf("response missing updated override category/source: %s", body)
 	}
+	if !strings.Contains(body, `<span class="elum-status-label" data-tone="error">tracking · manual</span>`) {
+		t.Fatalf("override row class is not a toned status label: %s", body)
+	}
 }
 
 func TestUIOverrideRejectsInvalidCategory(t *testing.T) {
@@ -672,5 +676,79 @@ func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
 	body := getPage(t, s, "/")
 	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · tracker spike.`) {
 		t.Fatalf("needs attention missing the tracker spike flag")
+	}
+}
+
+func TestDomainsTabPageBeyondRangeClamps(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+	queries := make([]store.Query, 0, 25)
+	for i := 1; i <= 25; i++ {
+		queries = append(queries, store.Query{DeviceMAC: mac, Domain: fmt.Sprintf("domain-%02d.example.com", i), QueryType: "A", Timestamp: now.Add(-time.Duration(i) * time.Minute)})
+	}
+	if err := s.db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/"+mac+"?tab=domains&page=999")
+	for _, want := range []string{"Page 2 of 2", `id="tab-domains" role="tab" aria-selected="true"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("clamped page missing %q", want)
+		}
+	}
+}
+
+func TestNetworkDomainsTabHasOverrides(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/?tab=domains")
+	if !strings.Contains(body, `hx-post="/ui/overrides/ads.example.com"`) {
+		t.Fatalf("network domains tab missing override form")
+	}
+}
+
+func TestIdentificationNote(t *testing.T) {
+	full := identificationNote(store.Device{MAC: "aa", Hostname: "roku-tv", Vendor: "Roku"})
+	if full != "MAC from the ARP table. Hostname roku-tv from DHCP. Vendor Roku from the MAC prefix." {
+		t.Errorf("full note = %q", full)
+	}
+	if bare := identificationNote(store.Device{MAC: "aa"}); bare != "MAC from the ARP table." {
+		t.Errorf("bare note = %q", bare)
+	}
+}
+
+func TestLiveTabMarkup(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/?tab=live")
+	if !strings.Contains(body, `<ul class="elum-feed" id="live-query-feed"`) {
+		t.Fatalf("live feed list missing")
+	}
+	if !strings.Contains(body, `id="live-query-domain-filter"`) {
+		t.Fatalf("live feed filter missing")
+	}
+}
+
+func TestUnclassifiedDomainRowPreselectsUncategorized(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/?tab=domains")
+	start := strings.Index(body, `id="domain-row-clean.example.com"`)
+	if start < 0 {
+		t.Fatalf("clean.example.com row missing")
+	}
+	row := body[start : start+strings.Index(body[start:], "</tr>")]
+	if !strings.Contains(row, `<option value="uncategorized" selected>`) {
+		t.Fatalf("unclassified row does not preselect uncategorized: %q", row)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"umberrelay/internal/category"
 	"umberrelay/internal/classify"
 	"umberrelay/internal/store"
 	"umberrelay/internal/web/static"
@@ -63,7 +64,7 @@ func refreshManagerSources(ctx context.Context, mgr *classify.Manager, sources [
 }
 
 func parsePages() map[string]*template.Template {
-	funcs := template.FuncMap{"categoryTone": categoryTone}
+	funcs := template.FuncMap{"categoryTone": categoryTone, "categoryOptions": category.Options}
 	base := template.Must(template.New("layout.html").Funcs(funcs).ParseFS(static.FS, "templates/layout.html", "templates/components.html"))
 	pageFiles := []string{"activity", "settings"}
 	pages := make(map[string]*template.Template, len(pageFiles)+1)

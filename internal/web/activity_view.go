@@ -251,3 +251,15 @@ func parseTab(raw string) string {
 		return "overview"
 	}
 }
+
+// identificationNote explains which discovery signals named a device.
+func identificationNote(d store.Device) string {
+	parts := []string{"MAC from the ARP table."}
+	if d.Hostname != "" {
+		parts = append(parts, "Hostname "+d.Hostname+" from DHCP.")
+	}
+	if d.Vendor != "" {
+		parts = append(parts, "Vendor "+d.Vendor+" from the MAC prefix.")
+	}
+	return strings.Join(parts, " ")
+}

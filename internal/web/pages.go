@@ -36,7 +36,6 @@ type privacyDomainRow struct {
 	DeviceCount         int
 	DeviceCountLabel    string
 	ClassificationLabel string
-	ClassificationClass string
 	ActorKey            string
 	Scope               string
 }
@@ -44,7 +43,6 @@ type privacyDomainRow struct {
 type privacyDetail struct {
 	Mode            string
 	LiveActorKey    string
-	CategoryOptions []category.Option
 	Device          store.Device
 	DeviceName      string
 	SourceIP        string
@@ -52,6 +50,7 @@ type privacyDetail struct {
 	PrivacySummary  store.DevicePrivacySummary
 	Tracker         trackerSummary
 	Flag            *actorFlag
+	IdentifiedBy    string
 	Domains         []privacyDomainRow
 	RangeQuery      string
 	EmptyMessage    string
@@ -194,17 +193,6 @@ func deviceDisplayName(device store.Device) string {
 	}
 }
 
-func groupCategory(category string) string {
-	switch category {
-	case "tracking", "advertising", "malware":
-		return "tracking"
-	case "analytics":
-		return "analytics"
-	default:
-		return "unclassified"
-	}
-}
-
 func categoryLabel(category string) string {
 	if category == "" {
 		return "unclassified"
@@ -214,10 +202,6 @@ func categoryLabel(category string) string {
 
 func classificationLabel(domain store.DomainWithSource) string {
 	return fmt.Sprintf("%s · %s", categoryLabel(domain.Category), domain.SourceList)
-}
-
-func classificationPillClass(category string) string {
-	return "classification-pill-" + groupCategory(category)
 }
 
 func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorKey string) privacyDomainRow {
@@ -230,7 +214,6 @@ func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorK
 		QueryCount:          domain.QueryCount,
 		DeviceCount:         domain.DeviceCount,
 		ClassificationLabel: classificationLabel(domain),
-		ClassificationClass: classificationPillClass(domain.Category),
 		ActorKey:            actorKey,
 	}
 	if actorKey == "" {
@@ -349,7 +332,6 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 
 	return privacyDetail{
 		LiveActorKey:    actorKey,
-		CategoryOptions: category.Options(),
 		PrivacySummary:  summary,
 		Tracker:         tracker,
 		Domains:         domains,
@@ -398,6 +380,7 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 
 	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, actorTracker(privacySummary, trackerTrend, network, counts), topDomains, pagination)
 	detail.Mode = actorTypeDevice
+	detail.IdentifiedBy = identificationNote(device)
 	detail.Device = device
 	detail.DeviceName = deviceDisplayName(device)
 	return detail, nil
@@ -428,6 +411,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 
 	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, actorTracker(privacySummary, trackerTrend, network, counts), topDomains, pagination)
 	detail.Mode = actorTypeSource
+	detail.IdentifiedBy = "No MAC address was seen for this source, so it is tracked by IP."
 	detail.DeviceName = sourceActorDisplayName(sourceIP, label)
 	detail.SourceIP = sourceIP
 	detail.SourceLabel = label
@@ -732,7 +716,6 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	row.CategoryLabel = categoryLabel(normalizedCategory)
 	row.SourceList = "manual"
 	row.ClassificationLabel = fmt.Sprintf("%s · manual", row.CategoryLabel)
-	row.ClassificationClass = classificationPillClass(normalizedCategory)
 
 	s.renderFragment(w, "fragments", "domain-row", row)
 }

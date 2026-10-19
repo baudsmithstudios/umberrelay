@@ -116,23 +116,53 @@
 
         <div id="panel-domains" class="elum-stack">
             <h2 class="elum-separator-labeled">Domains</h2>
+            <form class="elum-query" role="search" aria-label="Domain filters" id="domain-filters">
+                <div class="elum-field">
+                    <label class="elum-label" for="domain-filter">Domain</label>
+                    <input class="elum-input" type="search" id="domain-filter" placeholder="filter this page">
+                </div>
+                <div class="elum-field">
+                    <label class="elum-label" for="domain-class-filter">Class</label>
+                    <select class="elum-select" id="domain-class-filter">
+                        <option value="">Any class</option>
+                        {{range categoryOptions}}<option value="{{.Value}}">{{.Label}}</option>
+                        {{end}}
+                    </select>
+                </div>
+            </form>
+            {{with .Network}}
+            <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Top domains">
+                <table class="elum-table" role="table">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th scope="col" role="columnheader">Domain</th>
+                            <th scope="col" role="columnheader">Class</th>
+                            <th scope="col" data-align="end" role="columnheader">Queries</th>
+                            <th scope="col" data-align="end" role="columnheader">Reach</th>
+                            <th scope="col" role="columnheader">Override</th>
+                        </tr>
+                    </thead>
+                    <tbody role="rowgroup" id="domain-rows">
+                        {{range .TopDomains}}{{template "domain-row" .}}{{else}}
+                        <tr role="row"><td colspan="5" role="cell">No domains in the last 24 hours.</td></tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+            {{end}}
             {{with .Detail}}
-        <article class="elum-card elum-card-labeled elum-stack">
-            <header class="elum-card-header" data-inline="true">
-                <h2 class="elum-card-title">Domains</h2>
-                <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.DomainPageStart}}-{{.DomainPageEnd}}{{end}}</p>
-            </header>
+            <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.DomainPageStart}}-{{.DomainPageEnd}}{{end}}</p>
             <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Domains">
                 <table class="elum-table" role="table">
                     <thead role="rowgroup">
                         <tr role="row">
                             <th scope="col" role="columnheader">Domain</th>
-                            <th scope="col" role="columnheader">Classification</th>
-                            <th scope="col" role="columnheader">Queries</th>
-                            <th scope="col" role="columnheader">Actions</th>
+                            <th scope="col" role="columnheader">Class</th>
+                            <th scope="col" data-align="end" role="columnheader">Queries</th>
+                            <th scope="col" role="columnheader">Override</th>
                         </tr>
                     </thead>
-                    <tbody role="rowgroup">
+                    <tbody role="rowgroup" id="domain-rows">
                         {{range .Domains}}{{template "domain-row" .}}{{else}}
                         <tr role="row"><td colspan="4" role="cell">{{.EmptyMessage}}</td></tr>
                         {{end}}
@@ -141,17 +171,21 @@
             </div>
             {{if gt .DomainPageCount 1}}
             <nav class="elum-pagination" aria-label="Pagination">
-                {{if .DomainHasPrev}}<a class="elum-button" data-variant="tertiary" href="?page={{.DomainPrevPage}}">Prev</a>{{end}}
+                {{if .DomainHasPrev}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.DomainPrevPage}}">Prev</a>{{end}}
                 <span class="elum-pagination-status">Page {{.DomainPage}} of {{.DomainPageCount}}</span>
-                {{if .DomainHasNext}}<a class="elum-button" data-variant="tertiary" href="?page={{.DomainNextPage}}">Next</a>{{end}}
+                {{if .DomainHasNext}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.DomainNextPage}}">Next</a>{{end}}
             </nav>
             {{end}}
-        </article>
+            <details class="elum-disclosure">
+                <summary class="elum-disclosure-summary">How this {{if eq .Mode "source"}}source{{else}}device{{end}} was identified</summary>
+                <div class="elum-disclosure-content">{{.IdentifiedBy}}</div>
+            </details>
             {{end}}
         </div>
 
         <div id="panel-live" class="elum-stack">
             <h2 class="elum-separator-labeled">Live</h2>
+            {{if .Detail}}{{template "live-query-stream" .Detail.LiveActorKey}}{{else}}{{template "live-query-stream" ""}}{{end}}
         </div>
     </section>
 </div>
@@ -159,6 +193,8 @@
 
 {{define "page_scripts"}}
 <script src="/static/elumkit/tabs.js" defer></script>
+<script src="/static/js/feed.js"></script>
+<script src="/static/js/activity.js"></script>
 {{end}}
 
 {{define "tracker"}}
