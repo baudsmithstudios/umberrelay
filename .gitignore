@@ -13,6 +13,7 @@ dist/
 vendor/
 .cache/
 
+.claude/
 .idea/
 .vscode/
 *.swp
