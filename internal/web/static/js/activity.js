@@ -3,9 +3,6 @@
     function bindDomainFilter() {
         const form = document.getElementById('domain-filters');
         const rows = document.getElementById('domain-rows');
-        if (!form || !rows) {
-            return;
-        }
         const text = document.getElementById('domain-filter');
         const cls = document.getElementById('domain-class-filter');
 
@@ -33,8 +30,7 @@
 
     function applyRoster() {
         const needle = document.getElementById('roster-filter').value.trim().toLowerCase();
-        const checked = document.querySelector('input[name="roster-sort"]:checked');
-        const sort = checked ? checked.value : 'tracker';
+        const sort = document.querySelector('input[name="roster-sort"]:checked').value;
         rosterRows().forEach(function (row) {
             const haystack = [row.dataset.name, row.dataset.actorKey, row.querySelector('.elum-row-meta').textContent].join(' ').toLowerCase();
             row.parentElement.hidden = needle !== '' && haystack.indexOf(needle) === -1;
@@ -98,9 +94,6 @@
 
     function bindRoster() {
         const filter = document.getElementById('roster-filter');
-        if (!filter) {
-            return;
-        }
         filter.form.addEventListener('submit', function (event) {
             event.preventDefault();
         });

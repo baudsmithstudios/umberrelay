@@ -10,10 +10,7 @@
             liveQueryStream.source = null;
         }
         liveQueryStream.signature = '';
-        const status = document.getElementById('live-query-status');
-        if (status) {
-            status.innerHTML = '';
-        }
+        document.getElementById('live-query-status').innerHTML = '';
     }
 
     function escapeHTML(value) {
@@ -92,28 +89,16 @@
     }
 
     function bindLiveQueryStream() {
-        const panel = document.getElementById('live-query-stream');
-        if (!panel) {
-            closeLiveQueryStream();
-            return;
-        }
-        if (panel.dataset.bound === 'true') {
-            return;
-        }
-        panel.dataset.bound = 'true';
-
         if (typeof window.EventSource === 'undefined') {
             return;
         }
 
+        const panel = document.getElementById('live-query-stream');
         const domainInput = document.getElementById('live-query-domain-filter');
         const categorySelect = document.getElementById('live-query-category-filter');
         const feed = document.getElementById('live-query-feed');
         const clearButton = document.getElementById('live-query-clear');
         const status = document.getElementById('live-query-status');
-        if (!domainInput || !categorySelect || !feed || !clearButton || !status) {
-            return;
-        }
 
         let debounceTimer = null;
 
@@ -197,7 +182,4 @@
     }
 
     document.addEventListener('DOMContentLoaded', bindLiveQueryStream);
-    document.body.addEventListener('htmx:afterSwap', function () {
-        bindLiveQueryStream();
-    });
 })();

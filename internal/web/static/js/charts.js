@@ -71,13 +71,13 @@
         ctx.clearRect(0, 0, width, height);
 
         const colors = {
-            line: token('--elum-color-error') || '#ff4f4f',
-            muted: token('--elum-color-muted') || '#b09470',
-            grid: token('--elum-color-border') || '#5a4528',
-            fg: token('--elum-color-fg') || '#f0e6c8',
-            bg: token('--elum-color-bg') || '#0e0b04',
+            line: token('--elum-color-error'),
+            muted: token('--elum-color-muted'),
+            grid: token('--elum-color-border'),
+            fg: token('--elum-color-fg'),
+            bg: token('--elum-color-bg'),
         };
-        ctx.font = '11px ' + (token('--elum-font-family') || 'monospace');
+        ctx.font = '11px ' + token('--elum-font-family');
 
         const plotW = width - PAD.left - PAD.right;
         const plotH = height - PAD.top - PAD.bottom;
@@ -230,9 +230,6 @@
 
     function bind() {
         const container = document.getElementById('tracker-chart');
-        if (!container) {
-            return;
-        }
         container.style.position = 'relative';
         const canvas = document.createElement('canvas');
         canvas.tabIndex = 0;
@@ -298,8 +295,7 @@
             }).observe(container);
         }
 
-        const checked = document.querySelector('input[name="chart-range"]:checked');
-        load(chart, checked ? checked.value : '24h');
+        load(chart, document.querySelector('input[name="chart-range"]:checked').value);
     }
 
     document.addEventListener('DOMContentLoaded', bind);
