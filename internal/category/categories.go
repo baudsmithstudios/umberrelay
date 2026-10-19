@@ -26,9 +26,7 @@ var options = []Option{
 }
 
 func Options() []Option {
-	out := make([]Option, len(options))
-	copy(out, options)
-	return out
+	return options
 }
 
 func Normalize(value string) (string, bool) {

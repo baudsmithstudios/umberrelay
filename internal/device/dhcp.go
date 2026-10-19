@@ -53,7 +53,7 @@ func (t *Tracker) parseDHCP(pkt []byte) {
 
 	hostname := ""
 	if len(pkt) > 240 {
-		hostname = parseDHCPOption12(pkt[240:])
+		hostname = parseDHCPHostname(pkt[240:])
 	}
 
 	if hostname == "" {
@@ -84,8 +84,7 @@ func (t *Tracker) parseDHCP(pkt []byte) {
 	)
 }
 
-// parseDHCPOption12 extracts the hostname (option 12) from DHCP options.
-func parseDHCPOption12(opts []byte) string {
+func parseDHCPHostname(opts []byte) string {
 	for i := 0; i < len(opts)-1; {
 		optType := opts[i]
 		if optType == 255 {

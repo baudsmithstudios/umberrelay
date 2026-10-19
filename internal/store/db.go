@@ -188,11 +188,7 @@ func (d *DB) Close() error {
 }
 
 func (d *DB) UpsertDevice(dev Device) error {
-	_, err := d.sql.Exec(upsertDeviceSQL,
-		dev.MAC, dev.IP, dev.Hostname, dev.Vendor,
-		dev.FirstSeen.UnixNano(), dev.LastSeen.UnixNano(),
-	)
-	return err
+	return d.UpsertDevices([]Device{dev})
 }
 
 func (d *DB) UpsertDevices(devs []Device) error {

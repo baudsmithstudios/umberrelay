@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestParseDHCPOption12ReturnsEmptyForMalformedOptions(t *testing.T) {
+func TestParseDHCPHostnameReturnsEmptyForMalformedOptions(t *testing.T) {
 	opts := []byte{12, 20, 'x', 'y'}
-	if got := parseDHCPOption12(opts); got != "" {
-		t.Fatalf("parseDHCPOption12() = %q, want empty", got)
+	if got := parseDHCPHostname(opts); got != "" {
+		t.Fatalf("parseDHCPHostname() = %q, want empty", got)
 	}
 }
 

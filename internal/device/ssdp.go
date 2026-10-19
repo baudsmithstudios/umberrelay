@@ -49,11 +49,7 @@ func (t *Tracker) parseSSDP(pkt []byte, srcIP string) {
 	}
 	defer req.Body.Close()
 
-	server := req.Header.Get("SERVER")
-	if server == "" {
-		server = req.Header.Get("Server")
-	}
-	t.upsertFromSSDP(srcIP, server)
+	t.upsertFromSSDP(srcIP, req.Header.Get("Server"))
 }
 
 func (t *Tracker) parseSSDPHeaders(pkt []byte, srcIP string) {
@@ -66,9 +62,7 @@ func (t *Tracker) parseSSDPHeaders(pkt []byte, srcIP string) {
 			break
 		}
 	}
-	if server != "" {
-		t.upsertFromSSDP(srcIP, server)
-	}
+	t.upsertFromSSDP(srcIP, server)
 }
 
 func (t *Tracker) upsertFromSSDP(srcIP, server string) {
