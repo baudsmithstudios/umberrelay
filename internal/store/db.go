@@ -519,14 +519,23 @@ func (d *DB) hourlyActivity(actor actorFilter) ([]HourlyBucket, error) {
 	return buckets, nil
 }
 
-func (d *DB) PurgeQueriesOlderThanChunk(cutoff time.Time, limit int) (int64, error) {
-	if limit <= 0 {
-		return 0, nil
-	}
-	if limit > 900 {
-		limit = 900
-	}
+// Each chunk is its own short transaction so the pipeline writer is not
+// blocked for the whole purge; the size keeps the IN list under SQLite's
+// 999 bound-parameter limit.
+const purgeChunkSize = 900
 
+func (d *DB) PurgeQueriesOlderThan(cutoff time.Time) (int64, error) {
+	var total int64
+	for {
+		deleted, err := d.purgeChunkOlderThan(cutoff)
+		total += deleted
+		if err != nil || deleted == 0 {
+			return total, err
+		}
+	}
+}
+
+func (d *DB) purgeChunkOlderThan(cutoff time.Time) (int64, error) {
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return 0, err
@@ -538,12 +547,12 @@ func (d *DB) PurgeQueriesOlderThanChunk(cutoff time.Time, limit int) (int64, err
 		FROM queries
 		WHERE timestamp < ?
 		ORDER BY timestamp ASC
-		LIMIT ?`, cutoff.UnixNano(), limit)
+		LIMIT ?`, cutoff.UnixNano(), purgeChunkSize)
 	if err != nil {
 		return 0, err
 	}
 
-	ids := make([]int64, 0, limit)
+	ids := make([]int64, 0, purgeChunkSize)
 	buckets := make(map[int64]struct{})
 	for rows.Next() {
 		var id int64
