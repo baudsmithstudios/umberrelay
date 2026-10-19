@@ -92,10 +92,12 @@ func TestHTTPServerDisablesWriteTimeoutForStreaming(t *testing.T) {
 	}
 }
 
-func TestListenAndServeAllowsInFlightRequestOnCancel(t *testing.T) {
+func TestListenAndServeWaitsForInFlightRequestOnCancel(t *testing.T) {
 	s := testServer(t)
 	entered := make(chan struct{}, 1)
+	handled := make(chan struct{})
 	s.mux.HandleFunc("GET /slow", func(w http.ResponseWriter, r *http.Request) {
+		defer close(handled)
 		entered <- struct{}{}
 		time.Sleep(150 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
@@ -153,6 +155,20 @@ func TestListenAndServeAllowsInFlightRequestOnCancel(t *testing.T) {
 	cancel()
 
 	select {
+	case err := <-done:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Fatalf("ListenAndServe() error = %v, want nil or http.ErrServerClosed", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ListenAndServe did not return after cancellation")
+	}
+	select {
+	case <-handled:
+	default:
+		t.Fatal("ListenAndServe returned before the in-flight request finished")
+	}
+
+	select {
 	case err := <-reqDone:
 		if err != nil {
 			t.Fatalf("in-flight request failed: %v", err)
@@ -160,14 +176,42 @@ func TestListenAndServeAllowsInFlightRequestOnCancel(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for in-flight request")
 	}
+}
 
-	select {
-	case err := <-done:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			t.Fatalf("ListenAndServe() error = %v, want nil or http.ErrServerClosed", err)
+func TestListenAndServeEndsLiveStreamsOnCancel(t *testing.T) {
+	s := testServer(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	addr := ln.Addr().String()
+	_ = ln.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- s.ListenAndServe(ctx, addr)
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		resp, err := http.Get("http://" + addr + "/api/queries/stream")
+		if err == nil {
+			defer resp.Body.Close()
+			break
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("ListenAndServe did not return after cancellation")
+		if time.Now().After(deadline) {
+			cancel()
+			t.Fatalf("server did not become ready: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("ListenAndServe waited on an open live stream")
 	}
 }
 
