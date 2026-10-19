@@ -1,0 +1,107 @@
+{{define "content"}}
+<div class="ur-activity">
+    <aside class="ur-roster" aria-label="Devices and sources">
+        <form class="elum-query" role="search" aria-label="Filter devices">
+            <div class="elum-field">
+                <label class="elum-label" for="roster-filter">Find a device</label>
+                <span class="elum-prompt-field"><span class="elum-input-prompt" aria-hidden="true">▶</span><input class="elum-input" id="roster-filter" type="search" placeholder="name, vendor or ip"></span>
+            </div>
+        </form>
+        <fieldset class="elum-segmented" aria-label="Sort devices">
+            <label class="elum-segmented-option" for="roster-sort-tracker"><input id="roster-sort-tracker" name="roster-sort" type="radio" value="tracker" checked>tracker %</label>
+            <label class="elum-segmented-option" for="roster-sort-volume"><input id="roster-sort-volume" name="roster-sort" type="radio" value="volume">volume</label>
+            <label class="elum-segmented-option" for="roster-sort-name"><input id="roster-sort-name" name="roster-sort" type="radio" value="name">name</label>
+        </fieldset>
+        <ul class="elum-list" role="list" aria-label="Network">
+            <li>{{template "roster-row" .Roster.Network}}</li>
+        </ul>
+        {{if .Roster.Devices}}
+        <h2 class="elum-separator-labeled">Devices</h2>
+        <ul class="elum-list" role="list" aria-label="Devices" data-roster-group>
+            {{range .Roster.Devices}}<li>{{template "roster-row" .}}</li>
+            {{end}}
+        </ul>
+        {{end}}
+        {{if .Roster.Sources}}
+        <h2 class="elum-separator-labeled">Unattributed sources</h2>
+        <ul class="elum-list" role="list" aria-label="Unattributed sources" data-roster-group>
+            {{range .Roster.Sources}}<li>{{template "roster-row" .}}</li>
+            {{end}}
+        </ul>
+        {{end}}
+    </aside>
+
+    <section class="ur-pane" aria-label="Details">
+        {{with .Network}}
+        <header class="elum-stack">
+            <p class="elum-card-subtitle">Whole network · last 24h · {{.Stats.TotalQueries}} queries · {{.Stats.UniqueDomainCount}} domains</p>
+            <h1>{{printf "%.0f" .Stats.TrackerPercent}}% of DNS queries hit known trackers across {{.Stats.DeviceCount}} devices</h1>
+        </header>
+        {{end}}
+
+        {{with .Detail}}
+        <header class="elum-stack">
+            <p class="elum-card-subtitle">{{if eq .Mode "source"}}Source{{else}}Device{{end}}{{with .Flag}} · <span class="elum-status-label" data-tone="{{.Tone}}">{{.Word}}</span>{{end}}</p>
+            <h1>{{.DeviceName}}</h1>
+            {{if eq .Mode "source"}}{{template "source-label-edit" .}}{{else}}{{template "label-edit" .}}{{end}}
+        </header>
+        <section class="elum-system-bar" aria-label="{{if eq .Mode "source"}}Source{{else}}Device{{end}} facts">
+            {{if eq .Mode "source"}}
+            <strong class="elum-system-bar-brand">{{.SourceIP}}</strong>
+            {{else}}
+            <strong class="elum-system-bar-brand">{{if .Device.Hostname}}{{.Device.Hostname}}{{else}}{{.Device.MAC}}{{end}}</strong>
+            {{end}}
+            <span class="elum-system-bar-group">
+                {{if ne .Mode "source"}}
+                {{if .Device.Vendor}}<span class="elum-system-bar-item"><span class="elum-system-bar-key">vendor</span><span class="elum-system-bar-value">{{.Device.Vendor}}</span></span>{{end}}
+                <span class="elum-system-bar-item"><span class="elum-system-bar-key">mac</span><span class="elum-system-bar-value">{{.Device.MAC}}</span></span>
+                {{if .Device.IP}}<span class="elum-system-bar-item"><span class="elum-system-bar-key">ip</span><span class="elum-system-bar-value">{{.Device.IP}}</span></span>{{end}}
+                <span class="elum-system-bar-item"><span class="elum-system-bar-key">last seen</span><span class="elum-system-bar-value">{{.Device.LastSeen.Local.Format "2006-01-02 15:04"}}</span></span>
+                {{end}}
+                <span class="elum-system-bar-item"><span class="elum-system-bar-key">24h</span><span class="elum-system-bar-value">{{.PrivacySummary.QueryCount}} queries · {{.PrivacySummary.UniqueDomains}} domains</span></span>
+            </span>
+        </section>
+
+        <article class="elum-card elum-card-labeled elum-stack">
+            <header class="elum-card-header" data-inline="true">
+                <h2 class="elum-card-title">Domains</h2>
+                <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.DomainPageStart}}-{{.DomainPageEnd}}{{end}}</p>
+            </header>
+            <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Domains">
+                <table class="elum-table" role="table">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th scope="col" role="columnheader">Domain</th>
+                            <th scope="col" role="columnheader">Classification</th>
+                            <th scope="col" role="columnheader">Queries</th>
+                            <th scope="col" role="columnheader">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody role="rowgroup">
+                        {{range .Domains}}{{template "domain-row" .}}{{else}}
+                        <tr role="row"><td colspan="4" role="cell">{{.EmptyMessage}}</td></tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+            {{if gt .DomainPageCount 1}}
+            <nav class="elum-pagination" aria-label="Pagination">
+                {{if .DomainHasPrev}}<a class="elum-button" data-variant="tertiary" href="?page={{.DomainPrevPage}}">Prev</a>{{end}}
+                <span class="elum-pagination-status">Page {{.DomainPage}} of {{.DomainPageCount}}</span>
+                {{if .DomainHasNext}}<a class="elum-button" data-variant="tertiary" href="?page={{.DomainNextPage}}">Next</a>{{end}}
+            </nav>
+            {{end}}
+        </article>
+        {{end}}
+    </section>
+</div>
+{{end}}
+
+{{define "roster-row"}}<a class="elum-row" href="{{.Href}}"{{if .Selected}} data-selected="true" aria-current="true"{{end}}>
+    <span class="elum-row-main">
+        <span class="elum-row-title">{{.Name}}</span>
+        <span class="elum-row-meta">{{.Meta}}</span>
+        <span class="ur-mini" aria-hidden="true"><i style="width: {{printf "%.1f" .TrackerPercent}}%"></i></span>
+    </span>
+    <span class="elum-row-value"{{if .Hot}} style="color: var(--elum-color-error)"{{end}}>{{printf "%.0f" .TrackerPercent}}%</span>
+</a>{{end}}

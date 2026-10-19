@@ -734,55 +734,6 @@ func TestListDevicesWithTrends(t *testing.T) {
 	}
 }
 
-func TestDeviceCategoryBreakdown(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	mac := "aa:bb:cc:dd:ee:ff"
-
-	err := db.UpsertDevice(Device{
-		MAC:       mac,
-		IP:        "192.168.1.10",
-		Hostname:  "roku-tv",
-		Vendor:    "Roku",
-		FirstSeen: now,
-		LastSeen:  now,
-	})
-	if err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-
-	err = db.WriteQueries([]Query{
-		{DeviceMAC: mac, Domain: "ads.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
-		{DeviceMAC: mac, Domain: "pixel.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(time.Second)},
-		{DeviceMAC: mac, Domain: "stats.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(2 * time.Second)},
-		{DeviceMAC: mac, Domain: "app.example.com", QueryType: "A", Category: "", Timestamp: now.Add(3 * time.Second)},
-		{DeviceMAC: mac, Domain: "old.example.com", QueryType: "A", Category: "advertising", Timestamp: now.Add(-25 * time.Hour)},
-		{DeviceMAC: "11:22:33:44:55:66", Domain: "other.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
-	})
-	if err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	breakdown, err := db.DeviceCategoryBreakdown(mac)
-	if err != nil {
-		t.Fatalf("DeviceCategoryBreakdown: %v", err)
-	}
-
-	want := []CategoryCount{
-		{Category: "tracking", Count: 2},
-		{Category: "", Count: 1},
-		{Category: "analytics", Count: 1},
-	}
-	if len(breakdown) != len(want) {
-		t.Fatalf("got %d rows, want %d", len(breakdown), len(want))
-	}
-	for i := range want {
-		if breakdown[i] != want[i] {
-			t.Fatalf("row %d = %#v, want %#v", i, breakdown[i], want[i])
-		}
-	}
-}
-
 func TestDevicePrivacySummary(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -996,48 +947,6 @@ func TestDashboardSummaryUsesTrackingGroupAndUniqueDomainCount(t *testing.T) {
 	}
 	if !almostEqualFloat64(summary.TopDevices[0].TrackerPercent, 3.0/4.0*100) {
 		t.Fatalf("top device TrackerPercent = %v, want %v", summary.TopDevices[0].TrackerPercent, 3.0/4.0*100)
-	}
-}
-
-func TestNetworkCategoryBreakdown(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	mac := "aa:bb:cc:dd:ee:ff"
-
-	if err := db.UpsertDevice(Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-
-	err := db.WriteQueries([]Query{
-		{DeviceMAC: mac, Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now},
-		{DeviceMAC: mac, Domain: "ads.example.com", QueryType: "A", Category: "advertising", Timestamp: now.Add(time.Second)},
-		{DeviceMAC: mac, Domain: "uncategorized.example.com", QueryType: "A", Category: "uncategorized", Timestamp: now.Add(2 * time.Second)},
-		{DeviceMAC: mac, Domain: "analytics.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(3 * time.Second)},
-		{DeviceMAC: mac, Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(4 * time.Second)},
-		{DeviceMAC: mac, Domain: "telemetry.example.com", QueryType: "A", Category: "telemetry", Timestamp: now.Add(5 * time.Second)},
-		{DeviceMAC: mac, Domain: "old.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-25 * time.Hour)},
-	})
-	if err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	breakdown, err := db.NetworkCategoryBreakdown()
-	if err != nil {
-		t.Fatalf("NetworkCategoryBreakdown: %v", err)
-	}
-
-	want := []CategoryCount{
-		{Category: "tracking", Count: 2},
-		{Category: "unclassified", Count: 3},
-		{Category: "analytics", Count: 1},
-	}
-	if len(breakdown) != len(want) {
-		t.Fatalf("got %d rows, want %d", len(breakdown), len(want))
-	}
-	for i := range want {
-		if breakdown[i] != want[i] {
-			t.Fatalf("row %d = %#v, want %#v", i, breakdown[i], want[i])
-		}
 	}
 }
 

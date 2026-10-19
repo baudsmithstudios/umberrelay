@@ -64,7 +64,7 @@ func refreshManagerSources(ctx context.Context, mgr *classify.Manager, sources [
 
 func parsePages() map[string]*template.Template {
 	base := template.Must(template.ParseFS(static.FS, "templates/layout.html", "templates/components.html"))
-	pageFiles := []string{"home", "devices", "device_detail", "settings"}
+	pageFiles := []string{"activity", "settings"}
 	pages := make(map[string]*template.Template, len(pageFiles)+1)
 	for _, name := range pageFiles {
 		t := template.Must(template.Must(base.Clone()).ParseFS(static.FS, "templates/"+name+".html"))
@@ -101,12 +101,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/overrides/{domain}", s.handleAPISetOverride)
 	s.mux.HandleFunc("DELETE /api/overrides/{domain}", s.handleAPIDeleteOverride)
 
-	s.mux.HandleFunc("GET /{$}", s.handleHome)
-	s.mux.HandleFunc("GET /devices", s.handleDevices)
-	s.mux.HandleFunc("GET /devices/{mac}", s.handleDeviceDetail)
-	s.mux.HandleFunc("GET /domains", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/devices", http.StatusMovedPermanently)
-	})
+	s.mux.HandleFunc("GET /{$}", s.handleActivity)
+	s.mux.HandleFunc("GET /devices/{key}", s.handleActivity)
 	s.mux.HandleFunc("GET /settings", s.handleSettings)
 	s.mux.HandleFunc("POST /ui/settings", s.handleUIUpdateSettings)
 	s.mux.HandleFunc("POST /ui/devices/{mac}/label", s.handleUIUpdateDeviceLabel)

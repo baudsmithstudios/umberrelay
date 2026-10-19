@@ -957,40 +957,6 @@ func (d *DB) DashboardSummaryAt(now time.Time) (DashboardStats, error) {
 	return stats, rows.Err()
 }
 
-type CategoryCount struct {
-	Category string
-	Count    int
-}
-
-func (d *DB) DeviceCategoryBreakdown(mac string) ([]CategoryCount, error) {
-	return d.categoryBreakdown(deviceActorFilter(mac))
-}
-
-func (d *DB) categoryBreakdown(actor actorFilter) ([]CategoryCount, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
-	args := append(append([]any{}, actor.args...), cutoff)
-	rows, err := d.sql.Query(`
-        SELECT COALESCE(category, ''), COUNT(*) as cnt
-        FROM queries
-        WHERE `+actor.where+` AND timestamp >= ?
-        GROUP BY category
-        ORDER BY cnt DESC, category ASC`, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []CategoryCount
-	for rows.Next() {
-		var cc CategoryCount
-		if err := rows.Scan(&cc.Category, &cc.Count); err != nil {
-			return nil, err
-		}
-		out = append(out, cc)
-	}
-	return out, rows.Err()
-}
-
 type DeviceWithStats struct {
 	Device
 	QueryCount     int     `json:"query_count"`
@@ -1276,39 +1242,6 @@ func (d *DB) privacySummaryAt(actor actorFilter, now time.Time) (DevicePrivacySu
 		summary.TrackerPercent = float64(trackerCount) / float64(summary.QueryCount) * 100
 	}
 	return summary, nil
-}
-
-func (d *DB) NetworkCategoryBreakdown() ([]CategoryCount, error) {
-	cutoff := time.Now().Add(-24 * time.Hour).UnixNano()
-
-	var trackingCount, analyticsCount, unclassifiedCount int
-	err := d.sql.QueryRow(`
-		SELECT
-			COALESCE(SUM(CASE WHEN category IN `+trackingCategorySQL+` THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN category = 'analytics' THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN category NOT IN `+trackingCategorySQL+` AND category != 'analytics' THEN 1 ELSE 0 END), 0)
-		FROM queries
-		WHERE timestamp >= ?`, cutoff,
-	).Scan(&trackingCount, &analyticsCount, &unclassifiedCount)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]CategoryCount, 0, 3)
-	if trackingCount > 0 {
-		out = append(out, CategoryCount{Category: "tracking", Count: trackingCount})
-	}
-	if unclassifiedCount > 0 {
-		out = append(out, CategoryCount{Category: "unclassified", Count: unclassifiedCount})
-	}
-	if analyticsCount > 0 {
-		out = append(out, CategoryCount{Category: "analytics", Count: analyticsCount})
-	}
-	return out, nil
-}
-
-func (d *DB) SourceCategoryBreakdown(sourceIP string) ([]CategoryCount, error) {
-	return d.categoryBreakdown(sourceActorFilter(sourceIP))
 }
 
 // CategoryWindowCount compares one category's query count in the current 24h

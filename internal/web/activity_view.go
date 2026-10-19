@@ -3,7 +3,9 @@ package web
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
+	"strings"
 
 	"umberrelay/internal/category"
 	"umberrelay/internal/store"
@@ -136,4 +138,106 @@ func flagsByMAC(anomalies []store.Anomaly) map[string]actorFlag {
 		out[a.DeviceMAC] = flag
 	}
 	return out
+}
+
+type trackerSummary struct {
+	Percent  float64
+	Badge    string
+	RefPct   float64
+	RefLabel string
+	Matches  listMatches
+}
+
+type networkPane struct {
+	Stats      store.DashboardStats
+	Tracker    trackerSummary
+	Flags      []actorFlag
+	TopDomains []privacyDomainRow
+}
+
+type activityView struct {
+	pageData
+	Roster  roster
+	Network *networkPane
+	Detail  *privacyDetail
+}
+
+type rosterRow struct {
+	ActorKey       string
+	Href           string
+	Name           string
+	Meta           string
+	TrackerPercent float64
+	QueryCount     int
+	Hot            bool
+	Selected       bool
+}
+
+type roster struct {
+	Network rosterRow
+	Devices []rosterRow
+	Sources []rosterRow
+}
+
+func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTrends, stats store.DashboardStats, flags map[string]actorFlag, selectedKey string) roster {
+	r := roster{Network: rosterRow{
+		Href:           "/",
+		Name:           "Whole network",
+		Meta:           fmt.Sprintf("%d devices · %d queries", len(devices), stats.TotalQueries),
+		TrackerPercent: stats.TrackerPercent,
+		QueryCount:     stats.TotalQueries,
+		Selected:       selectedKey == "",
+	}}
+	for _, d := range devices {
+		key := actorKeyForDevice(d.MAC)
+		flag, flagged := flags[d.MAC]
+		note := formatTrend(d.TrackerTrend, true).Text
+		if flagged {
+			note = flag.Word
+		}
+		r.Devices = append(r.Devices, rosterRow{
+			ActorKey:       key,
+			Href:           "/devices/" + key,
+			Name:           deviceDisplayName(d.Device),
+			Meta:           joinMeta(d.Vendor, fmt.Sprintf("%d q", d.QueryCount), note),
+			TrackerPercent: d.TrackerPercent,
+			QueryCount:     d.QueryCount,
+			Hot:            flagged && flag.Word == "tracker spike",
+			Selected:       key == selectedKey,
+		})
+	}
+	for _, src := range sources {
+		key := actorKeyForSource(src.SourceIP)
+		r.Sources = append(r.Sources, rosterRow{
+			ActorKey:       key,
+			Href:           "/devices/" + key,
+			Name:           sourceActorDisplayName(src.SourceIP, src.Label),
+			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), formatTrend(src.TrackerTrend, true).Text),
+			TrackerPercent: src.TrackerPercent,
+			QueryCount:     src.QueryCount,
+			Selected:       key == selectedKey,
+		})
+	}
+	sortRosterRows(r.Devices)
+	sortRosterRows(r.Sources)
+	return r
+}
+
+func sortRosterRows(rows []rosterRow) {
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].TrackerPercent == rows[j].TrackerPercent {
+			return rows[i].Name < rows[j].Name
+		}
+		return rows[i].TrackerPercent > rows[j].TrackerPercent
+	})
+}
+
+func joinMeta(parts ...string) string {
+	kept := parts[:0]
+	for _, part := range parts {
+		if part != "" {
+			kept = append(kept, part)
+		}
+	}
+	return strings.Join(kept, " · ")
 }

@@ -101,7 +101,7 @@ func TestDeviceDetailPageSourceRoute(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	for _, want := range []string{"Source Detail", "10.44.0.7", "Kitchen Display"} {
+	for _, want := range []string{"<h1>Kitchen Display · 10.44.0.7</h1>", "/ui/sources/10.44.0.7/label"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
 		}
@@ -161,7 +161,7 @@ func TestDeviceDetailPageDomainPagination(t *testing.T) {
 	}
 }
 
-func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
+func TestDeviceDetailUnknownDeviceRedirectsToActivity(t *testing.T) {
 	s := testServer(t)
 
 	req := httptest.NewRequest("GET", "/devices/ff:ee:dd:cc:bb:aa", nil)
@@ -170,8 +170,8 @@ func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
 	}
-	if location := w.Header().Get("Location"); location != "/devices" {
-		t.Fatalf("Location = %q, want %q", location, "/devices")
+	if location := w.Header().Get("Location"); location != "/" {
+		t.Fatalf("Location = %q, want %q", location, "/")
 	}
 }
 
@@ -378,7 +378,7 @@ func TestDevicesListPageShowsUpdatedSourceLabel(t *testing.T) {
 		t.Fatalf("Location = %q, want %q", location, "/devices/source:10.44.0.7")
 	}
 
-	listReq := httptest.NewRequest("GET", "/devices", nil)
+	listReq := httptest.NewRequest("GET", "/", nil)
 	listRes := httptest.NewRecorder()
 	s.Handler().ServeHTTP(listRes, listReq)
 	if listRes.Code != http.StatusOK {
@@ -474,5 +474,112 @@ func TestSettingsPageUsesElumKitLayout(t *testing.T) {
 	}
 	if strings.Contains(body, "pico.min.css") {
 		t.Errorf("settings page still loads pico.min.css")
+	}
+}
+
+func getPage(t *testing.T, s *Server, path string) string {
+	t.Helper()
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, want 200", path, w.Code)
+	}
+	return html.UnescapeString(w.Body.String())
+}
+
+// rowFor returns the roster row link whose href is exactly href.
+func rowFor(t *testing.T, body, href string) string {
+	t.Helper()
+	start := strings.Index(body, `<a class="elum-row" href="`+href+`"`)
+	if start < 0 {
+		t.Fatalf("no roster row with href %q", href)
+	}
+	end := strings.Index(body[start:], "</a>")
+	return body[start : start+end]
+}
+
+func TestActivityNetworkSelected(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if row := rowFor(t, body, "/"); !strings.Contains(row, `data-selected="true"`) || !strings.Contains(row, "Whole network") {
+		t.Fatalf("network row not selected: %q", row)
+	}
+	for _, want := range []string{"Living Room TV", ">Devices<", "of DNS queries hit known trackers"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("activity page missing %q", want)
+		}
+	}
+	if strings.Contains(body, "Unattributed sources") {
+		t.Errorf("activity page shows a sources group with no sources")
+	}
+}
+
+func TestActivityDeviceSelected(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if row := rowFor(t, body, "/devices/device:aa:bb:cc:dd:ee:ff"); !strings.Contains(row, `data-selected="true"`) {
+		t.Fatalf("device row not selected: %q", row)
+	}
+	if row := rowFor(t, body, "/"); strings.Contains(row, `data-selected="true"`) {
+		t.Fatalf("network row selected on a device page: %q", row)
+	}
+	for _, want := range []string{"<h1>Living Room TV</h1>", "/ui/devices/aa:bb:cc:dd:ee:ff/label", "roku-tv"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("device pane missing %q", want)
+		}
+	}
+}
+
+func TestActivitySourceIPv6Selected(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{
+		SourceIP:  "fe80::1",
+		Domain:    "v6.example.com",
+		QueryType: "AAAA",
+		Timestamp: now.Add(-5 * time.Minute),
+	}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/source:fe80::1")
+	if !strings.Contains(body, "Unattributed sources") {
+		t.Fatalf("sources group missing")
+	}
+	if row := rowFor(t, body, "/devices/source:fe80::1"); !strings.Contains(row, `data-selected="true"`) {
+		t.Fatalf("source row not selected: %q", row)
+	}
+}
+
+func TestDevicesListRouteIs404(t *testing.T) {
+	s := testServer(t)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/devices", nil))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestRosterMiniMeterWidthRenders(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if strings.Contains(body, "ZgotmplZ") {
+		t.Fatalf("template sanitized a value: %q", body)
+	}
+	if !strings.Contains(rowFor(t, body, "/devices/device:aa:bb:cc:dd:ee:ff"), `<i style="width: 66.7%">`) {
+		t.Fatalf("mini-meter width missing")
 	}
 }
