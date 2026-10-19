@@ -431,6 +431,7 @@ func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
 }
 
 func TestManagerRunHandlesWakeSignal(t *testing.T) {
+	captureLogs(t)
 	m := NewManager(testDB(t))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
