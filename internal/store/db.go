@@ -463,18 +463,6 @@ func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Quer
 	return scanQueries(rows)
 }
 
-func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
-	var actor actorFilter
-	if mac != "" {
-		actor = deviceActorFilter(mac)
-	}
-	return d.hourlyActivity(actor)
-}
-
-func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
-	return d.hourlyActivity(sourceActorFilter(sourceIP))
-}
-
 func (d *DB) hourlyActivity(actor actorFilter) ([]HourlyBucket, error) {
 	const bucketCount = 24
 
