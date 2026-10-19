@@ -62,6 +62,61 @@
             </span>
         </section>
 
+        {{end}}
+
+        <div class="elum-tabs" role="tablist" aria-label="Views" hidden>
+            <button class="elum-tab" id="tab-overview" role="tab" aria-selected="{{eq .Tab "overview"}}" aria-controls="panel-overview" type="button">Overview</button>
+            <button class="elum-tab" id="tab-domains" role="tab" aria-selected="{{eq .Tab "domains"}}" aria-controls="panel-domains" type="button">Domains</button>
+            <button class="elum-tab" id="tab-live" role="tab" aria-selected="{{eq .Tab "live"}}" aria-controls="panel-live" type="button">Live</button>
+        </div>
+
+        <div id="panel-overview" class="elum-stack">
+            <h2 class="elum-separator-labeled">Overview</h2>
+            {{with .Network}}{{template "tracker" .Tracker}}{{end}}
+            {{with .Detail}}{{template "tracker" .Tracker}}{{end}}
+            <article class="elum-card elum-card-labeled">
+                <header class="elum-card-header" data-inline="true">
+                    <h2 class="elum-card-title">Tracker rate</h2>
+                    <p class="elum-card-subtitle" data-chart-subtitle>by hour</p>
+                    <fieldset class="elum-segmented" aria-label="Chart range">
+                        <label class="elum-segmented-option" for="chart-range-24h"><input id="chart-range-24h" name="chart-range" type="radio" value="24h" checked>24h</label>
+                        <label class="elum-segmented-option" for="chart-range-7d"><input id="chart-range-7d" name="chart-range" type="radio" value="7d">7d</label>
+                        <label class="elum-segmented-option" for="chart-range-30d"><input id="chart-range-30d" name="chart-range" type="radio" value="30d">30d</label>
+                    </fieldset>
+                </header>
+                <div class="tracker-chart" id="tracker-chart" data-chart-query="{{with .Detail}}{{.RangeQuery}}{{end}}"></div>
+            </article>
+            {{with .Network}}
+            <div class="elum-grid" style="align-items: start">
+                <section class="elum-stack" aria-labelledby="attention-title">
+                    <h2 class="elum-separator-labeled" id="attention-title">Needs attention</h2>
+                    {{range .Flags}}
+                    <aside class="elum-alert" data-tone="{{.Tone}}">
+                        <span class="elum-badge" data-tone="{{.Tone}}">[{{.Badge}}]</span>
+                        <a href="/devices/device:{{.DeviceMAC}}">{{.DeviceName}}</a> · {{.Word}}. {{.Explanation}}
+                    </aside>
+                    {{else}}
+                    <div class="elum-empty"><div class="elum-empty-title">No unusual activity</div></div>
+                    {{end}}
+                </section>
+                <section class="elum-stack" aria-labelledby="top-domains-title">
+                    <h2 class="elum-separator-labeled" id="top-domains-title">Top domains</h2>
+                    <ul class="elum-list" role="list" aria-label="Top domains">
+                        {{range $i, $d := .TopDomains}}{{if lt $i 6}}
+                        <li><div class="elum-row">
+                            <span class="elum-row-main"><span class="elum-row-title">{{$d.Domain}}</span><span class="elum-row-meta"><span class="elum-status-label" data-tone="{{categoryTone $d.Category}}">{{$d.ClassificationLabel}}</span> · {{$d.DeviceCountLabel}}</span></span>
+                            <span class="elum-row-value">{{$d.QueryCount}}</span>
+                        </div></li>
+                        {{end}}{{end}}
+                    </ul>
+                </section>
+            </div>
+            {{end}}
+        </div>
+
+        <div id="panel-domains" class="elum-stack">
+            <h2 class="elum-separator-labeled">Domains</h2>
+            {{with .Detail}}
         <article class="elum-card elum-card-labeled elum-stack">
             <header class="elum-card-header" data-inline="true">
                 <h2 class="elum-card-title">Domains</h2>
@@ -92,8 +147,66 @@
             </nav>
             {{end}}
         </article>
-        {{end}}
+            {{end}}
+        </div>
+
+        <div id="panel-live" class="elum-stack">
+            <h2 class="elum-separator-labeled">Live</h2>
+        </div>
     </section>
+</div>
+{{end}}
+
+{{define "page_scripts"}}
+<script src="/static/elumkit/tabs.js" defer></script>
+{{end}}
+
+{{define "tracker"}}
+<div class="elum-grid" style="align-items: start">
+    <div class="elum-meter">
+        <div class="elum-meter-header">
+            <span class="elum-meter-label" id="tracker-rate-label">Tracker rate</span>
+            <span class="elum-meter-value">{{printf "%.1f" .Percent}}%{{if .Badge}} <span class="elum-badge" data-tone="error">[{{.Badge}}]</span>{{end}}</span>
+        </div>
+        <div class="ur-ref">
+            <div class="elum-meter-track" role="meter" aria-valuenow="{{printf "%.1f" .Percent}}" aria-valuemin="0" aria-valuemax="100" aria-valuetext="{{printf "%.1f" .Percent}}%, {{.RefLabel}}" aria-labelledby="tracker-rate-label" data-tone="error" style="--elum-meter-fill-width: {{printf "%.1f" .Percent}}%"></div>
+            <span class="tick" aria-hidden="true" style="left: {{printf "%.1f" .RefPct}}%"></span>
+            <span class="tick-label" aria-hidden="true" style="left: {{printf "%.1f" .RefPct}}%">{{.RefLabel}}</span>
+        </div>
+    </div>
+    {{template "list-matches" .Matches}}
+</div>
+{{end}}
+
+{{define "list-matches"}}
+<div class="elum-stack">
+    {{if .Rows}}
+    <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Queries matched by a list">
+        <table class="elum-table" role="table">
+            <thead role="rowgroup">
+                <tr role="row">
+                    <th scope="col" role="columnheader">Matched a list</th>
+                    <th scope="col" data-align="end" role="columnheader">Queries</th>
+                    <th scope="col" data-align="end" role="columnheader">Share</th>
+                    <th scope="col" data-align="end" role="columnheader">vs prior 7d</th>
+                </tr>
+            </thead>
+            <tbody role="rowgroup">
+                {{range .Rows}}
+                <tr role="row">
+                    <td data-label="Matched a list" role="cell"><span class="elum-status-label" data-tone="{{.Tone}}">{{.Category}}</span></td>
+                    <td data-label="Queries" data-align="end" data-numeric="true" role="cell">{{.Count}}</td>
+                    <td data-label="Share" data-align="end" data-numeric="true" role="cell">{{.Share}}</td>
+                    <td data-label="vs prior 7d" data-align="end" data-numeric="true" role="cell">{{.Delta}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="elum-empty"><div class="elum-empty-title">No queries matched a list in the last 24 hours</div></div>
+    {{end}}
+    <p class="elum-card-subtitle">{{.Unmatched}} queries matched no list</p>
 </div>
 {{end}}
 

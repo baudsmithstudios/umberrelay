@@ -459,7 +459,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 	totalActors := len(devices) + len(sources)
 	flags := flagsByMAC(anomalies)
 
-	view := activityView{pageData: pageData{Active: "activity"}}
+	view := activityView{pageData: pageData{Active: "activity"}, Tab: parseTab(r.URL.Query().Get("tab"))}
 	selectedKey := ""
 	if raw := r.PathValue("key"); raw != "" {
 		actorType, value, ok := normalizeActorSelection(raw)

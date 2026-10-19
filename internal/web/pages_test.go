@@ -583,3 +583,94 @@ func TestRosterMiniMeterWidthRenders(t *testing.T) {
 		t.Fatalf("mini-meter width missing")
 	}
 }
+
+func TestOverviewShowsTrackerMeterAndMatches(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `role="meter"`) {
+		t.Fatalf("tracker meter missing")
+	}
+	start := strings.Index(body, "Matched a list")
+	end := strings.Index(body, "queries matched no list")
+	if start < 0 || end < start {
+		t.Fatalf("matches table missing")
+	}
+	matches := body[start:end]
+	for _, want := range []string{">tracking<", ">analytics<", ">telemetry<"} {
+		if !strings.Contains(matches, want) {
+			t.Errorf("matches table missing %q", want)
+		}
+	}
+	if strings.Contains(matches, "unclassified") || strings.Contains(matches, "uncategorized") {
+		t.Errorf("matches table lists unmatched queries as a category")
+	}
+}
+
+func TestOverviewEmptyDatabase(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	for _, want := range []string{"0.0%", "No queries matched a list in the last 24 hours"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("empty overview missing %q", want)
+		}
+	}
+	for _, bad := range []string{"NaN", "Inf"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("empty overview contains %q", bad)
+		}
+	}
+}
+
+func TestDeviceOverviewReferenceIsNetwork(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(body, "network 50.0%") {
+		t.Fatalf("device meter missing network reference")
+	}
+}
+
+func TestParseTab(t *testing.T) {
+	for raw, want := range map[string]string{"domains": "domains", "live": "live", "bogus": "overview", "": "overview"} {
+		if got := parseTab(raw); got != want {
+			t.Errorf("parseTab(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+func TestTabQuerySelectsDomains(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/?tab=domains")
+	if !strings.Contains(body, `id="tab-domains" role="tab" aria-selected="true"`) {
+		t.Fatalf("domains tab not selected")
+	}
+	if !strings.Contains(body, `id="tab-overview" role="tab" aria-selected="false"`) {
+		t.Fatalf("overview tab still selected")
+	}
+}
+
+func TestNetworkOverviewNeedsAttentionEmpty(t *testing.T) {
+	s := testServer(t)
+	if body := getPage(t, s, "/"); !strings.Contains(body, "No unusual activity") {
+		t.Fatalf("needs attention empty state missing")
+	}
+}
+
+func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · tracker spike.`) {
+		t.Fatalf("needs attention missing the tracker spike flag")
+	}
+}

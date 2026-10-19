@@ -158,6 +158,7 @@ type networkPane struct {
 type activityView struct {
 	pageData
 	Roster  roster
+	Tab     string
 	Network *networkPane
 	Detail  *privacyDetail
 }
@@ -240,4 +241,13 @@ func joinMeta(parts ...string) string {
 		}
 	}
 	return strings.Join(kept, " · ")
+}
+
+func parseTab(raw string) string {
+	switch raw {
+	case "domains", "live":
+		return raw
+	default:
+		return "overview"
+	}
 }
