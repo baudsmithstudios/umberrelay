@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - One live stream client's `after` cursor no longer hides new queries from other clients.
 - The live query stream connects immediately instead of after up to 15 seconds.
 - Retention now purges every expired query, not just 900 per day.
+- Queries received just before shutdown are no longer lost.
 
 ### Security
 

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -87,10 +88,11 @@ func run(configPath string, demoData bool) error {
 		cancel()
 	}()
 
+	var workers sync.WaitGroup
 	oui := device.DefaultOUIDB()
 	tracker := device.NewTracker(db, oui)
 	if !demoData {
-		go tracker.Run(ctx)
+		workers.Go(func() { tracker.Run(ctx) })
 	}
 
 	mgr := classify.NewManager(db)
@@ -118,7 +120,7 @@ func run(configPath string, demoData bool) error {
 		}
 	}
 	if !demoData {
-		go mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour)
+		workers.Go(func() { mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour) })
 	}
 
 	srv := web.NewServer(db, mgr)
@@ -127,7 +129,7 @@ func run(configPath string, demoData bool) error {
 	errCh := make(chan error, 2)
 	if !demoData {
 		listener := dns.NewListener(cfg.Listen, cfg.Upstream, records)
-		go func() {
+		workers.Go(func() {
 			if err := listener.Run(ctx); err != nil && ctx.Err() == nil {
 				select {
 				case errCh <- fmt.Errorf("dns listener: %w", err):
@@ -135,7 +137,7 @@ func run(configPath string, demoData bool) error {
 				}
 				cancel()
 			}
-		}()
+		})
 	}
 
 	writer := pipeline.NewWriter(records, db, tracker, mgr, pipeline.Config{
@@ -144,14 +146,14 @@ func run(configPath string, demoData bool) error {
 		OnFlush:       srv.NotifyNewQueries,
 	})
 	if !demoData {
-		go writer.Run(ctx)
+		workers.Go(func() { writer.Run(ctx) })
 	}
 
 	if !demoData {
-		go runPurge(ctx, db)
+		workers.Go(func() { runPurge(ctx, db) })
 	}
 
-	go func() {
+	workers.Go(func() {
 		addr := httpAddr(cfg.HTTPListen, cfg.HTTPPort)
 		if shouldWarnHTTPExposure(cfg.HTTPListen) {
 			log.Printf(
@@ -170,7 +172,7 @@ func run(configPath string, demoData bool) error {
 			}
 			cancel()
 		}
-	}()
+	})
 
 	if demoData {
 		log.Printf("%s demo mode started (http=%s)", runtimeName, httpAddr(cfg.HTTPListen, cfg.HTTPPort))
@@ -184,6 +186,7 @@ func run(configPath string, demoData bool) error {
 	case runErr = <-errCh:
 	}
 	cancel()
+	workers.Wait()
 	select {
 	case err := <-errCh:
 		if runErr == nil {

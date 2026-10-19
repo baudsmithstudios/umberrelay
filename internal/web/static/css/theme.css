@@ -120,8 +120,6 @@
     --umberrelay-panel-bg: #151006;
 }
 
-/* ── Global terminal overrides ─────────────────────────────── */
-
 *, *::before, *::after {
     border-radius: 0 !important;
 }
@@ -132,16 +130,12 @@ body {
     -moz-osx-font-smoothing: auto;
 }
 
-/* ── Typography ─────────────────────────────────────────────── */
-
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--pico-font-family);
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-
-/* ── Brand ─────────────────────────────────────────────────── */
 
 .umberrelay-brand {
     color: inherit;
@@ -224,16 +218,12 @@ h1, h2, h3, h4, h5, h6 {
     text-decoration: none;
 }
 
-/* ── Navbar divider ───────────────────────────────────────── */
-
 .umberrelay-navbar-rule {
     border: none;
     border-top: 1px solid var(--umberrelay-panel-border);
     margin: 0 auto;
     max-width: 960px;
 }
-
-/* ── Container width — match navbar ────────────────────────── */
 
 main.container {
     max-width: 960px;
@@ -358,8 +348,6 @@ nav a {
     letter-spacing: 0.06em;
 }
 
-/* ── Global utility rules ──────────────────────────────────── */
-
 .tracker-pct { color: var(--umberrelay-critical); }
 nav ul { list-style: none; }
 small:empty { display: none; }
@@ -371,8 +359,6 @@ article small {
 }
 .tracker-pct .trend-up { color: var(--umberrelay-critical); }
 .tracker-pct .trend-down { color: var(--umberrelay-positive); }
-
-/* ── Responsive: mobile nav ────────────────────────────────── */
 
 @media (max-width: 767px) {
     .umberrelay-navbar {
@@ -393,9 +379,6 @@ article small {
     }
 }
 
-/* ── TUI form overrides ───────────────────────────────────── */
-
-/* Kill Pico search icon */
 input[type="search"] {
     background-image: none !important;
     padding-inline-start: 0.6rem;
@@ -500,15 +483,11 @@ select option {
     z-index: 1;
 }
 
-/* Labels always match page background since panels are transparent */
-
 .tui-field input,
 .tui-field select {
     height: calc(1rem * var(--pico-line-height) + var(--pico-form-element-spacing-vertical) * 2 + var(--pico-border-width) * 2);
     width: 100%;
 }
-
-/* ── Footer ───────────────────────────────────────────────── */
 
 .umberrelay-footer-rule {
     border: none;

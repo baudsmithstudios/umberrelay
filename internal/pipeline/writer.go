@@ -37,7 +37,6 @@ func (w *Writer) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			// Drain remaining records from channel
 			for {
 				select {
 				case rec, ok := <-w.in:

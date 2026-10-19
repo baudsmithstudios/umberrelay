@@ -1,17 +1,12 @@
-/* ── Home page layout ── */
-
 .home-page {
     display: grid;
     gap: 24px;
-    /* width constrained by main.container */
     padding-bottom: 40px;
 }
 
 .home-page article {
     margin-bottom: 0;
 }
-
-/* ── Headline card ── */
 
 .home-page .headline-card {
     --umberrelay-card-pad-y: 0.75rem;
@@ -47,22 +42,16 @@
     width: 170px;
 }
 
-/* ── Chart card ── */
-
 .home-page .chart-card {
     --umberrelay-card-pad-y: 12px;
     --umberrelay-card-pad-x: 14px;
     padding: var(--umberrelay-card-pad-y) var(--umberrelay-card-pad-x);
 }
 
-/* ── Attention feed ── */
-
 .home-page .attention-feed {
     display: grid;
     gap: 0.4rem;
 }
-
-/* ── Responsive: mobile ── */
 
 @media (max-width: 767px) {
     .home-page .headline-row {

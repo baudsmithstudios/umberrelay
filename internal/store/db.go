@@ -143,7 +143,7 @@ var ErrNotFound = errors.New("not found")
 
 var ErrInvalidRange = errors.New("invalid range")
 
-// actorFilter narrows a query to one attribution actor; the zero value matches all.
+// The zero value matches every actor.
 type actorFilter struct {
 	where string
 	args  []any
@@ -188,11 +188,7 @@ func (d *DB) Close() error {
 }
 
 func (d *DB) UpsertDevice(dev Device) error {
-	_, err := d.sql.Exec(upsertDeviceSQL,
-		dev.MAC, dev.IP, dev.Hostname, dev.Vendor,
-		dev.FirstSeen.UnixNano(), dev.LastSeen.UnixNano(),
-	)
-	return err
+	return d.UpsertDevices([]Device{dev})
 }
 
 func (d *DB) UpsertDevices(devs []Device) error {
@@ -461,18 +457,6 @@ func (d *DB) QueryFeed(afterID int64, filter QueryFeedFilter, limit int) ([]Quer
 	}
 	defer rows.Close()
 	return scanQueries(rows)
-}
-
-func (d *DB) HourlyActivity(mac string) ([]HourlyBucket, error) {
-	var actor actorFilter
-	if mac != "" {
-		actor = deviceActorFilter(mac)
-	}
-	return d.hourlyActivity(actor)
-}
-
-func (d *DB) SourceHourlyActivity(sourceIP string) ([]HourlyBucket, error) {
-	return d.hourlyActivity(sourceActorFilter(sourceIP))
 }
 
 func (d *DB) hourlyActivity(actor actorFilter) ([]HourlyBucket, error) {

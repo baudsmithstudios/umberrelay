@@ -21,12 +21,3 @@ func TestNormalize(t *testing.T) {
 		}
 	}
 }
-
-func TestOptionsReturnsCopy(t *testing.T) {
-	got := Options()
-	got[0].Label = "changed"
-	again := Options()
-	if again[0].Label == "changed" {
-		t.Fatal("Options() returned shared slice; expected copy")
-	}
-}

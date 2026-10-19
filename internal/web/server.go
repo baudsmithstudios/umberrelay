@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"io/fs"
 	"net"
@@ -122,7 +123,6 @@ func (s *Server) Handler() http.Handler {
 	return s.handler
 }
 
-// Close releases server-owned background resources.
 func (s *Server) Close() {
 	s.backgroundCancel()
 	s.refreshJobs.Wait()
@@ -221,8 +221,12 @@ func splitHostPort(value string) (host, port string) {
 
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	srv := s.httpServer(addr)
+	stopped := make(chan struct{})
 	go func() {
+		defer close(stopped)
 		<-ctx.Done()
+		// Live streams never go idle, so end them before Shutdown waits on them.
+		s.queryHub.Close()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -230,5 +234,9 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 		}
 		s.Close()
 	}()
-	return srv.ListenAndServe()
+	err := srv.ListenAndServe()
+	if errors.Is(err, http.ErrServerClosed) {
+		<-stopped
+	}
+	return err
 }

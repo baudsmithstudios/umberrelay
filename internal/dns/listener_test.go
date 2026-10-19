@@ -11,83 +11,50 @@ import (
 	mdns "github.com/miekg/dns"
 )
 
-func TestListenerForwardsUDPQuery(t *testing.T) {
-	requirePacketConn(t, "udp", "127.0.0.1:0")
-
-	upstreamAddr := startFakeUpstream(t, "udp")
-
-	records := make(chan QueryRecord, 10)
-	l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go l.Run(ctx)
-
-	// Wait for listener to be ready
-	addr := l.Addr()
-	if addr == "" {
-		t.Fatal("listener addr is empty")
+func TestListenerForwardsQuery(t *testing.T) {
+	tests := []struct {
+		network string
+		require func(*testing.T, string, string)
+	}{
+		{network: "udp", require: requirePacketConn},
+		{network: "tcp", require: requireListener},
 	}
+	for _, tt := range tests {
+		t.Run(tt.network, func(t *testing.T) {
+			tt.require(t, tt.network, "127.0.0.1:0")
+			upstreamAddr := startFakeUpstream(t, tt.network)
 
-	c := &mdns.Client{Net: "udp"}
-	m := new(mdns.Msg)
-	m.SetQuestion("example.com.", mdns.TypeA)
-	resp, _, err := c.Exchange(m, addr)
-	if err != nil {
-		t.Fatalf("Exchange: %v", err)
-	}
-	if resp.Rcode != mdns.RcodeSuccess {
-		t.Errorf("Rcode = %d, want success", resp.Rcode)
-	}
+			records := make(chan QueryRecord, 10)
+			l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go l.Run(ctx)
 
-	select {
-	case rec := <-records:
-		if rec.Domain != "example.com." {
-			t.Errorf("Domain = %q, want example.com.", rec.Domain)
-		}
-		if rec.QueryType != "A" {
-			t.Errorf("QueryType = %q, want A", rec.QueryType)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for query record")
-	}
-}
+			addr := l.Addr()
+			if addr == "" {
+				t.Fatal("listener addr is empty")
+			}
 
-func TestListenerForwardsTCPQuery(t *testing.T) {
-	requireListener(t, "tcp", "127.0.0.1:0")
+			c := &mdns.Client{Net: tt.network}
+			m := new(mdns.Msg)
+			m.SetQuestion("example.com.", mdns.TypeA)
+			resp, _, err := c.Exchange(m, addr)
+			if err != nil {
+				t.Fatalf("Exchange: %v", err)
+			}
+			if resp.Rcode != mdns.RcodeSuccess {
+				t.Errorf("Rcode = %d, want success", resp.Rcode)
+			}
 
-	upstreamAddr := startFakeUpstream(t, "tcp")
-
-	records := make(chan QueryRecord, 10)
-	l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go l.Run(ctx)
-
-	addr := l.Addr()
-	if addr == "" {
-		t.Fatal("listener addr is empty")
-	}
-
-	c := &mdns.Client{Net: "tcp"}
-	m := new(mdns.Msg)
-	m.SetQuestion("tcp.example.com.", mdns.TypeA)
-	resp, _, err := c.Exchange(m, addr)
-	if err != nil {
-		t.Fatalf("Exchange: %v", err)
-	}
-	if resp.Rcode != mdns.RcodeSuccess {
-		t.Errorf("Rcode = %d, want success", resp.Rcode)
-	}
-
-	select {
-	case rec := <-records:
-		if rec.Domain != "tcp.example.com." {
-			t.Errorf("Domain = %q, want tcp.example.com.", rec.Domain)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for query record")
+			select {
+			case rec := <-records:
+				if rec.Domain != "example.com." || rec.QueryType != "A" {
+					t.Errorf("record = %q %q, want example.com. A", rec.Domain, rec.QueryType)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("timed out waiting for query record")
+			}
+		})
 	}
 }
 
@@ -100,7 +67,6 @@ func TestListenerUpstreamFailure(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(prev) })
 
 	records := make(chan QueryRecord, 10)
-	// Point to a non-existent upstream
 	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -165,7 +131,6 @@ func requireListener(t *testing.T, network, address string) {
 	ln.Close()
 }
 
-// startFakeUpstream runs a DNS server on the given network that responds with 127.0.0.1 to any A query.
 func startFakeUpstream(t *testing.T, network string) string {
 	t.Helper()
 

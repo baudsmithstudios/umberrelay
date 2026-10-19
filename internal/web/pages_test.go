@@ -163,9 +163,6 @@ func TestDeviceDetailPageDomainPagination(t *testing.T) {
 
 func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
 	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
 
 	req := httptest.NewRequest("GET", "/devices/ff:ee:dd:cc:bb:aa", nil)
 	w := httptest.NewRecorder()
@@ -353,22 +350,6 @@ func TestUIUpdateDeviceLabelRedirectsBackToPrivacyPage(t *testing.T) {
 	}
 }
 
-func TestUIUpdateSourceLabelRedirectsBackToPrivacyPage(t *testing.T) {
-	s := testServer(t)
-
-	form := url.Values{"label": {"Kitchen Display"}}
-	req := httptest.NewRequest("POST", "/ui/sources/10.44.0.7/label", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
-	}
-	if location := w.Header().Get("Location"); location != "/devices/source:10.44.0.7" {
-		t.Fatalf("Location = %q, want %q", location, "/devices/source:10.44.0.7")
-	}
-}
-
 func TestDevicesListPageShowsUpdatedSourceLabel(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
@@ -392,6 +373,9 @@ func TestDevicesListPageShowsUpdatedSourceLabel(t *testing.T) {
 	s.Handler().ServeHTTP(updateRes, updateReq)
 	if updateRes.Code != http.StatusSeeOther {
 		t.Fatalf("update status = %d, want %d", updateRes.Code, http.StatusSeeOther)
+	}
+	if location := updateRes.Header().Get("Location"); location != "/devices/source:10.44.0.7" {
+		t.Fatalf("Location = %q, want %q", location, "/devices/source:10.44.0.7")
 	}
 
 	listReq := httptest.NewRequest("GET", "/devices", nil)

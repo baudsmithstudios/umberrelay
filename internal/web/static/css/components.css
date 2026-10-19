@@ -2,8 +2,6 @@
     --umberrelay-analytics: #1dbd5c;
 }
 
-/* ── Stat boxes ── */
-
 .stat-box {
     border: 1px solid var(--umberrelay-panel-border);
     padding: 6px 10px;
@@ -23,8 +21,6 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
-
-/* ── Breakdown bar + legend ── */
 
 .breakdown-bar {
     border: 1px solid var(--umberrelay-panel-border);
@@ -71,8 +67,6 @@
     height: 6px;
     width: 6px;
 }
-
-/* ── Chart container ── */
 
 
 .chart-header {
@@ -132,8 +126,6 @@
     width: 100%;
 }
 
-
-/* ── Attention feed ── */
 
 .attention-feed {
     display: grid;
@@ -232,8 +224,6 @@
     padding: 8px 0;
 }
 
-/* ── Eyebrow + detail header ── */
-
 .eyebrow {
     margin: 0 0 0.15rem;
 }
@@ -243,8 +233,6 @@
     font-size: 0.78rem;
     margin: 0.5rem 0 0;
 }
-
-/* ── Label form ── */
 
 .device-label-block {
     display: grid;
@@ -281,8 +269,6 @@
     white-space: nowrap;
 }
 
-/* ── Device privacy summary row ── */
-
 .device-privacy-row {
     align-items: center;
     display: flex;
@@ -308,8 +294,6 @@
     display: block;
     font-size: 0.7rem;
 }
-
-/* ── Domain table ── */
 
 .domain-table-wrap {
     overflow-x: auto;
@@ -385,8 +369,6 @@
     padding: 3px 8px;
 }
 
-/* ── Trend classes ── */
-
 .trend-up {
     color: var(--umberrelay-critical);
 }
@@ -414,8 +396,6 @@
     padding: 0.3rem 0.5rem;
     width: 100%;
 }
-
-/* ── Live query stream ── */
 
 .live-query-stream {
     display: grid;

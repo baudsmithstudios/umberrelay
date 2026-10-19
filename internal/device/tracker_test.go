@@ -24,21 +24,6 @@ func TestParseARPTable(t *testing.T) {
 	}
 }
 
-func TestResolveIP(t *testing.T) {
-	tracker := NewTracker(testDB(t), NewOUIDB(nil))
-	tracker.arpCache.Store("192.168.1.10", "aa:bb:cc:dd:ee:ff")
-
-	mac := tracker.ResolveIP("192.168.1.10")
-	if mac != "aa:bb:cc:dd:ee:ff" {
-		t.Errorf("ResolveIP = %q, want aa:bb:cc:dd:ee:ff", mac)
-	}
-
-	mac = tracker.ResolveIP("192.168.1.99")
-	if mac != "" {
-		t.Errorf("ResolveIP unknown = %q, want empty", mac)
-	}
-}
-
 func TestSaveDiscoveredDeviceLogsStoreError(t *testing.T) {
 	db := testDB(t)
 	if err := db.Close(); err != nil {

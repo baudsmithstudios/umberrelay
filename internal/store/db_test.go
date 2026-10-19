@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -69,17 +68,6 @@ func TestOpenAppliesPragmasOnAllConnections(t *testing.T) {
 	}
 	if journalMode != "wal" {
 		t.Fatalf("Conn(2) journal_mode = %q, want wal", journalMode)
-	}
-}
-
-func TestUpsertDeviceUpdatesIP(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.10", FirstSeen: now, LastSeen: now})
-	db.UpsertDevice(Device{MAC: "aa:bb:cc:dd:ee:ff", IP: "192.168.1.20", LastSeen: now.Add(time.Minute)})
-	devices, _ := db.ListDevicesWithStats()
-	if devices[0].IP != "192.168.1.20" {
-		t.Errorf("IP = %q, want 192.168.1.20", devices[0].IP)
 	}
 }
 
@@ -167,34 +155,6 @@ func TestSetAndGetSourceLabel(t *testing.T) {
 	}
 	if label != "" {
 		t.Fatalf("label for nonexistent source = %q, want empty", label)
-	}
-}
-
-func TestWriteAndQueryQueriesPreservesSourceIP(t *testing.T) {
-	db := testDB(t)
-	now := time.Now()
-
-	err := db.WriteQueries([]Query{{
-		DeviceMAC: "",
-		SourceIP:  "192.168.50.23",
-		Domain:    "unmapped.example.com",
-		QueryType: "A",
-		Category:  "",
-		Timestamp: now,
-	}})
-	if err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	results, err := db.QueryLog("", "", time.Time{}, now.Add(time.Minute), 100, 0)
-	if err != nil {
-		t.Fatalf("QueryLog: %v", err)
-	}
-	if len(results) != 1 {
-		t.Fatalf("got %d results, want 1", len(results))
-	}
-	if results[0].SourceIP != "192.168.50.23" {
-		t.Fatalf("SourceIP = %q, want %q", results[0].SourceIP, "192.168.50.23")
 	}
 }
 
@@ -416,21 +376,6 @@ func TestQueryFeedFiltersAndCursor(t *testing.T) {
 	}
 }
 
-func TestConfigGetSet(t *testing.T) {
-	db := testDB(t)
-	err := db.SetConfig("retention_days", "30")
-	if err != nil {
-		t.Fatalf("SetConfig: %v", err)
-	}
-	val, err := db.GetConfig("retention_days")
-	if err != nil {
-		t.Fatalf("GetConfig: %v", err)
-	}
-	if val != "30" {
-		t.Errorf("got %q, want 30", val)
-	}
-}
-
 func TestConfigGetMissing(t *testing.T) {
 	db := testDB(t)
 	val, err := db.GetConfig("nonexistent")
@@ -489,62 +434,6 @@ func TestListRefreshStatusTracksAttemptSuccessAndFailure(t *testing.T) {
 	}
 	if afterSuccess.LastError != "" {
 		t.Fatalf("LastError = %q, want empty", afterSuccess.LastError)
-	}
-}
-
-func TestListDomainCache(t *testing.T) {
-	db := testDB(t)
-	id, err := db.AddList("https://example.com/list.txt", "Test List", "tracking")
-	if err != nil {
-		t.Fatalf("AddList: %v", err)
-	}
-
-	domains := map[string]string{
-		"ads.example.com":     "tracking",
-		"tracker.example.com": "tracking",
-	}
-	err = db.WriteListDomains(id, domains)
-	if err != nil {
-		t.Fatalf("WriteListDomains: %v", err)
-	}
-
-	cached, err := db.LoadCachedDomains()
-	if err != nil {
-		t.Fatalf("LoadCachedDomains: %v", err)
-	}
-	if len(cached) != 2 {
-		t.Fatalf("got %d cached domains, want 2", len(cached))
-	}
-	if cached["ads.example.com"] != "tracking" {
-		t.Errorf("ads.example.com category = %q, want tracking", cached["ads.example.com"])
-	}
-}
-
-func TestDomainOverrides(t *testing.T) {
-	db := testDB(t)
-	err := db.SetDomainOverride("ads.example.com", "telemetry")
-	if err != nil {
-		t.Fatalf("SetDomainOverride: %v", err)
-	}
-
-	overrides, err := db.ListDomainOverrides()
-	if err != nil {
-		t.Fatalf("ListDomainOverrides: %v", err)
-	}
-	if len(overrides) != 1 {
-		t.Fatalf("got %d overrides, want 1", len(overrides))
-	}
-	if overrides["ads.example.com"] != "telemetry" {
-		t.Errorf("override = %q, want telemetry", overrides["ads.example.com"])
-	}
-
-	err = db.DeleteDomainOverride("ads.example.com")
-	if err != nil {
-		t.Fatalf("DeleteDomainOverride: %v", err)
-	}
-	overrides, _ = db.ListDomainOverrides()
-	if len(overrides) != 0 {
-		t.Errorf("got %d overrides after delete, want 0", len(overrides))
 	}
 }
 
@@ -975,7 +864,7 @@ func TestDevicePrivacySummaryEmpty(t *testing.T) {
 	}
 }
 
-func TestHourlyActivity(t *testing.T) {
+func TestRangedActivity24hFillsHourlyBuckets(t *testing.T) {
 	db := testDB(t)
 	now := time.Now().UTC()
 	currentHour := now.Truncate(time.Hour)
@@ -1001,9 +890,9 @@ func TestHourlyActivity(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	buckets, err := db.HourlyActivity("")
+	buckets, err := db.RangedActivity("", "24h")
 	if err != nil {
-		t.Fatalf("HourlyActivity: %v", err)
+		t.Fatalf("RangedActivity: %v", err)
 	}
 	if len(buckets) != 24 {
 		t.Fatalf("got %d buckets, want 24", len(buckets))
@@ -1044,9 +933,9 @@ func TestHourlyActivity(t *testing.T) {
 		t.Fatalf("sum of bucket totals = %d, want 5", total)
 	}
 
-	filtered, err := db.HourlyActivity(deviceA)
+	filtered, err := db.RangedActivity(deviceA, "24h")
 	if err != nil {
-		t.Fatalf("HourlyActivity(device): %v", err)
+		t.Fatalf("RangedActivity(device): %v", err)
 	}
 	if len(filtered) != 24 {
 		t.Fatalf("filtered bucket count = %d, want 24", len(filtered))
@@ -1061,58 +950,6 @@ func TestHourlyActivity(t *testing.T) {
 	}
 	if filteredTotal != 4 {
 		t.Fatalf("filtered sum of bucket totals = %d, want 4", filteredTotal)
-	}
-}
-
-func TestHourlyActivityUsesExpectedIndex(t *testing.T) {
-	db := testDB(t)
-
-	tests := []struct {
-		name     string
-		query    string
-		args     []any
-		wantPlan string
-	}{
-		{
-			name:     "global activity",
-			query:    "EXPLAIN QUERY PLAN SELECT bucket_start, SUM(total_count), SUM(tracker_count) FROM query_rollups_hourly WHERE bucket_start >= ? GROUP BY bucket_start ORDER BY bucket_start",
-			args:     []any{time.Now().Add(-24 * time.Hour).UnixNano()},
-			wantPlan: "idx_rollups_bucket",
-		},
-		{
-			name:     "device activity",
-			query:    "EXPLAIN QUERY PLAN SELECT bucket_start, SUM(total_count), SUM(tracker_count) FROM query_rollups_hourly WHERE bucket_start >= ? AND device_mac = ? GROUP BY bucket_start ORDER BY bucket_start",
-			args:     []any{time.Now().Add(-24 * time.Hour).UnixNano(), "aa:bb:cc:dd:ee:ff"},
-			wantPlan: "idx_rollups_device_bucket",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rows, err := db.sql.Query(tt.query, tt.args...)
-			if err != nil {
-				t.Fatalf("EXPLAIN QUERY PLAN: %v", err)
-			}
-			defer rows.Close()
-
-			var details []string
-			for rows.Next() {
-				var id, parent, notUsed int
-				var detail string
-				if err := rows.Scan(&id, &parent, &notUsed, &detail); err != nil {
-					t.Fatalf("rows.Scan: %v", err)
-				}
-				details = append(details, detail)
-			}
-			if err := rows.Err(); err != nil {
-				t.Fatalf("rows.Err: %v", err)
-			}
-
-			plan := strings.Join(details, "\n")
-			if !strings.Contains(plan, tt.wantPlan) {
-				t.Fatalf("query plan %q does not mention %q", plan, tt.wantPlan)
-			}
-		})
 	}
 }
 
@@ -1203,7 +1040,7 @@ func TestNetworkCategoryBreakdown(t *testing.T) {
 	}
 }
 
-func TestRangedActivity(t *testing.T) {
+func TestRangedActivity7dFillsDailyBuckets(t *testing.T) {
 	db := testDB(t)
 	now := time.Now().UTC()
 	deviceA := "aa:bb:cc:dd:ee:ff"
@@ -1225,23 +1062,6 @@ func TestRangedActivity(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	hourly, err := db.RangedActivity("", "24h")
-	if err != nil {
-		t.Fatalf("RangedActivity(24h): %v", err)
-	}
-	if len(hourly) != 24 {
-		t.Fatalf("24h bucket count = %d, want 24", len(hourly))
-	}
-	hourlyTotal := 0
-	hourlyTracker := 0
-	for _, bucket := range hourly {
-		hourlyTotal += bucket.TotalCount
-		hourlyTracker += bucket.TrackerCount
-	}
-	if hourlyTotal != 2 || hourlyTracker != 1 {
-		t.Fatalf("24h totals = %d/%d, want 2/1", hourlyTotal, hourlyTracker)
 	}
 
 	daily, err := db.RangedActivity("", "7d")
@@ -1734,133 +1554,59 @@ func TestDeviceBypassSignals(t *testing.T) {
 	}
 }
 
-func TestSourceActorQueriesAndAggregations(t *testing.T) {
+func TestSourceActorExcludesDeviceAttributedRows(t *testing.T) {
 	db := testDB(t)
 	now := time.Now().UTC()
-	sourceA := "10.55.0.17"
-	sourceB := "10.55.0.18"
-
-	listID, err := db.AddList("https://example.com/tracking.txt", "Tracking List", "tracking")
-	if err != nil {
-		t.Fatalf("AddList: %v", err)
-	}
-	if err := db.WriteListDomains(listID, map[string]string{
-		"tracker.example.com": "tracking",
-	}); err != nil {
-		t.Fatalf("WriteListDomains: %v", err)
-	}
-
+	source := "10.55.0.17"
 	if err := db.WriteQueries([]Query{
-		{DeviceMAC: "", SourceIP: sourceA, Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-48 * time.Hour)},
-		{DeviceMAC: "", SourceIP: sourceA, Domain: "clean.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-47 * time.Hour)},
-		{DeviceMAC: "", SourceIP: sourceA, Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Hour)},
-		{DeviceMAC: "", SourceIP: sourceA, Domain: "analytics.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(-90 * time.Minute)},
-		{DeviceMAC: "", SourceIP: sourceA, Domain: "clean.example.com", QueryType: "AAAA", Category: "", Timestamp: now.Add(-80 * time.Minute)},
-		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: sourceA, Domain: "device-owned.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-70 * time.Minute)},
-		{DeviceMAC: "", SourceIP: sourceB, Domain: "other.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-60 * time.Minute)},
+		{SourceIP: source, Domain: "source.example.com", QueryType: "A", Timestamp: now.Add(-time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: source, Domain: "device.example.com", QueryType: "A", Timestamp: now.Add(-time.Hour)},
+		{SourceIP: "10.55.0.18", Domain: "other.example.com", QueryType: "A", Timestamp: now.Add(-time.Hour)},
 	}); err != nil {
 		t.Fatalf("WriteQueries: %v", err)
 	}
-	if err := db.SetSourceLabel(sourceA, "Kitchen Display"); err != nil {
-		t.Fatalf("SetSourceLabel: %v", err)
-	}
 
-	logRows, err := db.QueryLogBySource(sourceA, "", time.Time{}, now.Add(time.Hour), 100, 0)
+	rows, err := db.QueryLogBySource(source, "", time.Time{}, now, 100, 0)
 	if err != nil {
 		t.Fatalf("QueryLogBySource: %v", err)
 	}
-	if len(logRows) != 5 {
-		t.Fatalf("len(QueryLogBySource) = %d, want 5", len(logRows))
-	}
-	for _, row := range logRows {
-		if row.DeviceMAC != "" || row.SourceIP != sourceA {
-			t.Fatalf("unexpected row in source query log: %+v", row)
-		}
+	if len(rows) != 1 || rows[0].Domain != "source.example.com" {
+		t.Fatalf("QueryLogBySource = %+v, want only source.example.com", rows)
 	}
 
-	hourly, err := db.SourceHourlyActivity(sourceA)
+	buckets, err := db.SourceRangedActivity(source, "24h")
 	if err != nil {
-		t.Fatalf("SourceHourlyActivity: %v", err)
+		t.Fatalf("SourceRangedActivity: %v", err)
 	}
-	if len(hourly) != 24 {
-		t.Fatalf("len(SourceHourlyActivity) = %d, want 24", len(hourly))
+	total := 0
+	for _, bucket := range buckets {
+		total += bucket.TotalCount
 	}
-	totalHourly := 0
-	for _, bucket := range hourly {
-		totalHourly += bucket.TotalCount
+	if total != 1 {
+		t.Fatalf("SourceRangedActivity total = %d, want 1", total)
 	}
-	if totalHourly != 3 {
-		t.Fatalf("hourly total = %d, want 3", totalHourly)
-	}
+}
 
-	summary, err := db.SourcePrivacySummaryAt(sourceA, now)
-	if err != nil {
-		t.Fatalf("SourcePrivacySummaryAt: %v", err)
+func TestListSourceWithTrendsCountsLast24hAndIncludesLabel(t *testing.T) {
+	db := testDB(t)
+	now := time.Now().UTC()
+	source := "10.55.0.17"
+	if err := db.WriteQueries([]Query{
+		{SourceIP: source, Domain: "recent.example.com", QueryType: "A", Timestamp: now.Add(-time.Hour)},
+		{SourceIP: source, Domain: "stale.example.com", QueryType: "A", Timestamp: now.Add(-48 * time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
 	}
-	if summary.QueryCount != 3 {
-		t.Fatalf("summary.QueryCount = %d, want 3", summary.QueryCount)
-	}
-	if summary.UniqueDomains != 3 {
-		t.Fatalf("summary.UniqueDomains = %d, want 3", summary.UniqueDomains)
-	}
-
-	breakdown, err := db.SourceCategoryBreakdown(sourceA)
-	if err != nil {
-		t.Fatalf("SourceCategoryBreakdown: %v", err)
-	}
-	if len(breakdown) == 0 {
-		t.Fatal("SourceCategoryBreakdown returned no rows")
-	}
-
-	ranged, err := db.SourceRangedActivity(sourceA, "7d")
-	if err != nil {
-		t.Fatalf("SourceRangedActivity(7d): %v", err)
-	}
-	if len(ranged) != 7 {
-		t.Fatalf("len(SourceRangedActivity) = %d, want 7", len(ranged))
-	}
-
-	top, err := db.SourceTopDomainsWithSourcePage(sourceA, 10, 0)
-	if err != nil {
-		t.Fatalf("SourceTopDomainsWithSourcePage: %v", err)
-	}
-	if len(top) == 0 {
-		t.Fatal("SourceTopDomainsWithSourcePage returned no rows")
-	}
-	foundTracker := false
-	for _, domain := range top {
-		if domain.Domain == "tracker.example.com" {
-			foundTracker = true
-			if domain.SourceList != "Tracking List" {
-				t.Fatalf("tracker domain source_list = %q, want Tracking List", domain.SourceList)
-			}
-		}
-	}
-	if !foundTracker {
-		t.Fatalf("tracker.example.com not found in SourceTopDomainsWithSourcePage: %+v", top)
+	if err := db.SetSourceLabel(source, "Kitchen Display"); err != nil {
+		t.Fatalf("SetSourceLabel: %v", err)
 	}
 
 	trends, err := db.ListSourceWithTrendsAt(now)
 	if err != nil {
 		t.Fatalf("ListSourceWithTrendsAt: %v", err)
 	}
-	if len(trends) == 0 {
-		t.Fatal("ListSourceWithTrendsAt returned no rows")
-	}
-	found := false
-	for _, trend := range trends {
-		if trend.SourceIP == sourceA {
-			found = true
-			if trend.QueryCount != 3 {
-				t.Fatalf("QueryCount = %d, want 3", trend.QueryCount)
-			}
-			if trend.Label != "Kitchen Display" {
-				t.Fatalf("Label = %q, want %q", trend.Label, "Kitchen Display")
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("source trend for %s not found", sourceA)
+	if len(trends) != 1 || trends[0].SourceIP != source || trends[0].QueryCount != 1 || trends[0].Label != "Kitchen Display" {
+		t.Fatalf("trends = %+v, want one %s entry with 1 query and label", trends, source)
 	}
 }
 

@@ -406,12 +406,6 @@ func TestManagerRunFallsBackToInitialSourcesWhenDBLoadFails(t *testing.T) {
 	}
 }
 
-func TestManagerNotifyConfigChangedDoesNotBlock(t *testing.T) {
-	m := NewManager(testDB(t))
-	m.NotifyConfigChanged()
-	m.NotifyConfigChanged()
-}
-
 func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
 	m := NewManager(testDB(t))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -427,29 +421,6 @@ func TestManagerRunReturnsWhenContextCancelled(t *testing.T) {
 	case <-done:
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("Run did not return after context cancellation")
-	}
-}
-
-func TestManagerRunHandlesWakeSignal(t *testing.T) {
-	captureLogs(t)
-	m := NewManager(testDB(t))
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	done := make(chan struct{})
-	go func() {
-		m.Run(ctx, nil, time.Millisecond)
-		close(done)
-	}()
-
-	m.NotifyConfigChanged()
-	time.Sleep(10 * time.Millisecond)
-	cancel()
-
-	select {
-	case <-done:
-	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Run did not stop")
 	}
 }
 

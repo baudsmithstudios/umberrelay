@@ -63,8 +63,7 @@ func (t *Tracker) saveDiscoveredDevice(dev store.Device, source string) {
 		case t.deviceWrites <- pendingDevice{dev: dev, source: source}:
 			return
 		default:
-			// Buffer full — fall through to a synchronous write so we never
-			// drop a discovery on Pi hardware under burst load.
+			// Full: write synchronously rather than drop a discovery.
 		}
 	}
 	if err := t.db.UpsertDevice(dev); err != nil {
