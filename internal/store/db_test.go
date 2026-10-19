@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -1658,5 +1659,96 @@ func TestPurgeQueriesOlderThanRebuildsPartlyPurgedRollup(t *testing.T) {
 	}
 	if total != 1 {
 		t.Fatalf("rollup total = %d, want 1", total)
+	}
+}
+
+func seedCategoryWindows(t *testing.T, db *DB, now time.Time) {
+	t.Helper()
+	mac := "aa:bb:cc:dd:ee:ff"
+	err := db.WriteQueries([]Query{
+		{DeviceMAC: mac, Domain: "t1.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-1 * time.Hour)},
+		{DeviceMAC: mac, Domain: "t2.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-2 * time.Hour)},
+		{DeviceMAC: mac, Domain: "tel.example.com", QueryType: "A", Category: "telemetry", Timestamp: now.Add(-3 * time.Hour)},
+		{DeviceMAC: mac, Domain: "plain.example.com", QueryType: "A", Category: "", Timestamp: now.Add(-4 * time.Hour)},
+		{DeviceMAC: mac, Domain: "t3.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-3 * 24 * time.Hour)},
+		{DeviceMAC: mac, Domain: "ad1.example.com", QueryType: "A", Category: "advertising", Timestamp: now.Add(-3 * 24 * time.Hour)},
+		{DeviceMAC: mac, Domain: "ad2.example.com", QueryType: "A", Category: "advertising", Timestamp: now.Add(-4 * 24 * time.Hour)},
+		{DeviceMAC: mac, Domain: "old.example.com", QueryType: "A", Category: "malware", Timestamp: now.Add(-9 * 24 * time.Hour)},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "other.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-1 * time.Hour)},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+}
+
+func TestDeviceCategoryCountsAt(t *testing.T) {
+	db := testDB(t)
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	seedCategoryWindows(t, db, now)
+
+	got, err := db.DeviceCategoryCountsAt("aa:bb:cc:dd:ee:ff", now)
+	if err != nil {
+		t.Fatalf("DeviceCategoryCountsAt: %v", err)
+	}
+	want := []CategoryWindowCount{
+		{Category: "", Current: 1, Prior: 0},
+		{Category: "advertising", Current: 0, Prior: 2},
+		{Category: "telemetry", Current: 1, Prior: 0},
+		{Category: "tracking", Current: 2, Prior: 1},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("counts = %+v, want %+v", got, want)
+	}
+}
+
+func TestNetworkCategoryCountsAt(t *testing.T) {
+	db := testDB(t)
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	seedCategoryWindows(t, db, now)
+
+	got, err := db.NetworkCategoryCountsAt(now)
+	if err != nil {
+		t.Fatalf("NetworkCategoryCountsAt: %v", err)
+	}
+	want := []CategoryWindowCount{
+		{Category: "", Current: 1, Prior: 0},
+		{Category: "advertising", Current: 0, Prior: 2},
+		{Category: "telemetry", Current: 1, Prior: 0},
+		{Category: "tracking", Current: 3, Prior: 1},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("counts = %+v, want %+v", got, want)
+	}
+}
+
+func TestSourceCategoryCountsAt(t *testing.T) {
+	db := testDB(t)
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	err := db.WriteQueries([]Query{
+		{SourceIP: "10.0.0.50", Domain: "t.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-1 * time.Hour)},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", SourceIP: "10.0.0.50", Domain: "d.example.com", QueryType: "A", Category: "analytics", Timestamp: now.Add(-1 * time.Hour)},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	got, err := db.SourceCategoryCountsAt("10.0.0.50", now)
+	if err != nil {
+		t.Fatalf("SourceCategoryCountsAt: %v", err)
+	}
+	want := []CategoryWindowCount{{Category: "tracking", Current: 1, Prior: 0}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("counts = %+v, want %+v", got, want)
+	}
+}
+
+func TestCategoryCountsAtEmpty(t *testing.T) {
+	db := testDB(t)
+	got, err := db.NetworkCategoryCountsAt(time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("NetworkCategoryCountsAt: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("counts = %+v, want none", got)
 	}
 }

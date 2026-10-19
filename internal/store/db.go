@@ -1311,6 +1311,58 @@ func (d *DB) SourceCategoryBreakdown(sourceIP string) ([]CategoryCount, error) {
 	return d.categoryBreakdown(sourceActorFilter(sourceIP))
 }
 
+// CategoryWindowCount compares one category's query count in the current 24h
+// against the 7 days before it, using the same windows as LoadTrendsAt.
+type CategoryWindowCount struct {
+	Category string
+	Current  int
+	Prior    int
+}
+
+func (d *DB) NetworkCategoryCountsAt(now time.Time) ([]CategoryWindowCount, error) {
+	return d.categoryCountsAt(actorFilter{}, now)
+}
+
+func (d *DB) DeviceCategoryCountsAt(mac string, now time.Time) ([]CategoryWindowCount, error) {
+	return d.categoryCountsAt(deviceActorFilter(mac), now)
+}
+
+func (d *DB) SourceCategoryCountsAt(sourceIP string, now time.Time) ([]CategoryWindowCount, error) {
+	return d.categoryCountsAt(sourceActorFilter(sourceIP), now)
+}
+
+func (d *DB) categoryCountsAt(actor actorFilter, now time.Time) ([]CategoryWindowCount, error) {
+	priorStart, currentStart, now := trendWindowAt(now)
+	query := `
+		SELECT COALESCE(category, ''),
+		       SUM(CASE WHEN timestamp >= ? THEN 1 ELSE 0 END),
+		       SUM(CASE WHEN timestamp < ? THEN 1 ELSE 0 END)
+		FROM queries
+		WHERE timestamp >= ? AND timestamp < ?`
+	args := []any{currentStart.UnixNano(), currentStart.UnixNano(), priorStart.UnixNano(), now.UnixNano()}
+	if actor.where != "" {
+		query += " AND " + actor.where
+		args = append(args, actor.args...)
+	}
+	query += " GROUP BY 1 ORDER BY 1"
+
+	rows, err := d.sql.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []CategoryWindowCount
+	for rows.Next() {
+		var c CategoryWindowCount
+		if err := rows.Scan(&c.Category, &c.Current, &c.Prior); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 func (d *DB) RangedActivity(deviceMAC string, timeRange string) ([]HourlyBucket, error) {
 	var actor actorFilter
 	if deviceMAC != "" {
