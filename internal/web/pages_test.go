@@ -758,3 +758,21 @@ func TestUnclassifiedDomainRowPreselectsUncategorized(t *testing.T) {
 		t.Fatalf("unclassified row does not preselect uncategorized: %q", row)
 	}
 }
+
+func TestNetworkRowDeviceCountMatchesHeadline(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+	if err := s.db.UpsertDevice(store.Device{MAC: "99:99:99:99:99:99", IP: "192.168.1.99", FirstSeen: now.Add(-30 * 24 * time.Hour), LastSeen: now.Add(-30 * 24 * time.Hour)}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, "across 2 devices") {
+		t.Fatalf("headline device count changed")
+	}
+	if row := rowFor(t, body, "/"); !strings.Contains(row, "2 devices ·") {
+		t.Fatalf("network row count differs from headline: %q", row)
+	}
+}

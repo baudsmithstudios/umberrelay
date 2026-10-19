@@ -184,7 +184,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 	r := roster{Network: rosterRow{
 		Href:           "/",
 		Name:           "Whole network",
-		Meta:           fmt.Sprintf("%d devices · %d queries", len(devices), stats.TotalQueries),
+		Meta:           fmt.Sprintf("%d devices · %d queries", stats.DeviceCount, stats.TotalQueries),
 		TrackerPercent: stats.TrackerPercent,
 		QueryCount:     stats.TotalQueries,
 		Selected:       selectedKey == "",
