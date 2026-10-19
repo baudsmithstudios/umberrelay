@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
-- Patched stdlib and `x/net` advisories (Go 1.26.4, x/net 0.53.0).
+- Patched stdlib and `x/net` advisories (Go 1.26.9, x/net 0.60.0).
 
 ## [0.1.0] - 2026-04-19
 
