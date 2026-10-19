@@ -519,9 +519,7 @@ func (d *DB) hourlyActivity(actor actorFilter) ([]HourlyBucket, error) {
 	return buckets, nil
 }
 
-// Each chunk is its own short transaction so the pipeline writer is not
-// blocked for the whole purge; the size keeps the IN list under SQLite's
-// 999 bound-parameter limit.
+// Purging in short per-chunk transactions keeps the pipeline writer unblocked.
 const purgeChunkSize = 900
 
 func (d *DB) PurgeQueriesOlderThan(cutoff time.Time) (int64, error) {
