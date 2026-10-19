@@ -180,7 +180,20 @@
             openStream();
         });
 
-        openStream();
+        // Stream only while the Live tab is showing; each open stream holds one of the
+        // browser's few HTTP/1.1 connections to this host.
+        const tabPanel = panel.closest('[role="tabpanel"]');
+        function syncWithTab() {
+            if (tabPanel && tabPanel.hidden) {
+                closeLiveQueryStream();
+            } else {
+                openStream();
+            }
+        }
+        if (tabPanel) {
+            new MutationObserver(syncWithTab).observe(tabPanel, { attributes: true, attributeFilter: ['hidden'] });
+        }
+        syncWithTab();
     }
 
     document.addEventListener('DOMContentLoaded', bindLiveQueryStream);

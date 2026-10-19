@@ -41,7 +41,8 @@ body {
     color: var(--ur-relay);
 }
 
-/* Roster beside the detail pane; the pane comes first once they stack. */
+/* Roster beside the detail pane; the pane comes first once they stack.
+   The columns wrap below 900px (340px + 560px flex-basis), so the breakpoint matches that. */
 .ur-activity {
     display: flex;
     flex-wrap: wrap;
@@ -67,7 +68,7 @@ body {
     padding: var(--elum-space-4) var(--elum-shell-gutter) calc(var(--elum-space-4) * 2);
 }
 
-@media (max-width: 48rem) {
+@media (max-width: 56.25rem) {
     .ur-roster {
         border-inline-end: 0;
         border-top: var(--elum-border-width) solid var(--elum-color-border);
