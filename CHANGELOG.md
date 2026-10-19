@@ -9,9 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **Breaking:** API responses now use snake_case JSON keys (e.g. `device_mac`); update consumers relying on the old PascalCase keys.
+- The live query stream starts at the newest query unless `after` or `Last-Event-ID` is given.
 
 ### Fixed
 
+- One live stream client's `after` cursor no longer hides new queries from other clients.
+- The live query stream connects immediately instead of after up to 15 seconds.
 - Retention now purges every expired query, not just 900 per day.
 
 ### Security
