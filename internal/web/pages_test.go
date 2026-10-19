@@ -438,3 +438,41 @@ func TestUIOverrideRejectsInvalidCategory(t *testing.T) {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
+
+func TestStaticServesElumKit(t *testing.T) {
+	s := testServer(t)
+	for _, path := range []string{"/static/elumkit/index.css", "/static/elumkit/tabs.js"} {
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s status = %d, want 200", path, w.Code)
+		}
+		if path == "/static/elumkit/index.css" && !strings.Contains(w.Body.String(), "@import") {
+			t.Fatalf("index.css missing @import: %q", w.Body.String())
+		}
+	}
+}
+
+func TestSettingsPageUsesElumKitLayout(t *testing.T) {
+	s := testServer(t)
+	if _, err := s.db.AddList("https://example.com/tracking.txt", "Tracking List", "tracking"); err != nil {
+		t.Fatalf("AddList: %v", err)
+	}
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/settings", nil))
+	body := w.Body.String()
+	for _, want := range []string{
+		"/static/elumkit/index.css",
+		"/static/css/app.css",
+		`class="elum-navbar"`,
+		`href="/settings" aria-current="page"`,
+		`class="elum-switch"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("settings page missing %q", want)
+		}
+	}
+	if strings.Contains(body, "pico.min.css") {
+		t.Errorf("settings page still loads pico.min.css")
+	}
+}

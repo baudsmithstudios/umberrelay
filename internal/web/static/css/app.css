@@ -1,0 +1,114 @@
+/*
+ * Umberrelay theme and the few layout pieces ElumKit does not provide.
+ * Load after /static/elumkit/index.css.
+ */
+
+:root {
+    color-scheme: dark;
+    --elum-color-bg: #0e0b04;
+    --elum-color-surface: #151006;
+    --elum-color-fg: #f0e6c8;
+    --elum-color-muted: #b09470;
+    --elum-color-border: #5a4528;
+    --elum-color-accent: #f5a623;
+    --elum-color-success: #1dbd5c;
+    --elum-color-warn: #e08700;
+    --elum-color-error: #ff4f4f;
+    --elum-color-info: #c8b88a;
+    --elum-color-focus: #ffbe4d;
+
+    --ur-relay: #c8b88a;
+    --ur-track: #2a1f0e;
+}
+
+body {
+    font-variant-ligatures: none;
+}
+
+.ur-brand {
+    color: var(--elum-color-accent);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.ur-brand b {
+    font-weight: 700;
+}
+
+.ur-brand span {
+    color: var(--ur-relay);
+}
+
+/* Roster beside the detail pane; the pane comes first once they stack. */
+.ur-activity {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.ur-roster {
+    border-inline-end: var(--elum-border-width) solid var(--elum-color-border);
+    display: flex;
+    flex: 1 1 340px;
+    flex-direction: column;
+    gap: var(--elum-space-3);
+    max-width: 420px;
+    padding: var(--elum-space-4) var(--elum-space-4) var(--elum-space-4) var(--elum-shell-gutter);
+}
+
+.ur-pane {
+    display: flex;
+    flex: 999 1 560px;
+    flex-direction: column;
+    gap: var(--elum-space-4);
+    min-width: 0;
+    padding: var(--elum-space-4) var(--elum-shell-gutter) calc(var(--elum-space-4) * 2);
+}
+
+@media (max-width: 48rem) {
+    .ur-roster {
+        border-inline-end: 0;
+        border-top: var(--elum-border-width) solid var(--elum-color-border);
+        max-width: none;
+        order: 2;
+    }
+}
+
+/* Inline micro-meter under a roster row; the value beside it is the accessible reading. */
+.ur-mini {
+    background: var(--ur-track);
+    display: block;
+    height: 3px;
+    margin-top: var(--elum-space-1);
+}
+
+.ur-mini > i {
+    background: var(--elum-color-muted);
+    display: block;
+    height: 100%;
+}
+
+/* Reference tick under an elum-meter-track, positioned with an inline left offset. */
+.ur-ref {
+    padding-bottom: 1.4rem;
+    position: relative;
+}
+
+.ur-ref .tick {
+    background: var(--elum-color-fg);
+    bottom: 1.1rem;
+    position: absolute;
+    top: -4px;
+    width: 2px;
+}
+
+.ur-ref .tick-label {
+    bottom: 0;
+    color: var(--elum-color-muted);
+    font-size: var(--elum-text-xs);
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}

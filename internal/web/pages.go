@@ -180,12 +180,12 @@ type deviceDetailView struct {
 
 func listRefreshStatusView(status store.ListRefreshStatus) (string, string) {
 	if status.LastAttemptAt.IsZero() {
-		return "List refresh has not run yet.", "status-neutral"
+		return "List refresh has not run yet.", ""
 	}
 	if status.LastError != "" {
-		return fmt.Sprintf("Last refresh failed at %s: %s", status.LastAttemptAt.Local().Format("2006-01-02 15:04:05"), status.LastError), "status-error"
+		return fmt.Sprintf("Last refresh failed at %s: %s", status.LastAttemptAt.Local().Format("2006-01-02 15:04:05"), status.LastError), "error"
 	}
-	return fmt.Sprintf("Last refresh succeeded at %s.", status.LastSuccessAt.Local().Format("2006-01-02 15:04:05")), "status-ok"
+	return fmt.Sprintf("Last refresh succeeded at %s.", status.LastSuccessAt.Local().Format("2006-01-02 15:04:05")), "success"
 }
 
 func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
@@ -827,18 +827,18 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		pageData
-		RetentionDays          int
-		ListRefreshHours       int
-		ListRefreshStatusClass string
-		ListRefreshStatusText  string
-		Lists                  interface{}
+		RetentionDays         int
+		ListRefreshHours      int
+		ListRefreshStatusTone string
+		ListRefreshStatusText string
+		Lists                 interface{}
 	}{
 		pageData:         pageData{Title: "Settings", Active: "settings"},
 		RetentionDays:    settings.RetentionDays,
 		ListRefreshHours: settings.ListRefreshHours,
 		Lists:            lists,
 	}
-	data.ListRefreshStatusText, data.ListRefreshStatusClass = listRefreshStatusView(refreshStatus)
+	data.ListRefreshStatusText, data.ListRefreshStatusTone = listRefreshStatusView(refreshStatus)
 	s.renderPage(w, "settings", data)
 }
 
