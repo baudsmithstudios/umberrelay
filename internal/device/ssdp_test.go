@@ -3,6 +3,7 @@ package device
 import "testing"
 
 func TestParseSSDPPersistsDeviceWhenServerHeaderPresent(t *testing.T) {
+	captureLogs(t)
 	db := testDB(t)
 	tracker := NewTracker(db, NewOUIDB(nil))
 	tracker.SetARPEntry("192.168.1.15", "aa:bb:cc:dd:ee:ff")
@@ -16,6 +17,7 @@ func TestParseSSDPPersistsDeviceWhenServerHeaderPresent(t *testing.T) {
 }
 
 func TestParseSSDPHeadersFallbackPersistsDevice(t *testing.T) {
+	captureLogs(t)
 	db := testDB(t)
 	tracker := NewTracker(db, NewOUIDB(nil))
 	tracker.SetARPEntry("192.168.1.16", "11:22:33:44:55:66")

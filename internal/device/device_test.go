@@ -1,6 +1,8 @@
 package device
 
 import (
+	"bytes"
+	"log"
 	"path/filepath"
 	"testing"
 
@@ -18,4 +20,13 @@ func testDB(t *testing.T) *store.DB {
 		_ = db.Close()
 	})
 	return db
+}
+
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var logs bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	return &logs
 }

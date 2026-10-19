@@ -27,6 +27,7 @@ func TestParseDHCPOption12ReturnsEmptyForMalformedOptions(t *testing.T) {
 }
 
 func TestParseDHCPPersistsHostnameAndAddress(t *testing.T) {
+	captureLogs(t)
 	db := testDB(t)
 	tracker := NewTracker(db, NewOUIDB(nil))
 

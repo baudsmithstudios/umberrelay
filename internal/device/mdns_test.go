@@ -28,6 +28,7 @@ func TestExtractMDNSHostname(t *testing.T) {
 }
 
 func TestParseMDNSPersistsDiscoveredHostname(t *testing.T) {
+	captureLogs(t)
 	db := testDB(t)
 	tracker := NewTracker(db, NewOUIDB(nil))
 	tracker.SetARPEntry("192.168.1.10", "aa:bb:cc:dd:ee:ff")
