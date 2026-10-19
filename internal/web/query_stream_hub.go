@@ -24,6 +24,7 @@ type queryStreamHub struct {
 	lastID      int64
 	running     bool
 	stop        chan struct{}
+	stopped     chan struct{}
 	wake        chan struct{}
 }
 
@@ -34,6 +35,7 @@ func newQueryStreamHub(fetch queryFeedFetcher, latestID latestQueryIDFetcher, ba
 		batchSize:   batchSize,
 		subscribers: make(map[int]chan store.Query),
 		stop:        make(chan struct{}),
+		stopped:     make(chan struct{}),
 		wake:        make(chan struct{}, 1),
 	}
 }
@@ -43,7 +45,10 @@ func (h *queryStreamHub) startLocked() {
 		return
 	}
 	h.running = true
-	go h.run()
+	go func() {
+		defer close(h.stopped)
+		h.run()
+	}()
 }
 
 func (h *queryStreamHub) run() {
@@ -73,6 +78,12 @@ func (h *queryStreamHub) Close() {
 		return
 	default:
 		close(h.stop)
+	}
+	h.mu.Lock()
+	running := h.running
+	h.mu.Unlock()
+	if running {
+		<-h.stopped
 	}
 }
 

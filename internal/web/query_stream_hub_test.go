@@ -115,3 +115,33 @@ func TestQueryStreamHubDrainsMultipleBatches(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryStreamHubCloseWaitsForInFlightPoll(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	hub := newQueryStreamHub(func(int64, int) ([]store.Query, error) {
+		close(entered)
+		<-release
+		return nil, nil
+	}, func() (int64, error) { return 0, nil }, 100)
+	subscribe(t, hub)
+	<-entered
+
+	closed := make(chan struct{})
+	go func() {
+		hub.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+		t.Fatal("Close returned while a poll was in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case <-closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Close did not return after the poll finished")
+	}
+}
