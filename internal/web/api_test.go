@@ -509,18 +509,9 @@ func TestAPIQueryStreamWithoutCursorSendsOnlyNewQueries(t *testing.T) {
 	}
 	s.NotifyNewQueries()
 
-	timeout := time.After(2 * time.Second)
-	for {
-		select {
-		case line := <-lines:
-			if strings.Contains(line, "history.example.com") {
-				t.Fatal("stream replayed a query written before the client connected")
-			}
-			if strings.Contains(line, "live.example.com") {
-				return
-			}
-		case <-timeout:
-			t.Fatal("stream never sent the new query")
+	for _, line := range waitForStreamLine(t, lines, "live.example.com") {
+		if strings.Contains(line, "history.example.com") {
+			t.Fatal("stream replayed a query written before the client connected")
 		}
 	}
 }
@@ -551,15 +542,17 @@ func openQueryStream(t *testing.T, ctx context.Context, url string) <-chan strin
 	return lines
 }
 
-func waitForStreamLine(t *testing.T, lines <-chan string, want string) {
+func waitForStreamLine(t *testing.T, lines <-chan string, want string) []string {
 	t.Helper()
+	var seen []string
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case line := <-lines:
 			if strings.Contains(line, want) {
-				return
+				return seen
 			}
+			seen = append(seen, line)
 		case <-timeout:
 			t.Fatalf("stream never sent a line containing %q", want)
 		}
