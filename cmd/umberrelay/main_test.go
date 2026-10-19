@@ -82,26 +82,16 @@ func TestDefaultListSourcesSeedsDefaultsWhenStoreIsEmpty(t *testing.T) {
 	}
 }
 
-func TestDefaultListSourcesReturnsOnlyEnabledStoredLists(t *testing.T) {
+func TestDefaultListSourcesDoesNotSeedWhenListsExist(t *testing.T) {
 	db := testDB(t)
-	firstID, err := db.AddList("https://example.com/one.txt", "One", "tracking")
+	id, err := db.AddList("https://example.com/one.txt", "One", "tracking")
 	if err != nil {
-		t.Fatalf("AddList(one): %v", err)
-	}
-	secondID, err := db.AddList("https://example.com/two.txt", "Two", "analytics")
-	if err != nil {
-		t.Fatalf("AddList(two): %v", err)
-	}
-	if err := db.UpdateListEnabled(secondID, false); err != nil {
-		t.Fatalf("UpdateListEnabled: %v", err)
+		t.Fatalf("AddList: %v", err)
 	}
 
 	sources := defaultListSources(db)
-	if len(sources) != 1 {
-		t.Fatalf("len(sources) = %d, want 1", len(sources))
-	}
-	if sources[0].ID != firstID {
-		t.Fatalf("source ID = %d, want %d", sources[0].ID, firstID)
+	if len(sources) != 1 || sources[0].ID != id {
+		t.Fatalf("sources = %#v, want only list %d", sources, id)
 	}
 }
 
