@@ -17,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"umberrelay/internal/app"
 	"umberrelay/internal/classify"
 	"umberrelay/internal/config"
 	"umberrelay/internal/demo"
@@ -280,7 +279,7 @@ func defaultListSources(db *store.DB) []classify.ListSource {
 			}
 		}
 	}
-	sources, err := app.EnabledListSources(db)
+	sources, err := classify.EnabledSources(db)
 	if err != nil {
 		log.Printf("load enabled lists: %v", err)
 		return nil

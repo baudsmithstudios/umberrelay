@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"umberrelay/internal/app"
 	"umberrelay/internal/classify"
 	"umberrelay/internal/store"
 	"umberrelay/internal/web/static"
@@ -38,11 +37,11 @@ type Server struct {
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
 
-func NewServer(db *store.DB, classify *classify.Manager) *Server {
+func NewServer(db *store.DB, mgr *classify.Manager) *Server {
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 	s := &Server{
 		db:       db,
-		classify: classify,
+		classify: mgr,
 		queryHub: newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
 			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
 		}, db.LatestQueryID, 500),
@@ -51,7 +50,7 @@ func NewServer(db *store.DB, classify *classify.Manager) *Server {
 		now:                    time.Now,
 		backgroundCtx:          backgroundCtx,
 		backgroundCancel:       backgroundCancel,
-		loadEnabledListSources: app.EnabledListSources,
+		loadEnabledListSources: classify.EnabledSources,
 		refreshListSources:     refreshManagerSources,
 	}
 	s.registerRoutes()
