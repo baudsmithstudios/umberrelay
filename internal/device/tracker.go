@@ -121,19 +121,15 @@ func (t *Tracker) runDeviceWriter(ctx context.Context) {
 }
 
 func (t *Tracker) Run(ctx context.Context) {
-	go t.runDeviceWriter(ctx)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	wg.Go(func() { t.runDeviceWriter(ctx) })
 
 	t.pollARP()
 
-	done := make(chan struct{})
-	go func() {
-		<-ctx.Done()
-		close(done)
-	}()
-
-	go t.RunDHCP(done)
-	go t.RunMDNS(done)
-	go t.RunSSDP(done)
+	wg.Go(func() { t.RunDHCP(ctx.Done()) })
+	wg.Go(func() { t.RunMDNS(ctx.Done()) })
+	wg.Go(func() { t.RunSSDP(ctx.Done()) })
 
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()

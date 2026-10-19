@@ -106,6 +106,7 @@ func TestDeviceWriterCoalescesAndDrainsOnCancel(t *testing.T) {
 }
 
 func TestRunStopsWhenContextCancelled(t *testing.T) {
+	captureLogs(t)
 	tracker := NewTracker(testDB(t), NewOUIDB(nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
