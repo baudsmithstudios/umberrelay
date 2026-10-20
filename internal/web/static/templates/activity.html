@@ -1,11 +1,9 @@
 {{define "content"}}
 <div class="ur-activity">
     <aside class="ur-roster" aria-label="Devices and sources">
-        <form class="elum-query" role="search" aria-label="Filter devices">
-            <div class="elum-field">
-                <label class="elum-label" for="roster-filter">Find a device</label>
-                <span class="elum-prompt-field"><span class="elum-input-prompt" aria-hidden="true">▶</span><input class="elum-input" id="roster-filter" type="search" placeholder="name, vendor or ip"></span>
-            </div>
+        <form class="elum-field" role="search" aria-label="Filter devices">
+            <label class="elum-label" for="roster-filter">Find a device</label>
+            <span class="elum-prompt-field"><span class="elum-input-prompt" aria-hidden="true">▶</span><input class="elum-input" id="roster-filter" type="search" placeholder="name, vendor or ip"></span>
         </form>
         <fieldset class="elum-segmented" aria-label="Sort devices">
             <label class="elum-segmented-option" for="roster-sort-tracker"><input id="roster-sort-tracker" name="roster-sort" type="radio" value="tracker" checked>tracker</label>
