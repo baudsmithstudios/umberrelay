@@ -465,6 +465,20 @@ func TestSettingsCardsAreMarkedForWiderSpacing(t *testing.T) {
 	}
 }
 
+func TestSettingsCardActionsAreSecondaryAndRightAligned(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/settings")
+	for _, want := range []string{
+		`<div class="ur-card-actions"><button class="elum-button" type="submit">Save</button></div>`,
+		`<form class="ur-card-actions" hx-post="/ui/lists/refresh" hx-swap="none">`,
+		`<div class="ur-card-actions"><button class="elum-button" type="submit">Add</button></div>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("settings page missing %q", want)
+		}
+	}
+}
+
 func TestSettingsPageUsesElumKitLayout(t *testing.T) {
 	s := testServer(t)
 	if _, err := s.db.AddList("https://example.com/tracking.txt", "Tracking List", "tracking"); err != nil {

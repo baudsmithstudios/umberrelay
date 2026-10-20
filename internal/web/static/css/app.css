@@ -144,6 +144,11 @@ body {
     margin-top: calc(var(--elum-space-3) * 2);
 }
 
+.ur-card-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 /* Inline micro-meter under a roster row; the value beside it is the accessible reading. */
 .ur-mini {
     background: var(--ur-track);
