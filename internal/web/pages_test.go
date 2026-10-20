@@ -815,7 +815,7 @@ func TestLiveStreamCarriesCategoryTones(t *testing.T) {
 func TestRosterFilterIsABareField(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
-	if !strings.Contains(body, `<form class="elum-field" role="search" aria-label="Filter devices">`) {
+	if !strings.Contains(body, `<form class="elum-field ur-roster-filter" role="search" aria-label="Filter devices">`) {
 		t.Fatalf("roster filter should be a bare label and input, not a bordered query card")
 	}
 }
