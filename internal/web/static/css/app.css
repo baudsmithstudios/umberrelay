@@ -117,7 +117,7 @@ body {
 
 /* Separates the chart and its range control from the tracker table above. */
 .elum-stack > .ur-chart {
-    margin-top: calc(var(--elum-space-4) * 2);
+    margin-top: var(--elum-space-4);
 }
 
 /* The bottom margin clears the card title, which sits raised on the card border. */
