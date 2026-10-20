@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -80,6 +81,16 @@ func categoryTone(name string) string {
 	default:
 		return ""
 	}
+}
+
+// categoryTonesJSON gives the live feed, which builds its rows in the browser, the same tones as the server-rendered pages.
+func categoryTonesJSON() (string, error) {
+	tones := make(map[string]string)
+	for _, option := range category.Options() {
+		tones[option.Value] = categoryTone(option.Value)
+	}
+	b, err := json.Marshal(tones)
+	return string(b), err
 }
 
 func formatPoints(v float64) string {

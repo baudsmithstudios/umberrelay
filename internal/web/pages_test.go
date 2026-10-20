@@ -803,6 +803,14 @@ func TestNetworkMeterOmitsReferenceWithoutPriorData(t *testing.T) {
 	}
 }
 
+func TestLiveStreamCarriesCategoryTones(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/?tab=live")
+	if !strings.Contains(body, `data-category-tones="{`) || !strings.Contains(body, `"tracking":"error"`) {
+		t.Fatalf("live stream missing category tone map")
+	}
+}
+
 func TestMainIsNotALiveRegion(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")

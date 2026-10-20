@@ -47,30 +47,14 @@
         return date.toLocaleTimeString();
     }
 
-    // Mirrors categoryTone in internal/web/activity_view.go.
-    function categoryTone(category) {
-        switch (category) {
-        case 'tracking':
-        case 'malware':
-            return 'error';
-        case 'advertising':
-            return 'warn';
-        case 'analytics':
-        case 'telemetry':
-            return 'success';
-        default:
-            return '';
-        }
-    }
-
-    function appendLiveQueryRow(feed, query, showActor) {
+    function appendLiveQueryRow(feed, query, showActor, tones) {
         if (feed.dataset.hasRows !== 'true') {
             feed.innerHTML = '';
             feed.dataset.hasRows = 'true';
         }
 
         const category = query.category || 'unclassified';
-        const tone = categoryTone(query.category);
+        const tone = tones[query.category] || '';
         const row = document.createElement('li');
         row.className = 'elum-feed-item';
         if (tone) {
@@ -99,6 +83,7 @@
         const feed = document.getElementById('live-query-feed');
         const clearButton = document.getElementById('live-query-clear');
         const status = document.getElementById('live-query-status');
+        const tones = JSON.parse(panel.dataset.categoryTones);
 
         let debounceTimer = null;
 
@@ -146,7 +131,7 @@
                 } catch (_) {
                     return;
                 }
-                appendLiveQueryRow(feed, query, !actor);
+                appendLiveQueryRow(feed, query, !actor, tones);
             });
         }
 
