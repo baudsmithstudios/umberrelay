@@ -102,7 +102,7 @@ func TestDeviceDetailPageSourceRoute(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	for _, want := range []string{"<h1>Kitchen Display · 10.44.0.7</h1>", "/ui/sources/10.44.0.7/label"} {
+	for _, want := range []string{`<h1 class="ur-visually-hidden">Kitchen Display · 10.44.0.7</h1>`, "/ui/sources/10.44.0.7/label"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
 		}
@@ -563,7 +563,7 @@ func TestActivityDeviceSelected(t *testing.T) {
 	if row := rowFor(t, body, "/"); strings.Contains(row, `data-selected="true"`) {
 		t.Fatalf("network row selected on a device page: %q", row)
 	}
-	for _, want := range []string{"<h1>Living Room TV</h1>", "/ui/devices/aa:bb:cc:dd:ee:ff/label", "roku-tv"} {
+	for _, want := range []string{`<h1 class="ur-visually-hidden">Living Room TV</h1>`, "/ui/devices/aa:bb:cc:dd:ee:ff/label", "roku-tv"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("device pane missing %q", want)
 		}
@@ -584,6 +584,21 @@ func TestDeviceLabelEditorIsABareRow(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("device label editor missing %q", want)
 		}
+	}
+}
+
+func TestUnlabeledDeviceShowsItsNameInTheEmptyLabelField(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	mac := "aa:bb:cc:dd:ee:10"
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", Hostname: "kitchen-echo", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/device:"+mac)
+	if !strings.Contains(body, `name="label" value="" maxlength="128" placeholder="kitchen-echo">`) {
+		t.Fatalf("empty label field missing the device's fallback name")
 	}
 }
 

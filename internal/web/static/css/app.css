@@ -105,6 +105,25 @@ body {
     }
 }
 
+/* Keeps the detail page's name as its h1 for screen readers; the label field shows it on screen. */
+.ur-visually-hidden {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+/* An empty label field shows the fallback name as its placeholder, so the label stays raised on the border. */
+.ur-label-editor .elum-field-float > .elum-input + .elum-label {
+    background: var(--elum-color-bg);
+    color: var(--elum-color-accent);
+    font-size: var(--elum-text-xs);
+    padding-inline: var(--elum-space-1);
+    top: 0;
+}
+
 /* tabs.js gives the panels role="tabpanel" once the tabs show, and the selected tab then names the panel.
    Without JavaScript the panels stack and keep these titles. */
 [role="tabpanel"] > .ur-panel-title {
