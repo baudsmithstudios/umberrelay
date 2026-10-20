@@ -595,8 +595,14 @@ func TestSourceLabelEditorIsABareRow(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	if body := getPage(t, s, "/devices/source:10.44.0.7"); !strings.Contains(body, `<form class="elum-query ur-label-editor" hx-post="/ui/sources/10.44.0.7/label"`) {
-		t.Fatalf("source label editor missing the bare row class")
+	body := getPage(t, s, "/devices/source:10.44.0.7")
+	for _, want := range []string{
+		`<form class="elum-query ur-label-editor" hx-post="/ui/sources/10.44.0.7/label"`,
+		`<label class="elum-label" for="device-label">Source Label</label>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("source label editor missing %q", want)
+		}
 	}
 }
 

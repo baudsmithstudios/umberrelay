@@ -15,7 +15,7 @@
     <form class="elum-query ur-label-editor" hx-post="/ui/sources/{{.SourceIP}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
         <div class="elum-field-float">
             <input class="elum-input" id="device-label" type="text" name="label" value="{{.SourceLabel}}" maxlength="128" placeholder=" ">
-            <label class="elum-label" for="device-label">Label</label>
+            <label class="elum-label" for="device-label">Source Label</label>
         </div>
         <button class="elum-button" type="submit">Save</button>
     </form>
