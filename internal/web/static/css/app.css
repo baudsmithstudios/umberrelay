@@ -75,12 +75,15 @@ body {
     padding-inline: var(--elum-space-1);
 }
 
-/* Filter fields in a row like elum-query, without its card border.
-   The bottom margin collapses with the stack's gap, so it must exceed that gap to widen it. */
-.elum-query.ur-filters {
+/* Fields in a row like elum-query, without its card border. */
+.elum-query:is(.ur-filters, .ur-label-editor) {
     border: 0;
-    margin-bottom: calc(var(--elum-space-3) * 2);
     padding: 0;
+}
+
+/* The bottom margin collapses with the stack's gap, so it must exceed that gap to widen it. */
+.elum-query.ur-filters {
+    margin-bottom: calc(var(--elum-space-3) * 2);
 }
 
 .ur-pane {

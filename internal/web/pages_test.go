@@ -570,6 +570,36 @@ func TestActivityDeviceSelected(t *testing.T) {
 	}
 }
 
+func TestDeviceLabelEditorIsABareRow(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	for _, want := range []string{
+		`<form class="elum-query ur-label-editor" hx-post="/ui/devices/aa:bb:cc:dd:ee:ff/label"`,
+		`<label class="elum-label" for="device-label">Device Label</label>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("device label editor missing %q", want)
+		}
+	}
+}
+
+func TestSourceLabelEditorIsABareRow(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{SourceIP: "10.44.0.7", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	if body := getPage(t, s, "/devices/source:10.44.0.7"); !strings.Contains(body, `<form class="elum-query ur-label-editor" hx-post="/ui/sources/10.44.0.7/label"`) {
+		t.Fatalf("source label editor missing the bare row class")
+	}
+}
+
 func TestActivitySourceIPv6Selected(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
