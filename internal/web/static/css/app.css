@@ -115,6 +115,12 @@ body {
     width: 1px;
 }
 
+/* Wide enough for a source's fallback name with a full IPv6 address. */
+.ur-label-editor > .elum-field-float {
+    flex: 0 1 24rem;
+    min-width: 0;
+}
+
 /* An empty label field shows the fallback name as its placeholder, so the label stays raised on the border. */
 .ur-label-editor .elum-field-float > .elum-input + .elum-label {
     background: var(--elum-color-bg);
