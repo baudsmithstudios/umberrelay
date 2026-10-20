@@ -859,6 +859,19 @@ func TestDomainAndLiveFiltersAreBareRows(t *testing.T) {
 	}
 }
 
+func TestDomainTablesUseCompactStyle(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+	for _, path := range []string{"/?tab=domains", "/devices/device:aa:bb:cc:dd:ee:ff?tab=domains"} {
+		body := getPage(t, s, path)
+		if !strings.Contains(body, `<table class="elum-table ur-domain-table" role="table">`) {
+			t.Fatalf("%s: domain table should carry ur-domain-table", path)
+		}
+	}
+}
+
 func TestMainIsNotALiveRegion(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")

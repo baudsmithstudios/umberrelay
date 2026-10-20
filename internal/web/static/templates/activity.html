@@ -130,7 +130,7 @@
             </form>
             {{with .Network}}
             <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Top domains">
-                <table class="elum-table" role="table">
+                <table class="elum-table ur-domain-table" role="table">
                     <thead role="rowgroup">
                         <tr role="row">
                             <th scope="col" role="columnheader">Domain</th>
@@ -151,7 +151,7 @@
             {{with .Detail}}
             <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.DomainPageStart}}-{{.DomainPageEnd}}{{end}}</p>
             <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Domains">
-                <table class="elum-table" role="table">
+                <table class="elum-table ur-domain-table" role="table">
                     <thead role="rowgroup">
                         <tr role="row">
                             <th scope="col" role="columnheader">Domain</th>

@@ -96,6 +96,25 @@ body {
     display: none;
 }
 
+/* Domain rows carry a class label and an override form, so they run a size smaller than ElumKit's table
+   and the override menu keeps the width of its longest option instead of shrinking with the column. */
+.ur-domain-table,
+.ur-domain-table .elum-status-label,
+.ur-domain-table .elum-select {
+    font-size: var(--elum-text-xs);
+}
+
+.ur-domain-table [data-numeric="true"] {
+    white-space: nowrap;
+}
+
+.ur-domain-table .elum-select {
+    flex: none;
+    min-height: 2rem;
+    padding-block: var(--elum-space-1);
+    width: auto;
+}
+
 /* The chart's range buttons ride up over the card border, so leave room for them above the card. */
 .elum-stack > .ur-chart {
     margin-top: calc(var(--elum-space-4) * 2);
