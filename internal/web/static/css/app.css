@@ -96,6 +96,11 @@ body {
     display: none;
 }
 
+/* Needs-attention flags sit in a narrow column, so their text runs a size smaller. */
+.ur-flag {
+    font-size: var(--elum-text-sm);
+}
+
 /* Domain rows carry a class label and an override form, so they run a size smaller than ElumKit's table
    and the override menu keeps the width of its longest option instead of shrinking with the column. */
 .ur-domain-table,

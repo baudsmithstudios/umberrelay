@@ -686,6 +686,17 @@ func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
 	}
 }
 
+func TestNeedsAttentionFlagsUseCompactStyle(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	if body := getPage(t, s, "/"); !strings.Contains(body, `<aside class="elum-alert ur-flag"`) {
+		t.Fatalf("needs attention flags missing the compact style class")
+	}
+}
+
 func TestDomainsTabPageBeyondRangeClamps(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
