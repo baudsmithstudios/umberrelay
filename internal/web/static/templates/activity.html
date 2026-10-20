@@ -39,7 +39,7 @@
 
         {{with .Detail}}
         <header class="elum-stack">
-            <p class="elum-card-subtitle">{{if eq .Mode "source"}}Source{{else}}Device{{end}}{{with .Flag}} · <span class="elum-status-label" data-tone="{{.Tone}}">{{.Word}}</span>{{end}}</p>
+            {{with .Flag}}<p class="elum-card-subtitle"><span class="elum-status-label" data-tone="{{.Tone}}">{{.Word}}</span></p>{{end}}
             <h1 class="ur-visually-hidden">{{.DeviceName}}</h1>
             {{if eq .Mode "source"}}{{template "source-label-edit" .}}{{else}}{{template "label-edit" .}}{{end}}
         </header>

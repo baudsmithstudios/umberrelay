@@ -602,6 +602,31 @@ func TestUnlabeledDeviceShowsItsNameInTheEmptyLabelField(t *testing.T) {
 	}
 }
 
+func TestFlaggedDeviceSubheaderShowsOnlyTheFlag(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(body, `<p class="elum-card-subtitle"><span class="elum-status-label" data-tone="error">tracker spike</span></p>`) {
+		t.Fatalf("detail subheader is not the bare flag")
+	}
+}
+
+func TestUnflaggedSourceHasNoSubheader(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{SourceIP: "10.44.0.7", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	if body := getPage(t, s, "/devices/source:10.44.0.7"); strings.Contains(body, `<p class="elum-card-subtitle">Source`) {
+		t.Fatalf("source page still shows the Source subheader")
+	}
+}
+
 func TestSourceLabelEditorIsABareRow(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
