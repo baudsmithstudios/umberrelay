@@ -63,6 +63,16 @@ body {
     margin-bottom: var(--elum-space-3);
 }
 
+/* The sort options share the sidebar's width so the control lines up with the cards below it. */
+.ur-roster-sort {
+    display: flex;
+}
+
+.ur-roster-sort > .elum-segmented-option {
+    flex: 1;
+    justify-content: center;
+}
+
 /* Filter fields in a row like elum-query, without its card border.
    The bottom margin collapses with the stack's gap, so it must exceed that gap to widen it. */
 .elum-query.ur-filters {

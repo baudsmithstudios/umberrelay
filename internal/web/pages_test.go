@@ -844,6 +844,13 @@ func TestLiveStreamCarriesCategoryTones(t *testing.T) {
 	}
 }
 
+func TestRosterSortSpansTheSidebar(t *testing.T) {
+	s := testServer(t)
+	if body := getPage(t, s, "/"); !strings.Contains(body, `<fieldset class="elum-segmented ur-roster-sort" aria-label="Sort devices">`) {
+		t.Fatalf("roster sort missing the full-width class")
+	}
+}
+
 func TestRosterFilterIsABareField(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
