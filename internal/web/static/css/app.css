@@ -139,6 +139,11 @@ body {
     width: fit-content;
 }
 
+/* Each settings card raises its title onto the top border, which eats into the stack's gap. */
+.ur-settings > * + * {
+    margin-top: calc(var(--elum-space-3) * 2);
+}
+
 /* Inline micro-meter under a roster row; the value beside it is the accessible reading. */
 .ur-mini {
     background: var(--ur-track);

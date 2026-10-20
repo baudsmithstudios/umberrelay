@@ -458,6 +458,13 @@ func TestStaticServesElumKit(t *testing.T) {
 	}
 }
 
+func TestSettingsCardsAreMarkedForWiderSpacing(t *testing.T) {
+	s := testServer(t)
+	if body := getPage(t, s, "/settings"); !strings.Contains(body, `<div class="elum-container elum-stack ur-settings"`) {
+		t.Fatalf("settings container missing the card spacing class")
+	}
+}
+
 func TestSettingsPageUsesElumKitLayout(t *testing.T) {
 	s := testServer(t)
 	if _, err := s.db.AddList("https://example.com/tracking.txt", "Tracking List", "tracking"); err != nil {
