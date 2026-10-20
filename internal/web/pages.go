@@ -323,18 +323,15 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 	}
 }
 
-// actorTracker sets an actor's tracker rate against the network's current rate.
-func actorTracker(summary store.DevicePrivacySummary, trackerTrend store.Trend, network store.Trend, counts []store.CategoryWindowCount) trackerSummary {
+func actorTracker(percent float64, trackerTrend store.Trend, counts []store.CategoryWindowCount) trackerSummary {
 	return trackerSummary{
-		Percent:  summary.TrackerPercent,
-		Badge:    trackerBadge(trackerTrend),
-		RefPct:   network.Current,
-		RefLabel: fmt.Sprintf("network %.1f%%", network.Current),
-		Matches:  makeListMatches(counts),
+		Percent: percent,
+		Badge:   trackerBadge(trackerTrend),
+		Matches: makeListMatches(counts),
 	}
 }
 
-func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActors int, domainsPage int, network store.Trend) (privacyDetail, error) {
+func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActors int, domainsPage int) (privacyDetail, error) {
 	privacySummary, err := s.db.DevicePrivacySummaryAt(device.MAC, now)
 	if err != nil {
 		return privacyDetail{}, err
@@ -353,7 +350,7 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 		return privacyDetail{}, err
 	}
 
-	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, actorTracker(privacySummary, trackerTrend, network, counts), topDomains, pagination)
+	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, actorTracker(privacySummary.TrackerPercent, trackerTrend, counts), topDomains, pagination)
 	detail.Mode = actorTypeDevice
 	detail.IdentifiedBy = identificationNote(device)
 	detail.Device = device
@@ -361,7 +358,7 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 	return detail, nil
 }
 
-func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors int, domainsPage int, network store.Trend) (privacyDetail, error) {
+func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors int, domainsPage int) (privacyDetail, error) {
 	privacySummary, err := s.db.SourcePrivacySummaryAt(sourceIP, now)
 	if err != nil {
 		return privacyDetail{}, err
@@ -384,7 +381,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		return privacyDetail{}, err
 	}
 
-	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, actorTracker(privacySummary, trackerTrend, network, counts), topDomains, pagination)
+	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, actorTracker(privacySummary.TrackerPercent, trackerTrend, counts), topDomains, pagination)
 	detail.Mode = actorTypeSource
 	detail.IdentifiedBy = "No MAC address was seen for this source, so it is tracked by IP."
 	detail.DeviceName = sourceActorDisplayName(sourceIP, label)
@@ -440,7 +437,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
-			detail, err = s.loadDeviceDetail(now, selected.Device, totalActors, domainsPage, networkTrend)
+			detail, err = s.loadDeviceDetail(now, selected.Device, totalActors, domainsPage)
 			if flag, ok := flags[selected.MAC]; ok {
 				detail.Flag = &flag
 			}
@@ -449,12 +446,14 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
-			detail, err = s.loadSourceDetail(now, value, totalActors, domainsPage, networkTrend)
+			detail, err = s.loadSourceDetail(now, value, totalActors, domainsPage)
 		}
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		detail.Tracker.RefPct = networkTrend.Current
+		detail.Tracker.RefLabel = fmt.Sprintf("network %.1f%%", networkTrend.Current)
 		selectedKey = detail.LiveActorKey
 		view.Title = detail.DeviceName
 		view.Detail = &detail
