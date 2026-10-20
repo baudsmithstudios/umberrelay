@@ -77,6 +77,11 @@ body {
     }
 }
 
+/* The chart's range buttons ride up over the card border, so leave room for them above the card. */
+.elum-stack > .ur-chart {
+    margin-top: calc(var(--elum-space-4) * 2);
+}
+
 /* Inline micro-meter under a roster row; the value beside it is the accessible reading. */
 .ur-mini {
     background: var(--ur-track);

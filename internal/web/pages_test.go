@@ -828,6 +828,14 @@ func TestTrackerMeterStacksAboveListMatches(t *testing.T) {
 	}
 }
 
+func TestTrackerChartCardIsSpacedFromTheTableAbove(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `<article class="elum-card elum-card-labeled ur-chart">`) {
+		t.Fatalf("tracker chart card should carry ur-chart so its raised header clears the table above")
+	}
+}
+
 func TestMainIsNotALiveRegion(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
