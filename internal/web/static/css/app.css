@@ -101,6 +101,11 @@ body {
     font-size: var(--elum-text-sm);
 }
 
+/* A class label inside a row's meta line takes the meta's size instead of standing a size larger. */
+.elum-row-meta .elum-status-label {
+    font-size: inherit;
+}
+
 /* Domain rows carry a class label and an override form, so they run a size smaller than ElumKit's table
    and the override menu keeps the width of its longest option instead of shrinking with the column. */
 .ur-domain-table,
