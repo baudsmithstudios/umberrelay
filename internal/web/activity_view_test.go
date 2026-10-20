@@ -101,6 +101,35 @@ func TestFlagFor(t *testing.T) {
 	}
 }
 
+func TestFlagForBadgeAndExplanation(t *testing.T) {
+	base := store.Anomaly{DeviceName: "TV", TopDomain: "ads.example", TopDomainSourceList: "Blocklist", Delta: 12, CurrentValue: 30, AverageValue: 10}
+	cases := []struct {
+		anomalyType string
+		badge       string
+		explanation string
+	}{
+		{"tracker_spike", "+12pp", "TV jumped above its usual tracker rate, led by ads.example from Blocklist."},
+		{"volume_spike", "3.0x", "TV is making far more requests than usual, with ads.example contributing the largest spike from Blocklist."},
+		{"dns_bypass_likely", "Likely", "TV is present on the LAN but has not used local DNS for 12 minutes. Earlier queries included ads.example, which suggests encrypted DNS usage."},
+		{"dns_bypass_suspected", "Suspected", "TV is present on the LAN but has not used local DNS for 12 minutes despite prior DNS activity, so visibility may be bypassed."},
+	}
+	for _, c := range cases {
+		a := base
+		a.Type = c.anomalyType
+		got := flagFor(a)
+		if got.Badge != c.badge || got.Explanation != c.explanation {
+			t.Errorf("flagFor(%s) = %q / %q, want %q / %q", c.anomalyType, got.Badge, got.Explanation, c.badge, c.explanation)
+		}
+	}
+}
+
+func TestFlagForVolumeSpikeWithoutAverageShowsDelta(t *testing.T) {
+	got := flagFor(store.Anomaly{Type: "volume_spike", Delta: 40})
+	if got.Badge != "+40" {
+		t.Fatalf("badge = %q, want +40", got.Badge)
+	}
+}
+
 func TestFlagsByMACPriority(t *testing.T) {
 	flags := flagsByMAC([]store.Anomaly{
 		{Type: "volume_spike", DeviceMAC: "aa"},

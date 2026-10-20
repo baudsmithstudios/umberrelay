@@ -108,22 +108,28 @@ type actorFlag struct {
 }
 
 func flagFor(a store.Anomaly) actorFlag {
-	flag := actorFlag{
-		Tone:        "warn",
-		Badge:       anomalyBadge(a),
-		Explanation: anomalyExplanation(a),
-		DeviceMAC:   a.DeviceMAC,
-		DeviceName:  a.DeviceName,
-	}
+	flag := actorFlag{Tone: "warn", DeviceMAC: a.DeviceMAC, DeviceName: a.DeviceName}
 	switch a.Type {
 	case "tracker_spike":
 		flag.Word, flag.Tone, flag.priority = "tracker spike", "error", 3
+		flag.Badge = fmt.Sprintf("+%.0fpp", a.Delta)
+		flag.Explanation = fmt.Sprintf("%s jumped above its usual tracker rate, led by %s from %s.", a.DeviceName, a.TopDomain, a.TopDomainSourceList)
 	case "dns_bypass_likely":
 		flag.Word, flag.priority = "bypass likely", 2
+		flag.Badge = "Likely"
+		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes. Earlier queries included %s, which suggests encrypted DNS usage.", a.DeviceName, int(a.Delta), a.TopDomain)
 	case "dns_bypass_suspected":
 		flag.Word, flag.priority = "bypass suspected", 2
+		flag.Badge = "Suspected"
+		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes despite prior DNS activity, so visibility may be bypassed.", a.DeviceName, int(a.Delta))
 	default:
 		flag.Word, flag.priority = "volume spike", 1
+		if a.AverageValue <= 0 {
+			flag.Badge = fmt.Sprintf("+%.0f", a.Delta)
+		} else {
+			flag.Badge = fmt.Sprintf("%.1fx", a.CurrentValue/a.AverageValue)
+		}
+		flag.Explanation = fmt.Sprintf("%s is making far more requests than usual, with %s contributing the largest spike from %s.", a.DeviceName, a.TopDomain, a.TopDomainSourceList)
 	}
 	return flag
 }

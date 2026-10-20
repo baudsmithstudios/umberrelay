@@ -211,35 +211,6 @@ func findDomainRow(domains []store.DomainWithSource, domain string, totalActors 
 	return privacyDomainRow{}
 }
 
-func anomalyBadge(anomaly store.Anomaly) string {
-	switch anomaly.Type {
-	case "tracker_spike":
-		return fmt.Sprintf("+%.0fpp", anomaly.Delta)
-	case "dns_bypass_likely":
-		return "Likely"
-	case "dns_bypass_suspected":
-		return "Suspected"
-	default:
-		if anomaly.AverageValue <= 0 {
-			return fmt.Sprintf("+%.0f", anomaly.Delta)
-		}
-		return fmt.Sprintf("%.1fx", anomaly.CurrentValue/anomaly.AverageValue)
-	}
-}
-
-func anomalyExplanation(anomaly store.Anomaly) string {
-	switch anomaly.Type {
-	case "tracker_spike":
-		return fmt.Sprintf("%s jumped above its usual tracker rate, led by %s from %s.", anomaly.DeviceName, anomaly.TopDomain, anomaly.TopDomainSourceList)
-	case "dns_bypass_likely":
-		return fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes. Earlier queries included %s, which suggests encrypted DNS usage.", anomaly.DeviceName, int(anomaly.Delta), anomaly.TopDomain)
-	case "dns_bypass_suspected":
-		return fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes despite prior DNS activity, so visibility may be bypassed.", anomaly.DeviceName, int(anomaly.Delta))
-	default:
-		return fmt.Sprintf("%s is making far more requests than usual, with %s contributing the largest spike from %s.", anomaly.DeviceName, anomaly.TopDomain, anomaly.TopDomainSourceList)
-	}
-}
-
 func bypassSignalAsAnomaly(signal store.BypassSignal) store.Anomaly {
 	anomalyType := "dns_bypass_suspected"
 	if signal.Confidence == "likely" {
