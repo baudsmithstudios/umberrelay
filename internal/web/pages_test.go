@@ -836,6 +836,16 @@ func TestTrackerChartCardIsSpacedFromTheTableAbove(t *testing.T) {
 	}
 }
 
+func TestPanelTitlesAreMarkedForHidingBehindTabs(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	for _, title := range []string{"Overview", "Domains", "Live"} {
+		if !strings.Contains(body, `<h2 class="elum-separator-labeled ur-panel-title">`+title+`</h2>`) {
+			t.Fatalf("%s panel title should carry ur-panel-title so the tabs can stand in for it", title)
+		}
+	}
+}
+
 func TestMainIsNotALiveRegion(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")

@@ -77,6 +77,12 @@ body {
     }
 }
 
+/* tabs.js gives the panels role="tabpanel" once the tabs show, and the selected tab then names the panel.
+   Without JavaScript the panels stack and keep these titles. */
+[role="tabpanel"] > .ur-panel-title {
+    display: none;
+}
+
 /* The chart's range buttons ride up over the card border, so leave room for them above the card. */
 .elum-stack > .ur-chart {
     margin-top: calc(var(--elum-space-4) * 2);
