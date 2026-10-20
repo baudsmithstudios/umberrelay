@@ -63,14 +63,16 @@ body {
     margin-bottom: var(--elum-space-3);
 }
 
-/* The sort options share the sidebar's width so the control lines up with the cards below it. */
+/* The sort options share the sidebar's width in equal thirds so the control lines up with the cards below it.
+   Each option keeps room for its selection brackets, so the side padding is trimmed for "[tracker]" to fit a third. */
 .ur-roster-sort {
     display: flex;
 }
 
 .ur-roster-sort > .elum-segmented-option {
-    flex: 1;
+    flex: 1 1 0;
     justify-content: center;
+    padding-inline: var(--elum-space-1);
 }
 
 /* Filter fields in a row like elum-query, without its card border.
