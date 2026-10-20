@@ -115,8 +115,10 @@ body {
     width: auto;
 }
 
-/* Separates the chart and its range control from the tracker table above. */
+/* Separates the chart and its range control from the tracker table above and the sections below.
+   The bottom margin collapses with the stack's gap, so it must exceed that gap to widen it. */
 .elum-stack > .ur-chart {
+    margin-bottom: calc(var(--elum-space-3) * 2);
     margin-top: var(--elum-space-4);
 }
 
