@@ -26,6 +26,7 @@ body {
 }
 
 .ur-brand {
+    --elum-navbar-brand-size: var(--elum-text-md);
     color: var(--elum-color-accent);
     font-weight: 700;
     letter-spacing: 0.1em;
