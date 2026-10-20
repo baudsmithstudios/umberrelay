@@ -115,9 +115,16 @@ body {
     width: auto;
 }
 
-/* The chart's range buttons ride up over the card border, so leave room for them above the card. */
+/* Separates the chart and its range control from the tracker table above. */
 .elum-stack > .ur-chart {
     margin-top: calc(var(--elum-space-4) * 2);
+}
+
+/* The bottom margin clears the card title, which sits raised on the card border. */
+.ur-chart-range {
+    display: flex;
+    margin: 0 0 var(--elum-space-4) auto;
+    width: fit-content;
 }
 
 /* Inline micro-meter under a roster row; the value beside it is the accessible reading. */

@@ -828,11 +828,12 @@ func TestTrackerMeterStacksAboveListMatches(t *testing.T) {
 	}
 }
 
-func TestTrackerChartCardIsSpacedFromTheTableAbove(t *testing.T) {
+func TestTrackerChartRangeSitsAboveTheChartCard(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
-	if !strings.Contains(body, `<article class="elum-card elum-card-labeled ur-chart">`) {
-		t.Fatalf("tracker chart card should carry ur-chart so its raised header clears the table above")
+	pattern := `<div class="ur-chart">\s*<fieldset class="elum-segmented ur-chart-range" aria-label="Chart range">(?s:.*?)</fieldset>\s*<article class="elum-card elum-card-labeled">`
+	if !regexp.MustCompile(pattern).MatchString(body) {
+		t.Fatalf("chart range control should sit above the chart card, inside the spaced ur-chart block")
 	}
 }
 

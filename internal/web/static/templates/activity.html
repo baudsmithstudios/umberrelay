@@ -72,18 +72,20 @@
             <h2 class="elum-separator-labeled ur-panel-title">Overview</h2>
             {{with .Network}}{{template "tracker" .Tracker}}{{end}}
             {{with .Detail}}{{template "tracker" .Tracker}}{{end}}
-            <article class="elum-card elum-card-labeled ur-chart">
-                <header class="elum-card-header" data-inline="true">
-                    <h2 class="elum-card-title">Tracker rate</h2>
-                    <p class="elum-card-subtitle" data-chart-subtitle>by hour</p>
-                    <fieldset class="elum-segmented" aria-label="Chart range">
-                        <label class="elum-segmented-option" for="chart-range-24h"><input id="chart-range-24h" name="chart-range" type="radio" value="24h" checked>24h</label>
-                        <label class="elum-segmented-option" for="chart-range-7d"><input id="chart-range-7d" name="chart-range" type="radio" value="7d">7d</label>
-                        <label class="elum-segmented-option" for="chart-range-30d"><input id="chart-range-30d" name="chart-range" type="radio" value="30d">30d</label>
-                    </fieldset>
-                </header>
-                <div class="tracker-chart" id="tracker-chart" data-chart-query="{{with .Detail}}{{.RangeQuery}}{{end}}"></div>
-            </article>
+            <div class="ur-chart">
+                <fieldset class="elum-segmented ur-chart-range" aria-label="Chart range">
+                    <label class="elum-segmented-option" for="chart-range-24h"><input id="chart-range-24h" name="chart-range" type="radio" value="24h" checked>24h</label>
+                    <label class="elum-segmented-option" for="chart-range-7d"><input id="chart-range-7d" name="chart-range" type="radio" value="7d">7d</label>
+                    <label class="elum-segmented-option" for="chart-range-30d"><input id="chart-range-30d" name="chart-range" type="radio" value="30d">30d</label>
+                </fieldset>
+                <article class="elum-card elum-card-labeled">
+                    <header class="elum-card-header" data-inline="true">
+                        <h2 class="elum-card-title">Tracker rate</h2>
+                        <p class="elum-card-subtitle" data-chart-subtitle>by hour</p>
+                    </header>
+                    <div class="tracker-chart" id="tracker-chart" data-chart-query="{{with .Detail}}{{.RangeQuery}}{{end}}"></div>
+                </article>
+            </div>
             {{with .Network}}
             <div class="elum-grid" style="align-items: start">
                 <section class="elum-stack" aria-labelledby="attention-title">
