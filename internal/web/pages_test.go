@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -816,6 +817,14 @@ func TestRosterFilterIsABareField(t *testing.T) {
 	body := getPage(t, s, "/")
 	if !strings.Contains(body, `<form class="elum-field" role="search" aria-label="Filter devices">`) {
 		t.Fatalf("roster filter should be a bare label and input, not a bordered query card")
+	}
+}
+
+func TestTrackerMeterStacksAboveListMatches(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	if !regexp.MustCompile(`<div class="elum-stack">\s*<div class="elum-meter">`).MatchString(body) {
+		t.Fatalf("tracker meter should sit above the list-match table in one column")
 	}
 }
 
