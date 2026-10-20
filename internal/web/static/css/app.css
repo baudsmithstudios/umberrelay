@@ -63,6 +63,12 @@ body {
     margin-bottom: var(--elum-space-3);
 }
 
+/* Filter fields in a row like elum-query, without its card border. */
+.elum-query.ur-filters {
+    border: 0;
+    padding: 0;
+}
+
 .ur-pane {
     display: flex;
     flex: 999 1 560px;

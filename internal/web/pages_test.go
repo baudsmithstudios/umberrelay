@@ -846,6 +846,19 @@ func TestPanelTitlesAreMarkedForHidingBehindTabs(t *testing.T) {
 	}
 }
 
+func TestDomainAndLiveFiltersAreBareRows(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	for _, form := range []string{
+		`<form class="elum-query ur-filters" role="search" aria-label="Domain filters" id="domain-filters">`,
+		`<form class="elum-query ur-filters" role="search" aria-label="Live stream filters">`,
+	} {
+		if !strings.Contains(body, form) {
+			t.Fatalf("filter row should drop the query card border, missing %s", form)
+		}
+	}
+}
+
 func TestMainIsNotALiveRegion(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
