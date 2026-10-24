@@ -167,6 +167,11 @@ body {
     font-size: var(--elum-text-sm);
 }
 
+/* A flag's badge is a measurement ("4.2x daily avg", "+8 pts"), so it keeps its units' case. */
+.ur-flag > .elum-badge {
+    text-transform: none;
+}
+
 /* A class label inside a row's meta line takes the meta's size instead of standing a size larger. */
 .elum-row-meta .elum-status-label {
     font-size: inherit;
