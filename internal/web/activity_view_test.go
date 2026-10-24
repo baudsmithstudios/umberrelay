@@ -93,7 +93,7 @@ func TestFlagForBadgeAndExplanation(t *testing.T) {
 		explanation string
 	}{
 		{"tracker_spike", "+12 pts", "TV jumped above its usual tracker rate, led by ads.example from Blocklist."},
-		{"volume_spike", "3.0x", "TV is making far more requests than usual, with ads.example contributing the largest spike from Blocklist."},
+		{"volume_spike", "3.0x daily avg", "TV is making far more requests than usual, with ads.example contributing the largest spike from Blocklist."},
 		{"dns_bypass_likely", "Likely", "TV is present on the LAN but has not used local DNS for 12 minutes. Earlier queries included ads.example, which suggests encrypted DNS usage."},
 		{"dns_bypass_suspected", "Suspected", "TV is present on the LAN but has not used local DNS for 12 minutes despite prior DNS activity, so visibility may be bypassed."},
 	}
