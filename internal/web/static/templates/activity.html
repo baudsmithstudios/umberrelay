@@ -131,45 +131,10 @@
                     </select>
                 </div>
             </form>
-            {{with .Network}}
-            <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Top domains">
-                <table class="elum-table ur-domain-table" role="table">
-                    <thead role="rowgroup">
-                        <tr role="row">
-                            <th scope="col" role="columnheader">Domain</th>
-                            <th scope="col" role="columnheader">Class</th>
-                            <th scope="col" data-align="end" role="columnheader">Queries</th>
-                            <th scope="col" data-align="end" role="columnheader">Reach</th>
-                            <th scope="col" role="columnheader">Override</th>
-                        </tr>
-                    </thead>
-                    <tbody role="rowgroup" id="domain-rows">
-                        {{range .TopDomains}}{{template "domain-row" .}}{{else}}
-                        <tr role="row"><td colspan="5" role="cell">No domains in the last 24 hours.</td></tr>
-                        {{end}}
-                    </tbody>
-                </table>
-            </div>
-            {{end}}
+            {{with .Network}}{{template "domain-table" .DomainTable}}{{end}}
             {{with .Detail}}
             <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.Pagination.Start}}-{{.Pagination.End}}{{end}}</p>
-            <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Domains">
-                <table class="elum-table ur-domain-table" role="table">
-                    <thead role="rowgroup">
-                        <tr role="row">
-                            <th scope="col" role="columnheader">Domain</th>
-                            <th scope="col" role="columnheader">Class</th>
-                            <th scope="col" data-align="end" role="columnheader">Queries</th>
-                            <th scope="col" role="columnheader">Override</th>
-                        </tr>
-                    </thead>
-                    <tbody role="rowgroup" id="domain-rows">
-                        {{range .Domains}}{{template "domain-row" .}}{{else}}
-                        <tr role="row"><td colspan="4" role="cell">No domains in the last 24 hours.</td></tr>
-                        {{end}}
-                    </tbody>
-                </table>
-            </div>
+            {{template "domain-table" .DomainTable}}
             {{if gt .Pagination.PageCount 1}}
             <nav class="elum-pagination" aria-label="Pagination">
                 {{if .Pagination.HasPrev}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.Pagination.PrevPage}}">Prev</a>{{end}}
@@ -197,6 +162,27 @@
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/feed.js"></script>
 <script src="/static/js/activity.js"></script>
+{{end}}
+
+{{define "domain-table"}}
+<div class="elum-table-wrap" tabindex="0" role="region" aria-label="{{.Label}}">
+    <table class="elum-table ur-domain-table" role="table">
+        <thead role="rowgroup">
+            <tr role="row">
+                <th scope="col" role="columnheader">Domain</th>
+                <th scope="col" role="columnheader">Class</th>
+                <th scope="col" data-align="end" role="columnheader">Queries</th>
+                {{if .ShowReach}}<th scope="col" data-align="end" role="columnheader">Reach</th>{{end}}
+                <th scope="col" role="columnheader">Override</th>
+            </tr>
+        </thead>
+        <tbody role="rowgroup" id="domain-rows">
+            {{range .Rows}}{{template "domain-row" .}}{{else}}
+            <tr role="row"><td colspan="{{if .ShowReach}}5{{else}}4{{end}}" role="cell">No domains in the last 24 hours.</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
 {{end}}
 
 {{define "list-matches"}}

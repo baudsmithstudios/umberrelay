@@ -158,6 +158,21 @@ type networkPane struct {
 	TopDomains    []privacyDomainRow
 }
 
+// domainTable is the Domains tab's table: the network's top domains carry a Reach column, an actor's own domains do not.
+type domainTable struct {
+	Label     string
+	ShowReach bool
+	Rows      []privacyDomainRow
+}
+
+func (p networkPane) DomainTable() domainTable {
+	return domainTable{Label: "Top domains", ShowReach: true, Rows: p.TopDomains}
+}
+
+func (d privacyDetail) DomainTable() domainTable {
+	return domainTable{Label: "Domains", Rows: d.Domains}
+}
+
 type activityView struct {
 	pageData
 	Roster  roster
