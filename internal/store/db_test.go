@@ -1650,3 +1650,63 @@ func TestCategoryCountsAtEmpty(t *testing.T) {
 		t.Fatalf("counts = %+v, want none", got)
 	}
 }
+
+// seedAnomalyWindows writes a week of clean prior traffic at perDay queries a day, then current queries for the last 24h.
+func seedAnomalyWindows(t *testing.T, db *DB, now time.Time, perDay, current, currentTrackers int) {
+	t.Helper()
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := db.UpsertDevice(Device{MAC: mac, FirstSeen: now.Add(-9 * 24 * time.Hour), LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+	var queries []Query
+	for day := 2; day <= 8; day++ {
+		base := now.Add(-time.Duration(day)*24*time.Hour + time.Hour)
+		for i := 0; i < perDay; i++ {
+			queries = append(queries, Query{DeviceMAC: mac, Domain: "clean.example.com", QueryType: "A", Timestamp: base.Add(time.Duration(i) * time.Second)})
+		}
+	}
+	for i := 0; i < current; i++ {
+		category := ""
+		if i < currentTrackers {
+			category = "tracking"
+		}
+		queries = append(queries, Query{DeviceMAC: mac, Domain: "current.example.com", QueryType: "A", Category: category, Timestamp: now.Add(-time.Hour + time.Duration(i)*time.Second)})
+	}
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+}
+
+func TestDeviceAnomaliesTrackerSpikeNeedsMoreThanFivePoints(t *testing.T) {
+	for _, c := range []struct {
+		trackers int
+		want     int
+	}{{1, 0}, {2, 1}} {
+		db := testDB(t)
+		seedAnomalyWindows(t, db, time.Now().UTC(), 20, 20, c.trackers)
+		anomalies, err := db.DeviceAnomalies()
+		if err != nil {
+			t.Fatalf("DeviceAnomalies: %v", err)
+		}
+		if len(anomalies) != c.want {
+			t.Errorf("%d of 20 trackers against a clean week: anomalies = %+v, want %d", c.trackers, anomalies, c.want)
+		}
+	}
+}
+
+func TestDeviceAnomaliesVolumeSpikeNeedsMoreThanThreeTimesTheDailyAverage(t *testing.T) {
+	for _, c := range []struct {
+		current int
+		want    int
+	}{{21, 0}, {22, 1}} {
+		db := testDB(t)
+		seedAnomalyWindows(t, db, time.Now().UTC(), 7, c.current, 0)
+		anomalies, err := db.DeviceAnomalies()
+		if err != nil {
+			t.Fatalf("DeviceAnomalies: %v", err)
+		}
+		if len(anomalies) != c.want {
+			t.Errorf("%d queries against a daily average of 7: anomalies = %+v, want %d", c.current, anomalies, c.want)
+		}
+	}
+}

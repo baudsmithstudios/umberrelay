@@ -18,4 +18,3 @@ func TestRedactIdentifier(t *testing.T) {
 		t.Fatalf("redactIdentifier(empty) = %q, want unknown", got)
 	}
 }
-

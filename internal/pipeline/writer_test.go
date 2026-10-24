@@ -37,6 +37,10 @@ func TestWriterProcessesRecords(t *testing.T) {
 		FirstSeen: time.Now(), LastSeen: time.Now(),
 	})
 
+	if err := mgr.SetOverride("example.com", "tracking"); err != nil {
+		t.Fatalf("SetOverride: %v", err)
+	}
+
 	ch := make(chan dns.QueryRecord, 10)
 	flushed := make(chan struct{}, 1)
 	w := NewWriter(ch, db, tracker, mgr, Config{
@@ -82,6 +86,9 @@ func TestWriterProcessesRecords(t *testing.T) {
 	}
 	if queries[0].SourceIP != "192.168.1.10" {
 		t.Errorf("source_ip = %q, want 192.168.1.10", queries[0].SourceIP)
+	}
+	if queries[0].Category != "tracking" {
+		t.Errorf("category = %q, want tracking", queries[0].Category)
 	}
 }
 
