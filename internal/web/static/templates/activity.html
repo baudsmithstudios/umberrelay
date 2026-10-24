@@ -88,7 +88,7 @@
                 </article>
             </div>
             {{with .Network}}
-            <div class="elum-grid" style="align-items: start">
+            <div class="elum-grid ur-attention-grid">
                 <section class="elum-stack" aria-labelledby="attention-title">
                     <h2 class="elum-separator-labeled" id="attention-title">Needs attention</h2>
                     {{range .Flags}}
@@ -237,5 +237,5 @@
         <span class="elum-row-meta">{{.Meta}}</span>
         <span class="ur-mini" aria-hidden="true"><i style="width: {{printf "%.1f" .TrackerPercent}}%"></i></span>
     </span>
-    <span class="elum-row-value"{{if .Hot}} style="color: var(--elum-color-error)"{{end}}>{{printf "%.0f" .TrackerPercent}}%</span>
+    <span class="elum-row-value"{{if .Hot}} data-hot="true"{{end}}>{{printf "%.0f" .TrackerPercent}}%</span>
 </a>{{end}}

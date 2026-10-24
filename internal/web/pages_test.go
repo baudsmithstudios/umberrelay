@@ -625,6 +625,18 @@ func TestFlaggedDeviceSubheaderShowsOnlyTheFlag(t *testing.T) {
 	}
 }
 
+func TestTrackerSpikeMarksTheRosterValueHot(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	row := rowFor(t, getPage(t, s, "/"), "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(row, `<span class="elum-row-value" data-hot="true">`) {
+		t.Fatalf("tracker spike row value not marked hot: %s", row)
+	}
+}
+
 func TestUnflaggedSourceHasNoSubheader(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()

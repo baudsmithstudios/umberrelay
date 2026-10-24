@@ -167,6 +167,11 @@ body {
     font-size: var(--elum-text-sm);
 }
 
+/* The flags and top domains differ in height, so each column keeps its own height instead of stretching. */
+.ur-attention-grid {
+    align-items: start;
+}
+
 /* A flag's badge is a measurement ("4.2x daily avg", "+8 pts"), so it keeps its units' case. */
 .ur-flag > .elum-badge {
     text-transform: none;
@@ -183,6 +188,12 @@ body {
 .ur-domain-table .elum-status-label,
 .ur-domain-table .elum-select {
     font-size: var(--elum-text-xs);
+}
+
+.ur-override-form {
+    align-items: center;
+    display: flex;
+    gap: var(--elum-space-2);
 }
 
 .ur-domain-table [data-numeric="true"] {
@@ -210,6 +221,10 @@ body {
     width: fit-content;
 }
 
+.ur-settings {
+    max-width: 64rem;
+}
+
 /* Each settings card raises its title onto the top border, which eats into the stack's gap. */
 .ur-settings > * + * {
     margin-top: calc(var(--elum-space-3) * 2);
@@ -226,6 +241,11 @@ body {
     display: block;
     height: 3px;
     margin-top: var(--elum-space-1);
+}
+
+/* A tracker spike turns the actor's rate red in the roster. */
+.ur-roster .elum-row-value[data-hot="true"] {
+    color: var(--elum-color-error);
 }
 
 .ur-mini > i {
