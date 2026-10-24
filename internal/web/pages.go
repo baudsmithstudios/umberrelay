@@ -218,12 +218,11 @@ func bypassSignalAsAnomaly(signal store.BypassSignal) store.Anomaly {
 		anomalyType = "dns_bypass_likely"
 	}
 	return store.Anomaly{
-		DeviceMAC:    signal.DeviceMAC,
-		DeviceName:   signal.DeviceName,
-		Type:         anomalyType,
-		CurrentValue: float64(signal.SilentMinutes),
-		Delta:        float64(signal.SilentMinutes),
-		TopDomain:    signal.HintDomain,
+		DeviceMAC:  signal.DeviceMAC,
+		DeviceName: signal.DeviceName,
+		Type:       anomalyType,
+		Delta:      float64(signal.SilentMinutes),
+		TopDomain:  signal.HintDomain,
 	}
 }
 
