@@ -251,7 +251,6 @@
             query: container.dataset.chartQuery || '',
             series: { points: [], average: null, peak: -1 },
             active: null,
-            x: function () { return 0; },
         };
 
         canvas.addEventListener('pointermove', function (event) {
