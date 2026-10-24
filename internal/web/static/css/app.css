@@ -192,34 +192,6 @@ body {
     margin-top: var(--elum-space-4);
 }
 
-/* The selected range's average tracker rate, with its comparisons on the row beneath. */
-.ur-chart-summary {
-    display: grid;
-    gap: var(--elum-space-1);
-    margin: 0 0 var(--elum-space-2);
-}
-
-.ur-chart-comparisons {
-    align-items: baseline;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--elum-space-2);
-}
-
-/* ElumKit's badge display rule would override [hidden]. */
-.ur-chart-summary [hidden] { display: none; }
-
-.ur-chart-rate {
-    font-size: var(--elum-text-2xl);
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-}
-
-.ur-chart-aside {
-    color: var(--elum-color-muted);
-    font-size: var(--elum-text-xs);
-}
-
 /* The bottom margin clears the card title, which sits raised on the card border. */
 .ur-chart-range {
     display: flex;

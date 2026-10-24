@@ -347,7 +347,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		timeRange = "24h"
 	}
 
-	var activity store.RangeActivity
+	var buckets []store.HourlyBucket
 	var err error
 	switch {
 	case actorKey != "":
@@ -357,14 +357,14 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if actorType == actorTypeSource {
-			activity, err = s.db.SourceRangedActivity(actorValue, timeRange)
+			buckets, err = s.db.SourceRangedActivity(actorValue, timeRange)
 		} else {
-			activity, err = s.db.RangedActivity(actorValue, timeRange)
+			buckets, err = s.db.RangedActivity(actorValue, timeRange)
 		}
 	case sourceIP != "":
-		activity, err = s.db.SourceRangedActivity(sourceIP, timeRange)
+		buckets, err = s.db.SourceRangedActivity(sourceIP, timeRange)
 	default:
-		activity, err = s.db.RangedActivity(deviceMAC, timeRange)
+		buckets, err = s.db.RangedActivity(deviceMAC, timeRange)
 	}
 	if err != nil {
 		if errors.Is(err, store.ErrInvalidRange) {
@@ -381,26 +381,13 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		Tracker   int   `json:"tracker"`
 	}
 
-	// PriorRate stays null when the actor's history does not yet reach back HistoryDays.
-	response := struct {
-		Buckets     []activityBucket `json:"buckets"`
-		PriorDays   int              `json:"prior_days"`
-		PriorRate   *float64         `json:"prior_rate"`
-		HistoryDays int              `json:"history_days"`
-	}{
-		Buckets:     make([]activityBucket, 0, len(activity.Buckets)),
-		PriorDays:   activity.PriorDays,
-		HistoryDays: activity.HistoryDays,
-	}
-	for _, bucket := range activity.Buckets {
-		response.Buckets = append(response.Buckets, activityBucket{
+	response := make([]activityBucket, 0, len(buckets))
+	for _, bucket := range buckets {
+		response = append(response, activityBucket{
 			Timestamp: bucket.Timestamp.Unix(),
 			Total:     bucket.TotalCount,
 			Tracker:   bucket.TrackerCount,
 		})
-	}
-	if activity.HasPrior {
-		response.PriorRate = &activity.PriorRate
 	}
 
 	writeJSON(w, http.StatusOK, response)

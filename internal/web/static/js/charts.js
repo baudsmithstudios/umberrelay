@@ -36,11 +36,6 @@
         return (Math.round(value * 10) / 10) + '%';
     }
 
-    function formatChange(points) {
-        const rounded = Math.round(points * 10) / 10;
-        return (rounded > 0 ? '+' : '') + rounded;
-    }
-
     // Rate per bucket; empty buckets are null so the line breaks instead of dropping to zero.
     function toSeries(buckets, range) {
         let total = 0;
@@ -207,60 +202,30 @@
         return best;
     }
 
-    function summarize(chart, activity) {
-        const average = chart.series.average;
-        chart.rate.textContent = average === null ? 'no queries' : formatRate(average);
-        chart.change.hidden = average === null || activity.prior_rate === null;
-        if (!chart.change.hidden) {
-            chart.change.textContent = '[' + formatChange(average - activity.prior_rate) + ' vs prior ' + activity.prior_days + 'd]';
-        }
-        chart.note.hidden = activity.prior_rate !== null;
-        chart.note.textContent = 'comparison needs ' + activity.history_days + ' days of history';
-    }
-
-    function fetchActivity(range, query) {
-        let url = '/api/activity?range=' + encodeURIComponent(range);
-        if (query) {
-            url += '&' + query;
-        }
-        return fetch(url).then(function (response) {
-            if (!response.ok) {
-                throw new Error('request failed');
-            }
-            return response.json();
-        });
-    }
-
-    // A device's rate reads against the whole network's over the same range.
-    function loadNetwork(chart, range) {
-        fetchActivity(range, '')
-            .then(function (activity) {
-                const average = toSeries(activity.buckets, range).average;
-                chart.network.textContent = '· network ' + (average === null ? 'no queries' : formatRate(average));
-            })
-            .catch(function () {
-                chart.network.textContent = '· network rate unavailable';
-            });
-    }
-
     function load(chart, range) {
         chart.subtitle.textContent = range === '24h' ? 'by hour' : 'by day';
-        fetchActivity(range, chart.query)
-            .then(function (activity) {
-                chart.series = toSeries(activity.buckets, range);
+        let url = '/api/activity?range=' + encodeURIComponent(range);
+        if (chart.query) {
+            url += '&' + chart.query;
+        }
+        fetch(url)
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('request failed');
+                }
+                return response.json();
+            })
+            .then(function (buckets) {
+                chart.series = toSeries(buckets, range);
                 chart.active = null;
                 chart.canvas.setAttribute('aria-label', 'Tracker rate ' + (range === '24h' ? 'by hour' : 'by day') +
                     (chart.series.average === null ? ', no queries' : ', average ' + formatRate(chart.series.average)) +
                     '. Use left and right arrows to read each point.');
-                summarize(chart, activity);
                 draw(chart);
             })
             .catch(function () {
                 chart.container.textContent = 'Failed to load chart data';
             });
-        if (chart.network) {
-            loadNetwork(chart, range);
-        }
     }
 
     function bind() {
@@ -286,10 +251,6 @@
             canvas: canvas,
             tooltip: tooltip,
             subtitle: document.querySelector('[data-chart-subtitle]'),
-            rate: document.querySelector('[data-chart-rate]'),
-            change: document.querySelector('[data-chart-change]'),
-            note: document.querySelector('[data-chart-note]'),
-            network: document.querySelector('[data-chart-network]'),
             query: container.dataset.chartQuery || '',
             series: { points: [], average: null, peak: -1 },
             active: null,

@@ -97,16 +97,6 @@ type HourlyBucket struct {
 	TrackerCount int
 }
 
-// RangeActivity is a chart range's buckets and the tracker rate of the period just before it.
-// HistoryDays is how far back an actor's data must reach before that prior rate counts.
-type RangeActivity struct {
-	Buckets     []HourlyBucket
-	PriorDays   int
-	HistoryDays int
-	PriorRate   float64
-	HasPrior    bool
-}
-
 type DomainWithSource struct {
 	Domain      string `json:"domain"`
 	Category    string `json:"category"`
@@ -1306,7 +1296,7 @@ func (d *DB) categoryCountsAt(actor actorFilter, now time.Time) ([]CategoryWindo
 	return out, rows.Err()
 }
 
-func (d *DB) RangedActivity(deviceMAC string, timeRange string) (RangeActivity, error) {
+func (d *DB) RangedActivity(deviceMAC string, timeRange string) ([]HourlyBucket, error) {
 	var actor actorFilter
 	if deviceMAC != "" {
 		actor = deviceActorFilter(deviceMAC)
@@ -1314,59 +1304,21 @@ func (d *DB) RangedActivity(deviceMAC string, timeRange string) (RangeActivity, 
 	return d.rangedActivity(actor, timeRange)
 }
 
-func (d *DB) SourceRangedActivity(sourceIP string, timeRange string) (RangeActivity, error) {
+func (d *DB) SourceRangedActivity(sourceIP string, timeRange string) ([]HourlyBucket, error) {
 	return d.rangedActivity(sourceActorFilter(sourceIP), timeRange)
 }
 
-func (d *DB) rangedActivity(actor actorFilter, timeRange string) (RangeActivity, error) {
-	var activity RangeActivity
-	var err error
+func (d *DB) rangedActivity(actor actorFilter, timeRange string) ([]HourlyBucket, error) {
 	switch timeRange {
 	case "", "24h":
-		activity.Buckets, err = d.hourlyActivity(actor)
-		activity.PriorDays, activity.HistoryDays = 7, 8
+		return d.hourlyActivity(actor)
 	case "7d":
-		activity.Buckets, err = d.dailyActivity(actor, 7)
-		activity.PriorDays, activity.HistoryDays = 7, 14
+		return d.dailyActivity(actor, 7)
 	case "30d":
-		activity.Buckets, err = d.dailyActivity(actor, 30)
-		activity.PriorDays, activity.HistoryDays = 30, 60
+		return d.dailyActivity(actor, 30)
 	default:
-		return RangeActivity{}, fmt.Errorf("%w %q", ErrInvalidRange, timeRange)
+		return nil, fmt.Errorf("%w %q", ErrInvalidRange, timeRange)
 	}
-	if err != nil {
-		return RangeActivity{}, err
-	}
-	priorEnd := activity.Buckets[0].Timestamp
-	activity.PriorRate, activity.HasPrior, err = d.priorTrackerRate(actor, priorEnd.AddDate(0, 0, -activity.PriorDays), priorEnd)
-	return activity, err
-}
-
-// The prior rate counts only when the actor's history reaches the start of the prior window,
-// so a partial period is never compared as a full one.
-func (d *DB) priorTrackerRate(actor actorFilter, priorStart, priorEnd time.Time) (float64, bool, error) {
-	where := "bucket_start < ?"
-	args := []any{priorStart.UnixNano(), priorStart.UnixNano(), priorEnd.UnixNano()}
-	if actor.where != "" {
-		where += " AND " + actor.where
-		args = append(args, actor.args...)
-	}
-
-	var oldest sql.NullInt64
-	var total, tracker int
-	err := d.sql.QueryRow(`
-		SELECT MIN(bucket_start),
-		       COALESCE(SUM(CASE WHEN bucket_start >= ? THEN total_count ELSE 0 END), 0),
-		       COALESCE(SUM(CASE WHEN bucket_start >= ? THEN tracker_count ELSE 0 END), 0)
-		FROM query_rollups_hourly
-		WHERE `+where, args...).Scan(&oldest, &total, &tracker)
-	if err != nil {
-		return 0, false, err
-	}
-	if !oldest.Valid || oldest.Int64 > priorStart.UnixNano() || total == 0 {
-		return 0, false, nil
-	}
-	return float64(tracker) / float64(total) * 100, true, nil
 }
 
 func (d *DB) dailyActivity(actor actorFilter, bucketCount int) ([]HourlyBucket, error) {
