@@ -200,7 +200,8 @@
     }
 
     function load(chart, range) {
-        chart.subtitle.textContent = range === '24h' ? 'by hour' : 'by day';
+        const granularity = range === '24h' ? 'by hour' : 'by day';
+        chart.subtitle.textContent = granularity;
         let url = '/api/activity?range=' + encodeURIComponent(range);
         if (chart.query) {
             url += '&' + chart.query;
@@ -215,7 +216,7 @@
             .then(function (buckets) {
                 chart.series = toSeries(buckets, range);
                 chart.active = null;
-                chart.canvas.setAttribute('aria-label', 'Tracker rate ' + (range === '24h' ? 'by hour' : 'by day') +
+                chart.canvas.setAttribute('aria-label', 'Tracker rate ' + granularity +
                     (chart.series.average === null ? ', no queries' : ', average ' + formatRate(chart.series.average)) +
                     '. Use left and right arrows to read each point.');
                 draw(chart);
