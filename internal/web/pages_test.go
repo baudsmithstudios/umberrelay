@@ -802,6 +802,54 @@ func TestNeedsAttentionFlagsUseCompactStyle(t *testing.T) {
 	}
 }
 
+func TestNetworkDomainTableShowsReach(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	for _, want := range []string{`role="region" aria-label="Top domains">`, `role="columnheader">Reach</th>`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("network domain table missing %q", want)
+		}
+	}
+}
+
+func TestDeviceDomainTableLeavesOutReach(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(body, `role="region" aria-label="Domains">`) {
+		t.Errorf("device domain table missing its region label")
+	}
+	if strings.Contains(body, `role="columnheader">Reach</th>`) {
+		t.Errorf("device domain table shows a Reach column")
+	}
+}
+
+func TestEmptyDomainTablesSpanTheirColumns(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	for path, want := range map[string]string{
+		"/":                      `<td colspan="5" role="cell">No domains in the last 24 hours.</td>`,
+		"/devices/device:" + mac: `<td colspan="4" role="cell">No domains in the last 24 hours.</td>`,
+	} {
+		if body := getPage(t, s, path); !strings.Contains(body, want) {
+			t.Errorf("%s missing %q", path, want)
+		}
+	}
+}
+
 func TestDomainsTabFirstPageLinksToTheNext(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
