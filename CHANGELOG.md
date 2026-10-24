@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - The web UI is rebuilt on ElumKit. Home, Devices and Device Detail merge into one Activity view: a roster of devices and unattributed sources beside a detail pane for the whole network or the selected actor, with Overview, Domains and Live tabs.
 - The stacked category bar is removed. The tracker rate's change against the prior 7 days is shown in points (for example "+3 pts vs prior 7d") in the 24h line of the network and device views, on device rows in the roster, and on tracker-spike flags.
+- Needs-attention flags lead with a measurement: volume spikes show their multiple of the daily average ("4.2x daily avg") and DNS bypass flags show how long the device has been silent ("2h 3m silent").
 - Blocklist matches are listed per category (tracking, advertising, malware, analytics, telemetry) with share and change against the prior 7 days; telemetry is no longer counted as unclassified.
 - The tracker-rate chart plots one series on one axis, with an average line and hover/keyboard tooltips.
 - `/devices` and `/domains` are removed; device and source pages stay at `/devices/{actorKey}`.

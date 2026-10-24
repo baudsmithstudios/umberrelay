@@ -116,18 +116,27 @@ func flagFor(a store.Anomaly) actorFlag {
 		flag.Explanation = fmt.Sprintf("%s jumped above its usual tracker rate, led by %s from %s.", a.DeviceName, a.TopDomain, a.TopDomainSourceList)
 	case "dns_bypass_likely":
 		flag.Word, flag.priority = "bypass likely", 2
-		flag.Badge = "Likely"
-		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes. Earlier queries included %s, which suggests encrypted DNS usage.", a.DeviceName, int(a.Delta), a.TopDomain)
+		flag.Badge = silentFor(a.Delta)
+		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has stopped using local DNS. Earlier queries included %s, which suggests encrypted DNS usage.", a.DeviceName, a.TopDomain)
 	case "dns_bypass_suspected":
 		flag.Word, flag.priority = "bypass suspected", 2
-		flag.Badge = "Suspected"
-		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes despite prior DNS activity, so visibility may be bypassed.", a.DeviceName, int(a.Delta))
+		flag.Badge = silentFor(a.Delta)
+		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has stopped using local DNS despite prior DNS activity, so visibility may be bypassed.", a.DeviceName)
 	default:
 		flag.Word, flag.priority = "volume spike", 1
 		flag.Badge = fmt.Sprintf("%.1fx daily avg", a.CurrentValue/a.AverageValue)
 		flag.Explanation = fmt.Sprintf("%s is making far more requests than usual, with %s contributing the largest spike from %s.", a.DeviceName, a.TopDomain, a.TopDomainSourceList)
 	}
 	return flag
+}
+
+// silentFor names how long a device has gone without local DNS, from its silent minutes.
+func silentFor(minutes float64) string {
+	m := int(minutes)
+	if m < 60 {
+		return fmt.Sprintf("%dm silent", m)
+	}
+	return fmt.Sprintf("%dh %dm silent", m/60, m%60)
 }
 
 func flagsByMAC(anomalies []store.Anomaly) map[string]actorFlag {

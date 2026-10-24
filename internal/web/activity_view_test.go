@@ -94,8 +94,8 @@ func TestFlagForBadgeAndExplanation(t *testing.T) {
 	}{
 		{"tracker_spike", "+12 pts", "TV jumped above its usual tracker rate, led by ads.example from Blocklist."},
 		{"volume_spike", "3.0x daily avg", "TV is making far more requests than usual, with ads.example contributing the largest spike from Blocklist."},
-		{"dns_bypass_likely", "Likely", "TV is present on the LAN but has not used local DNS for 12 minutes. Earlier queries included ads.example, which suggests encrypted DNS usage."},
-		{"dns_bypass_suspected", "Suspected", "TV is present on the LAN but has not used local DNS for 12 minutes despite prior DNS activity, so visibility may be bypassed."},
+		{"dns_bypass_likely", "12m silent", "TV is present on the LAN but has stopped using local DNS. Earlier queries included ads.example, which suggests encrypted DNS usage."},
+		{"dns_bypass_suspected", "12m silent", "TV is present on the LAN but has stopped using local DNS despite prior DNS activity, so visibility may be bypassed."},
 	}
 	for _, c := range cases {
 		a := base
@@ -104,6 +104,13 @@ func TestFlagForBadgeAndExplanation(t *testing.T) {
 		if got.Badge != c.badge || got.Explanation != c.explanation {
 			t.Errorf("flagFor(%s) = %q / %q, want %q / %q", c.anomalyType, got.Badge, got.Explanation, c.badge, c.explanation)
 		}
+	}
+}
+
+func TestFlagForBypassBadgeCountsHours(t *testing.T) {
+	got := flagFor(store.Anomaly{Type: "dns_bypass_suspected", Delta: 123})
+	if got.Badge != "2h 3m silent" {
+		t.Fatalf("badge = %q, want 2h 3m silent", got.Badge)
 	}
 }
 
