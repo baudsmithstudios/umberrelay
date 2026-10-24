@@ -67,42 +67,22 @@ func TestMakeListMatchesOrder(t *testing.T) {
 }
 
 func TestFlagFor(t *testing.T) {
-	cases := []struct {
-		anomalyType string
-		word        string
-		tone        string
-	}{
-		{"tracker_spike", "tracker spike", "error"},
-		{"volume_spike", "volume spike", "warn"},
-		{"dns_bypass_likely", "bypass likely", "warn"},
-		{"dns_bypass_suspected", "bypass suspected", "warn"},
-	}
-	for _, c := range cases {
-		got := flagFor(store.Anomaly{Type: c.anomalyType, DeviceMAC: "aa", DeviceName: "TV"})
-		if got.Word != c.word || got.Tone != c.tone {
-			t.Errorf("flagFor(%s) = %q/%q, want %q/%q", c.anomalyType, got.Word, got.Tone, c.word, c.tone)
-		}
-	}
-}
-
-func TestFlagForBadgeAndExplanation(t *testing.T) {
 	base := store.Anomaly{DeviceName: "TV", TopDomain: "ads.example", TopDomainSourceList: "Blocklist", Delta: 12, CurrentValue: 30, AverageValue: 10}
 	cases := []struct {
 		anomalyType string
-		badge       string
-		explanation string
+		want        actorFlag
 	}{
-		{"tracker_spike", "+12 pts", "TV jumped above its usual tracker rate, led by ads.example from Blocklist."},
-		{"volume_spike", "3.0x daily avg", "TV is making far more requests than usual, with ads.example contributing the largest spike from Blocklist."},
-		{"dns_bypass_likely", "12m silent", "TV is present on the LAN but has stopped using local DNS. Earlier queries included ads.example, which suggests encrypted DNS usage."},
-		{"dns_bypass_suspected", "12m silent", "TV is present on the LAN but has stopped using local DNS despite prior DNS activity, so visibility may be bypassed."},
+		{"tracker_spike", actorFlag{Word: "tracker spike", Tone: "error", Badge: "+12 pts", Explanation: "TV jumped above its usual tracker rate, led by ads.example from Blocklist."}},
+		{"volume_spike", actorFlag{Word: "volume spike", Tone: "warn", Badge: "3.0x daily avg", Explanation: "TV is making far more requests than usual, with ads.example contributing the largest spike from Blocklist."}},
+		{"dns_bypass_likely", actorFlag{Word: "bypass likely", Tone: "warn", Badge: "12m silent", Explanation: "TV is present on the LAN but has stopped using local DNS. Earlier queries included ads.example, which suggests encrypted DNS usage."}},
+		{"dns_bypass_suspected", actorFlag{Word: "bypass suspected", Tone: "warn", Badge: "12m silent", Explanation: "TV is present on the LAN but has stopped using local DNS despite prior DNS activity, so visibility may be bypassed."}},
 	}
 	for _, c := range cases {
 		a := base
 		a.Type = c.anomalyType
 		got := flagFor(a)
-		if got.Badge != c.badge || got.Explanation != c.explanation {
-			t.Errorf("flagFor(%s) = %q / %q, want %q / %q", c.anomalyType, got.Badge, got.Explanation, c.badge, c.explanation)
+		if got.Word != c.want.Word || got.Tone != c.want.Tone || got.Badge != c.want.Badge || got.Explanation != c.want.Explanation {
+			t.Errorf("flagFor(%s) = %+v, want %+v", c.anomalyType, got, c.want)
 		}
 	}
 }

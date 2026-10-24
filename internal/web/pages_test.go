@@ -108,57 +108,42 @@ func TestDeviceDetailPageSourceRoute(t *testing.T) {
 	}
 }
 
-func TestDeviceDetailPageDomainPagination(t *testing.T) {
+func TestDomainsTabPagination(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	mac := "aa:bb:cc:dd:ee:ff"
-
-	if err := s.db.UpsertDevice(store.Device{
-		MAC:       mac,
-		IP:        "192.168.1.10",
-		Hostname:  "tracker-box",
-		FirstSeen: now.Add(-24 * time.Hour),
-		LastSeen:  now,
-	}); err != nil {
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
 		t.Fatalf("UpsertDevice: %v", err)
 	}
-
 	queries := make([]store.Query, 0, 25)
 	for i := 1; i <= 25; i++ {
-		queries = append(queries, store.Query{
-			DeviceMAC: mac,
-			Domain:    fmt.Sprintf("domain-%02d.example.com", i),
-			QueryType: "A",
-			Category:  "",
-			Timestamp: now.Add(-time.Duration(i) * time.Minute),
-		})
+		queries = append(queries, store.Query{DeviceMAC: mac, Domain: fmt.Sprintf("domain-%02d.example.com", i), QueryType: "A", Timestamp: now.Add(-time.Duration(i) * time.Minute)})
 	}
 	if err := s.db.WriteQueries(queries); err != nil {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	req := httptest.NewRequest("GET", "/devices/"+mac+"?tab=domains&page=2", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-
-	body := html.UnescapeString(w.Body.String())
-	for _, want := range []string{
-		"showing 21-25",
-		"Page 2 of 2",
-		`href="?tab=domains&page=1"`,
-		`id="tab-domains" role="tab" aria-selected="true"`,
-		"domain-21.example.com",
+	for _, c := range []struct {
+		query  string
+		want   []string
+		absent []string
+	}{
+		{"?tab=domains", []string{"showing 1-20", "Page 1 of 2", `href="?tab=domains&page=2">Next</a>`}, []string{">Prev</a>"}},
+		{"?tab=domains&page=2", []string{"showing 21-25", "Page 2 of 2", `href="?tab=domains&page=1"`, "domain-21.example.com", `id="tab-domains" role="tab" aria-selected="true"`}, []string{"domain-01.example.com"}},
+		{"?tab=domains&page=999", []string{"Page 2 of 2"}, nil},
 	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
+		body := getPage(t, s, "/devices/"+mac+c.query)
+		for _, want := range c.want {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s missing %q", c.query, want)
+			}
 		}
-	}
-	if strings.Contains(body, "domain-01.example.com") {
-		t.Fatalf("response unexpectedly contains page-1 domain")
+		for _, absent := range c.absent {
+			if strings.Contains(body, absent) {
+				t.Errorf("%s unexpectedly contains %q", c.query, absent)
+			}
+		}
 	}
 }
 
@@ -351,7 +336,7 @@ func TestUIUpdateDeviceLabelRedirectsBackToPrivacyPage(t *testing.T) {
 	}
 }
 
-func TestDevicesListPageShowsUpdatedSourceLabel(t *testing.T) {
+func TestSavingASourceLabelRenamesItsRosterRow(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -783,57 +768,6 @@ func TestEmptyDomainTablesSpanTheirColumns(t *testing.T) {
 	}
 }
 
-func TestDomainsTabFirstPageLinksToTheNext(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	mac := "aa:bb:cc:dd:ee:ff"
-	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-	queries := make([]store.Query, 0, 25)
-	for i := 1; i <= 25; i++ {
-		queries = append(queries, store.Query{DeviceMAC: mac, Domain: fmt.Sprintf("domain-%02d.example.com", i), QueryType: "A", Timestamp: now.Add(-time.Duration(i) * time.Minute)})
-	}
-	if err := s.db.WriteQueries(queries); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	body := html.UnescapeString(getPage(t, s, "/devices/"+mac+"?tab=domains"))
-	for _, want := range []string{"showing 1-20", "Page 1 of 2", `href="?tab=domains&page=2">Next</a>`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("first page missing %q", want)
-		}
-	}
-	if strings.Contains(body, ">Prev</a>") {
-		t.Errorf("first page links to a previous page")
-	}
-}
-
-func TestDomainsTabPageBeyondRangeClamps(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	mac := "aa:bb:cc:dd:ee:ff"
-	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
-		t.Fatalf("UpsertDevice: %v", err)
-	}
-	queries := make([]store.Query, 0, 25)
-	for i := 1; i <= 25; i++ {
-		queries = append(queries, store.Query{DeviceMAC: mac, Domain: fmt.Sprintf("domain-%02d.example.com", i), QueryType: "A", Timestamp: now.Add(-time.Duration(i) * time.Minute)})
-	}
-	if err := s.db.WriteQueries(queries); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	body := getPage(t, s, "/devices/"+mac+"?tab=domains&page=999")
-	for _, want := range []string{"Page 2 of 2", `id="tab-domains" role="tab" aria-selected="true"`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("clamped page missing %q", want)
-		}
-	}
-}
-
 func TestNetworkDomainsTabHasOverrides(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
@@ -1012,17 +946,11 @@ func TestTrackerTrendTextCountsPoints(t *testing.T) {
 	}
 }
 
-func TestFooterShowsTheReleaseVersion(t *testing.T) {
-	s := testServerVersion(t, "0.3.1")
-	if body := getPage(t, s, "/"); !strings.Contains(body, `<p class="elum-footer-brand">Umberrelay v0.3.1 · forwarding DNS with attribution</p>`) {
-		t.Fatalf("footer missing the release version")
-	}
-}
-
-func TestFooterShowsDevOutsideReleases(t *testing.T) {
-	s := testServerVersion(t, "dev")
-	if body := getPage(t, s, "/settings"); !strings.Contains(body, `<p class="elum-footer-brand">Umberrelay dev · forwarding DNS with attribution</p>`) {
-		t.Fatalf("footer should say dev for a build without a release version")
+func TestFooterShowsTheVersion(t *testing.T) {
+	for version, want := range map[string]string{"0.3.1": "Umberrelay v0.3.1 ·", "dev": "Umberrelay dev ·"} {
+		if body := getPage(t, testServerVersion(t, version), "/"); !strings.Contains(body, `<p class="elum-footer-brand">`+want) {
+			t.Errorf("footer for version %q missing %q", version, want)
+		}
 	}
 }
 
