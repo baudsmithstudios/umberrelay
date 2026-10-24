@@ -716,7 +716,7 @@ func TestOverviewShowsListMatches(t *testing.T) {
 		t.Fatalf("matches table missing")
 	}
 	matches := body[start:end]
-	for _, want := range []string{">tracking<", ">analytics<", ">telemetry<"} {
+	for _, want := range []string{`data-tone="error">tracking<`, `data-tone="success">analytics<`, `data-tone="success">telemetry<`} {
 		if !strings.Contains(matches, want) {
 			t.Errorf("matches table missing %q", want)
 		}
