@@ -55,7 +55,6 @@
         return { points: points, average: total > 0 ? tracker / total * 100 : null, peak: peak };
     }
 
-    // Grid lines across the plot, labelled with their rate, and time labels along the bottom.
     function drawAxes(frame, points) {
         const ctx = frame.ctx;
         ctx.strokeStyle = frame.colors.grid;
@@ -121,7 +120,7 @@
         ctx.stroke();
     }
 
-    // Marks the highest point and labels it, keeping the label inside the plot.
+    // The label is clamped inside the plot.
     function drawPeak(frame, points, index) {
         const ctx = frame.ctx;
         const peak = points[index];
@@ -249,7 +248,7 @@
                     '. Use left and right arrows to read each point.');
                 draw(chart);
             })
-            // Clears the chart instead of replacing it, so the next range can still draw.
+            // Clear rather than replace the canvas so the next range can draw.
             .catch(function () {
                 chart.subtitle.textContent = 'failed to load';
                 chart.canvas.setAttribute('aria-label', 'Tracker rate failed to load.');

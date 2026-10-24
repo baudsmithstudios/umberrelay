@@ -141,7 +141,7 @@ func (s *Server) httpServer(addr string) *http.Server {
 		Handler:           s.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		// Keep WriteTimeout disabled so SSE streams are not cut off.
+		// Disabled so SSE streams are not cut off.
 		WriteTimeout: 0,
 		IdleTimeout:  60 * time.Second,
 	}

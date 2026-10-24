@@ -539,7 +539,6 @@ func trafficPatterns() []deviceTraffic {
 	}
 }
 
-// baselineQueries generates 30 days of traffic weighted toward each device's active hours.
 func baselineQueries(now time.Time, rng *rand.Rand) []store.Query {
 	patterns := trafficPatterns()
 	var out []store.Query
@@ -613,7 +612,7 @@ func isActiveHour(mac string, hour int) bool {
 
 var queryTypes = []string{"A", "AAAA", "A", "A"} // bias toward A records
 
-// spikeQueries generates anomaly-triggering spikes in the current 24h.
+// spikeQueries trips the anomaly detectors in the current 24h.
 func spikeQueries(now time.Time, rng *rand.Rand) []store.Query {
 	var out []store.Query
 
@@ -643,7 +642,7 @@ func spikeQueries(now time.Time, rng *rand.Rand) []store.Query {
 		})
 	}
 
-	// Samsung TV volume spike — 3x normal volume trips the volume_spike threshold
+	// Samsung TV volume spike: over 3x its daily average
 	samsungSpikeDomains := []struct {
 		domain   string
 		category string

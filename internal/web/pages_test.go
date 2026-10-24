@@ -650,7 +650,6 @@ func TestUnflaggedSourceHasNoSubheader(t *testing.T) {
 	}
 }
 
-// postLabelFragment saves a label the way the editor's htmx form does and returns the fragment it swaps in.
 func postLabelFragment(t *testing.T, s *Server, path, label string) string {
 	t.Helper()
 	req := httptest.NewRequest("POST", path, strings.NewReader(url.Values{"label": {label}}.Encode()))
@@ -1090,7 +1089,7 @@ func TestTrackerChartRangeSitsAboveTheChartCard(t *testing.T) {
 	}
 }
 
-// seedTrackerJump gives one device a clean query in the prior week and a tracker query today: a +100 pts change.
+// seedTrackerJump gives one device a +100 pts change: clean last week, tracker today.
 func seedTrackerJump(t *testing.T, s *Server, now time.Time, mac string) {
 	t.Helper()
 	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now.Add(-3 * 24 * time.Hour), LastSeen: now}); err != nil {

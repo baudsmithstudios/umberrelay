@@ -1,7 +1,4 @@
-/*
- * Umberrelay theme and the few layout pieces ElumKit does not provide.
- * Load after /static/elumkit/index.css.
- */
+/* Umberrelay theme and the layout ElumKit lacks. Load after /static/elumkit/index.css. */
 
 :root {
     color-scheme: dark;
@@ -42,15 +39,13 @@ body {
     color: var(--ur-relay);
 }
 
-/* The links sit at the right edge: one column for the brand and one for the links, and at narrow widths,
-   where ElumKit hides the brand, the links still end at the right. */
+/* Keeps the links at the right edge, even at narrow widths where ElumKit hides the brand. */
 .ur-navbar {
     grid-template-columns: 1fr auto;
     justify-content: flex-end;
 }
 
-/* Roster beside the detail pane; the pane comes first once they stack.
-   The columns wrap below 900px (340px + 560px flex-basis), so the breakpoint matches that. */
+/* The columns wrap below 900px (340px + 560px bases), so the breakpoint matches. */
 .ur-activity {
     display: flex;
     flex-wrap: wrap;
@@ -67,7 +62,7 @@ body {
     padding: 0 var(--elum-space-4) var(--elum-space-4) var(--elum-shell-gutter);
 }
 
-/* The filter hides empty groups and shows the no-match message; ElumKit's display rules would override [hidden]. */
+/* ElumKit's display rules would otherwise override [hidden]. */
 .ur-roster [hidden] {
     display: none;
 }
@@ -76,8 +71,7 @@ body {
     margin-bottom: var(--elum-space-3);
 }
 
-/* The sort options share the sidebar's width in equal thirds so the control lines up with the cards below it.
-   Each option keeps room for its selection brackets, so the side padding is trimmed for "[tracker]" to fit a third. */
+/* Equal thirds line up with the cards below; trimmed padding lets "[tracker]" fit. */
 .ur-roster-sort {
     display: flex;
 }
@@ -88,13 +82,12 @@ body {
     padding-inline: var(--elum-space-1);
 }
 
-/* Fields in a row like elum-query, without its card border. */
 .elum-query:is(.ur-filters, .ur-label-editor) {
     border: 0;
     padding: 0;
 }
 
-/* The bottom margin collapses with the stack's gap, so it must exceed that gap to widen it. */
+/* The margin collapses with the stack's gap, so it must exceed the gap to add space. */
 .elum-query.ur-filters {
     margin-bottom: calc(var(--elum-space-3) * 2);
 }
@@ -118,7 +111,7 @@ body {
     }
 }
 
-/* Keeps the detail page's name as its h1 for screen readers; the label field shows it on screen. */
+/* Keeps the h1 for screen readers; the label field shows the name on screen. */
 .ur-visually-hidden {
     clip-path: inset(50%);
     height: 1px;
@@ -134,14 +127,14 @@ body {
     min-width: 0;
 }
 
-/* At this width ElumKit stacks elum-query into a column, where the 24rem basis would become the field's height. */
+/* ElumKit stacks elum-query here, where the 24rem basis would become the height. */
 @media (max-width: 42rem) {
     .ur-label-editor > .elum-field-float {
         flex-basis: auto;
     }
 }
 
-/* An empty label field shows the fallback name as its placeholder, so the label stays raised on the border. */
+/* The placeholder shows the fallback name, so the label stays raised even when empty. */
 .ur-label-editor .elum-field-float > .elum-input + .elum-label {
     background: var(--elum-color-bg);
     color: var(--elum-color-accent);
@@ -150,40 +143,33 @@ body {
     top: 0;
 }
 
-/* Sets the tabs further from the heading and closer to the panel they switch. The pane's gap does not
-   collapse with margins, so these shift the tabs within it. */
+/* The pane's gap ignores margins, so these shift the tabs toward their panel. */
 .ur-pane > .elum-tabs {
     margin-block: var(--elum-space-2) calc(var(--elum-space-2) * -1);
 }
 
-/* tabs.js gives the panels role="tabpanel" once the tabs show, and the selected tab then names the panel.
-   Without JavaScript the panels stack and keep these titles. */
+/* With tabs.js the selected tab names the panel; without it the stacked panels keep these titles. */
 [role="tabpanel"] > .ur-panel-title {
     display: none;
 }
 
-/* Needs-attention flags sit in a narrow column, so their text runs a size smaller. */
 .ur-flag {
     font-size: var(--elum-text-sm);
 }
 
-/* The flags and top domains differ in height, so each column keeps its own height instead of stretching. */
 .ur-attention-grid {
     align-items: start;
 }
 
-/* A flag's badge is a measurement ("4.2x daily avg", "+8 pts"), so it keeps its units' case. */
+/* Flag badges are measurements ("4.2x daily avg"), so they keep their case. */
 .ur-flag > .elum-badge {
     text-transform: none;
 }
 
-/* A class label inside a row's meta line takes the meta's size instead of standing a size larger. */
 .elum-row-meta .elum-status-label {
     font-size: inherit;
 }
 
-/* Domain rows carry a class label and an override form, so they run a size smaller than ElumKit's table
-   and the override menu keeps the width of its longest option instead of shrinking with the column. */
 .ur-domain-table,
 .ur-domain-table .elum-status-label,
 .ur-domain-table .elum-select {
@@ -200,6 +186,7 @@ body {
     white-space: nowrap;
 }
 
+/* The override menu keeps its longest option's width instead of shrinking with the column. */
 .ur-domain-table .elum-select {
     flex: none;
     min-height: 2rem;
@@ -207,14 +194,13 @@ body {
     width: auto;
 }
 
-/* Separates the chart and its range control from the tracker table above and the sections below.
-   The bottom margin collapses with the stack's gap, so it must exceed that gap to widen it. */
+/* The margin collapses with the stack's gap, so it must exceed the gap to add space. */
 .elum-stack > .ur-chart {
     margin-bottom: calc(var(--elum-space-3) * 2);
     margin-top: var(--elum-space-4);
 }
 
-/* The bottom margin clears the card title, which sits raised on the card border. */
+/* Clears the card title raised onto the border below. */
 .ur-chart-range {
     display: flex;
     margin: 0 0 var(--elum-space-4) auto;
@@ -225,7 +211,7 @@ body {
     max-width: 64rem;
 }
 
-/* Each settings card raises its title onto the top border, which eats into the stack's gap. */
+/* Each card's raised title eats into the stack's gap. */
 .ur-settings > * + * {
     margin-top: calc(var(--elum-space-3) * 2);
 }
@@ -235,7 +221,6 @@ body {
     justify-content: flex-end;
 }
 
-/* Inline micro-meter under a roster row; the value beside it is the accessible reading. */
 .ur-mini {
     background: var(--ur-track);
     display: block;
@@ -243,7 +228,7 @@ body {
     margin-top: var(--elum-space-1);
 }
 
-/* A tracker spike turns the actor's rate red in the roster. */
+/* data-hot marks a tracker spike. */
 .ur-roster .elum-row-value[data-hot="true"] {
     color: var(--elum-color-error);
 }

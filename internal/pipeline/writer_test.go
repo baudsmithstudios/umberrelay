@@ -97,7 +97,7 @@ func TestWriterDrainsOnShutdown(t *testing.T) {
 	flushed := make(chan struct{}, 1)
 	w := NewWriter(ch, db, tracker, mgr, Config{
 		BatchSize:     100,
-		FlushInterval: 10 * time.Second, // Long interval so it doesn't auto-flush
+		FlushInterval: 10 * time.Second, // never fires during the test
 		OnFlush: func() {
 			select {
 			case flushed <- struct{}{}:

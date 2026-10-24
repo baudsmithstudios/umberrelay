@@ -81,7 +81,7 @@ func categoryTone(name string) string {
 	}
 }
 
-// categoryTonesJSON gives the live feed, which builds its rows in the browser, the same tones as the server-rendered pages.
+// categoryTonesJSON gives the browser-built live feed the server's category tones.
 func categoryTonesJSON() string {
 	tones := make(map[string]string)
 	for _, option := range category.Options() {
@@ -129,7 +129,6 @@ func flagFor(a store.Anomaly) actorFlag {
 	return flag
 }
 
-// silentFor names how long a device has gone without local DNS, from its silent minutes.
 func silentFor(minutes float64) string {
 	m := int(minutes)
 	if m < 60 {
@@ -158,7 +157,7 @@ type networkPane struct {
 	TopDomains    []privacyDomainRow
 }
 
-// domainTable is the Domains tab's table: the network's top domains carry a Reach column, an actor's own domains do not.
+// domainTable shows Reach only for the network's top domains.
 type domainTable struct {
 	Label     string
 	ShowReach bool
@@ -270,7 +269,6 @@ func parseTab(raw string) string {
 	}
 }
 
-// identificationNote explains which discovery signals named a device.
 func identificationNote(d store.Device) string {
 	parts := []string{"MAC from the ARP table."}
 	if d.Hostname != "" {

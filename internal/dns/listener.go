@@ -119,7 +119,7 @@ func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
 		select {
 		case l.out <- rec:
 		default:
-			// Channel full — drop record rather than block DNS
+			// Drop rather than block DNS when the channel is full.
 		}
 	}
 }

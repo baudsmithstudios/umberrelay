@@ -488,7 +488,7 @@ func TestListDevicesWithStats(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatalf("got %d devices, want 2", len(results))
 	}
-	// Ordered by query count desc
+	// ordered by query count
 	if results[0].MAC != "aa:bb:cc:dd:ee:ff" {
 		t.Errorf("first device MAC = %q, want aa:bb:cc:dd:ee:ff", results[0].MAC)
 	}

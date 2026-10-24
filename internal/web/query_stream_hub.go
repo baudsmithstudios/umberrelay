@@ -106,7 +106,7 @@ func (h *queryStreamHub) Subscribe() (<-chan store.Query, func(), error) {
 	h.subscribers[id] = ch
 	h.mu.Unlock()
 
-	// Wake immediately so new subscribers catch up on any pending backlog.
+	// Wake now so the new subscriber catches up on any backlog.
 	h.NotifyNewQueries()
 
 	return ch, func() {

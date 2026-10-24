@@ -1244,8 +1244,7 @@ func (d *DB) privacySummaryAt(actor actorFilter, now time.Time) (DevicePrivacySu
 	return summary, nil
 }
 
-// CategoryWindowCount compares one category's query count in the current 24h
-// against the 7 days before it, using the same windows as LoadTrendsAt.
+// CategoryWindowCount is one category's count in LoadTrendsAt's windows: the current 24h and the 7 days before.
 type CategoryWindowCount struct {
 	Category string
 	Current  int

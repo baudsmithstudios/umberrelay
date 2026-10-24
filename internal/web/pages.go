@@ -51,7 +51,7 @@ type privacyDetail struct {
 	Pagination     detailDomainPagination
 }
 
-// labelEditor is the form that names a device or source; htmx saves it and swaps the returned editor in place.
+// labelEditor is the device or source label form; saving swaps the returned editor in place.
 type labelEditor struct {
 	Action      string
 	Value       string

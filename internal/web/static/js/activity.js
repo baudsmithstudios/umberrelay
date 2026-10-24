@@ -1,5 +1,5 @@
 (function () {
-    // Narrows the domain rows already on this page; pagination still pages the full set.
+    // Filters only this page's rows; pagination still covers the full set.
     function bindDomainFilter() {
         const form = document.getElementById('domain-filters');
         const rows = document.getElementById('domain-rows');
@@ -58,7 +58,7 @@
         document.getElementById('roster-no-matches').hidden = needle === '' || anyGroupShown;
     }
 
-    // New actors appear on the next page load; live updates only touch rows already rendered.
+    // Updates only rendered rows; new actors appear on the next page load.
     function refreshRoster(state) {
         if (state.inFlight) {
             state.pending = true;
