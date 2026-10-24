@@ -842,10 +842,11 @@ func TestRangedActivity24hFillsHourlyBuckets(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	buckets, err := db.RangedActivity("", "24h")
+	activity, err := db.RangedActivity("", "24h")
 	if err != nil {
 		t.Fatalf("RangedActivity: %v", err)
 	}
+	buckets := activity.Buckets
 	if len(buckets) != 24 {
 		t.Fatalf("got %d buckets, want 24", len(buckets))
 	}
@@ -885,10 +886,11 @@ func TestRangedActivity24hFillsHourlyBuckets(t *testing.T) {
 		t.Fatalf("sum of bucket totals = %d, want 5", total)
 	}
 
-	filtered, err := db.RangedActivity(deviceA, "24h")
+	filteredActivity, err := db.RangedActivity(deviceA, "24h")
 	if err != nil {
 		t.Fatalf("RangedActivity(device): %v", err)
 	}
+	filtered := filteredActivity.Buckets
 	if len(filtered) != 24 {
 		t.Fatalf("filtered bucket count = %d, want 24", len(filtered))
 	}
@@ -974,10 +976,11 @@ func TestRangedActivity7dFillsDailyBuckets(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	daily, err := db.RangedActivity("", "7d")
+	dailyActivity, err := db.RangedActivity("", "7d")
 	if err != nil {
 		t.Fatalf("RangedActivity(7d): %v", err)
 	}
+	daily := dailyActivity.Buckets
 	if len(daily) != 7 {
 		t.Fatalf("7d bucket count = %d, want 7", len(daily))
 	}
@@ -991,10 +994,11 @@ func TestRangedActivity7dFillsDailyBuckets(t *testing.T) {
 		t.Fatalf("7d totals = %d/%d, want 5/3", dailyTotal, dailyTracker)
 	}
 
-	filtered, err := db.RangedActivity(deviceA, "7d")
+	filteredActivity, err := db.RangedActivity(deviceA, "7d")
 	if err != nil {
 		t.Fatalf("RangedActivity(device, 7d): %v", err)
 	}
+	filtered := filteredActivity.Buckets
 	filteredTotal := 0
 	filteredTracker := 0
 	for _, bucket := range filtered {
@@ -1015,6 +1019,73 @@ func TestRangedActivityRejectsInvalidRange(t *testing.T) {
 	}
 	if !errors.Is(err, ErrInvalidRange) {
 		t.Fatalf("errors.Is(err, ErrInvalidRange) = false, err = %v", err)
+	}
+}
+
+func TestRangedActivity7dComparesWithThePriorWeek(t *testing.T) {
+	db := testDB(t)
+	deviceA := "aa:bb:cc:dd:ee:ff"
+	priorStart := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -13)
+
+	err := db.WriteQueries([]Query{
+		{DeviceMAC: deviceA, Domain: "prior-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: priorStart},
+		{DeviceMAC: deviceA, Domain: "prior-clean.example.com", QueryType: "A", Category: "", Timestamp: priorStart.AddDate(0, 0, 3)},
+		{DeviceMAC: deviceA, Domain: "prior-clean-2.example.com", QueryType: "A", Category: "", Timestamp: priorStart.AddDate(0, 0, 6)},
+		{DeviceMAC: deviceA, Domain: "prior-tracker-2.example.com", QueryType: "A", Category: "advertising", Timestamp: priorStart.AddDate(0, 0, 6)},
+		{DeviceMAC: deviceA, Domain: "current-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: priorStart.AddDate(0, 0, 7)},
+		{DeviceMAC: "11:22:33:44:55:66", Domain: "other-device.example.com", QueryType: "A", Category: "", Timestamp: priorStart.AddDate(0, 0, 1)},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	activity, err := db.RangedActivity(deviceA, "7d")
+	if err != nil {
+		t.Fatalf("RangedActivity(device, 7d): %v", err)
+	}
+	if !activity.HasPrior || !almostEqualFloat64(activity.PriorRate, 50) {
+		t.Fatalf("prior = %v/%v, want 50%% from the 7 days before the range", activity.HasPrior, activity.PriorRate)
+	}
+}
+
+func TestRangedActivityHasNoPriorWhenHistoryStartsInsideThePriorWindow(t *testing.T) {
+	db := testDB(t)
+	priorStart := time.Now().UTC().Truncate(time.Hour).Add(-23*time.Hour).AddDate(0, 0, -7)
+
+	err := db.WriteQueries([]Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "prior-tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: priorStart.Add(time.Hour)},
+	})
+	if err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	activity, err := db.RangedActivity("", "24h")
+	if err != nil {
+		t.Fatalf("RangedActivity(24h): %v", err)
+	}
+	if activity.HasPrior {
+		t.Fatalf("HasPrior = true with %v%%, want false when history starts after the prior window opens", activity.PriorRate)
+	}
+}
+
+func TestRangedActivityReportsTheHistoryEachRangeNeeds(t *testing.T) {
+	db := testDB(t)
+	for _, c := range []struct {
+		timeRange   string
+		priorDays   int
+		historyDays int
+	}{
+		{"24h", 7, 8},
+		{"7d", 7, 14},
+		{"30d", 30, 60},
+	} {
+		activity, err := db.RangedActivity("", c.timeRange)
+		if err != nil {
+			t.Fatalf("RangedActivity(%s): %v", c.timeRange, err)
+		}
+		if activity.PriorDays != c.priorDays || activity.HistoryDays != c.historyDays {
+			t.Errorf("%s prior/history days = %d/%d, want %d/%d", c.timeRange, activity.PriorDays, activity.HistoryDays, c.priorDays, c.historyDays)
+		}
 	}
 }
 
@@ -1484,10 +1555,11 @@ func TestSourceActorExcludesDeviceAttributedRows(t *testing.T) {
 		t.Fatalf("QueryLogBySource = %+v, want only source.example.com", rows)
 	}
 
-	buckets, err := db.SourceRangedActivity(source, "24h")
+	activity, err := db.SourceRangedActivity(source, "24h")
 	if err != nil {
 		t.Fatalf("SourceRangedActivity: %v", err)
 	}
+	buckets := activity.Buckets
 	total := 0
 	for _, bucket := range buckets {
 		total += bucket.TotalCount

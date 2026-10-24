@@ -347,7 +347,7 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		timeRange = "24h"
 	}
 
-	var buckets []store.HourlyBucket
+	var activity store.RangeActivity
 	var err error
 	switch {
 	case actorKey != "":
@@ -357,14 +357,14 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if actorType == actorTypeSource {
-			buckets, err = s.db.SourceRangedActivity(actorValue, timeRange)
+			activity, err = s.db.SourceRangedActivity(actorValue, timeRange)
 		} else {
-			buckets, err = s.db.RangedActivity(actorValue, timeRange)
+			activity, err = s.db.RangedActivity(actorValue, timeRange)
 		}
 	case sourceIP != "":
-		buckets, err = s.db.SourceRangedActivity(sourceIP, timeRange)
+		activity, err = s.db.SourceRangedActivity(sourceIP, timeRange)
 	default:
-		buckets, err = s.db.RangedActivity(deviceMAC, timeRange)
+		activity, err = s.db.RangedActivity(deviceMAC, timeRange)
 	}
 	if err != nil {
 		if errors.Is(err, store.ErrInvalidRange) {
@@ -381,8 +381,8 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		Tracker   int   `json:"tracker"`
 	}
 
-	response := make([]activityBucket, 0, len(buckets))
-	for _, bucket := range buckets {
+	response := make([]activityBucket, 0, len(activity.Buckets))
+	for _, bucket := range activity.Buckets {
 		response = append(response, activityBucket{
 			Timestamp: bucket.Timestamp.Unix(),
 			Total:     bucket.TotalCount,
