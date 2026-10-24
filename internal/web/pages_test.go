@@ -1002,6 +1002,23 @@ func TestDeviceFactsCompareTrackerRateWithThePriorWeek(t *testing.T) {
 	}
 }
 
+func TestSourceFactsCompareTrackerRateWithThePriorWeek(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "192.168.1.50", Domain: "clean.example.com", QueryType: "A", Timestamp: now.Add(-48 * time.Hour)},
+		{SourceIP: "192.168.1.50", Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/source:192.168.1.50")
+	if !strings.Contains(body, `<span class="elum-system-bar-value">1 queries · 1 domains · +100 pts vs prior 7d</span>`) {
+		t.Fatalf("source facts missing the change against the prior 7 days")
+	}
+}
+
 func TestTrackerTrendTextCountsPoints(t *testing.T) {
 	for _, c := range []struct {
 		trend store.Trend
