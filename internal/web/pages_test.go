@@ -938,6 +938,24 @@ func TestRosterSortSpansTheSidebar(t *testing.T) {
 	}
 }
 
+func TestRosterGroupsAndEmptyStateCanBeHiddenByTheFilter(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	for _, want := range []string{
+		`<h2 class="elum-separator-labeled" id="roster-devices-title">Devices</h2>`,
+		`<ul class="elum-list" role="list" aria-labelledby="roster-devices-title" data-roster-group>`,
+		`<div class="elum-empty" id="roster-no-matches" hidden><div class="elum-empty-title">No matching devices</div></div>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("roster missing %q", want)
+		}
+	}
+}
+
 func TestRosterFilterIsABareField(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")

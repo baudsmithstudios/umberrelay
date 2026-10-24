@@ -14,19 +14,20 @@
             <li>{{template "roster-row" .Roster.Network}}</li>
         </ul>
         {{if .Roster.Devices}}
-        <h2 class="elum-separator-labeled">Devices</h2>
-        <ul class="elum-list" role="list" aria-label="Devices" data-roster-group>
+        <h2 class="elum-separator-labeled" id="roster-devices-title">Devices</h2>
+        <ul class="elum-list" role="list" aria-labelledby="roster-devices-title" data-roster-group>
             {{range .Roster.Devices}}<li>{{template "roster-row" .}}</li>
             {{end}}
         </ul>
         {{end}}
         {{if .Roster.Sources}}
-        <h2 class="elum-separator-labeled">Unattributed sources</h2>
-        <ul class="elum-list" role="list" aria-label="Unattributed sources" data-roster-group>
+        <h2 class="elum-separator-labeled" id="roster-sources-title">Unattributed sources</h2>
+        <ul class="elum-list" role="list" aria-labelledby="roster-sources-title" data-roster-group>
             {{range .Roster.Sources}}<li>{{template "roster-row" .}}</li>
             {{end}}
         </ul>
         {{end}}
+        <div class="elum-empty" id="roster-no-matches" hidden><div class="elum-empty-title">No matching devices</div></div>
     </aside>
 
     <section class="ur-pane" aria-label="Details">

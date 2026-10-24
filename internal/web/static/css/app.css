@@ -67,6 +67,11 @@ body {
     padding: 0 var(--elum-space-4) var(--elum-space-4) var(--elum-shell-gutter);
 }
 
+/* The filter hides empty groups and shows the no-match message; ElumKit's display rules would override [hidden]. */
+.ur-roster [hidden] {
+    display: none;
+}
+
 .ur-roster-filter {
     margin-bottom: var(--elum-space-3);
 }
