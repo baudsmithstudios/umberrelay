@@ -362,11 +362,6 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	_, networkTrend, err := s.db.LoadTrendsAt(now, "")
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
 	totalActors := len(devices) + len(sources)
 	flags := flagsByMAC(anomalies)
 
@@ -419,7 +414,6 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		pane.TrackerChange = trackerTrendText(networkTrend)
 		view.Title = "Activity"
 		view.Network = &pane
 	}
@@ -436,9 +430,14 @@ func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, anom
 	if err != nil {
 		return networkPane{}, err
 	}
+	_, trackerTrend, err := s.db.LoadTrendsAt(now, "")
+	if err != nil {
+		return networkPane{}, err
+	}
 	pane := networkPane{
-		Stats:       stats,
-		ListMatches: makeListMatches(counts),
+		Stats:         stats,
+		ListMatches:   makeListMatches(counts),
+		TrackerChange: trackerTrendText(trackerTrend),
 	}
 	for _, anomaly := range anomalies {
 		pane.Flags = append(pane.Flags, flagFor(anomaly))
