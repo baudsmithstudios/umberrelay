@@ -84,7 +84,7 @@
                     if (!actor) {
                         return;
                     }
-                    const percent = Math.min(100, Math.max(0, Number(actor.tracker_percent) || 0));
+                    const percent = actor.tracker_percent;
                     row.dataset.trackerPercent = percent.toFixed(2);
                     row.dataset.queryCount = String(actor.query_count);
                     row.querySelector('.elum-row-value').textContent = Math.round(percent) + '%';
