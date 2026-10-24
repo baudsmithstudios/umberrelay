@@ -42,6 +42,13 @@ body {
     color: var(--ur-relay);
 }
 
+/* The links sit at the right edge: one column for the brand and one for the links, and at narrow widths,
+   where ElumKit hides the brand, the links still end at the right. */
+.ur-navbar {
+    grid-template-columns: 1fr auto;
+    justify-content: flex-end;
+}
+
 /* Roster beside the detail pane; the pane comes first once they stack.
    The columns wrap below 900px (340px + 560px flex-basis), so the breakpoint matches that. */
 .ur-activity {

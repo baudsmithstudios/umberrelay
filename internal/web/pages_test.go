@@ -479,6 +479,17 @@ func TestSettingsCardActionsAreSecondaryAndRightAligned(t *testing.T) {
 	}
 }
 
+func TestNavbarCarriesOnlyTheBrandAndRightAlignedLinks(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/settings")
+	if !strings.Contains(body, `<nav class="elum-navbar ur-navbar" aria-label="Main navigation">`) {
+		t.Errorf("navbar missing the right-aligned links class")
+	}
+	if strings.Contains(body, `<span class="elum-system-bar-key">window</span>`) {
+		t.Errorf("navbar still shows the window label")
+	}
+}
+
 func TestSettingsPageUsesElumKitLayout(t *testing.T) {
 	s := testServer(t)
 	if _, err := s.db.AddList("https://example.com/tracking.txt", "Tracking List", "tracking"); err != nil {
@@ -490,7 +501,7 @@ func TestSettingsPageUsesElumKitLayout(t *testing.T) {
 	for _, want := range []string{
 		"/static/elumkit/index.css",
 		"/static/css/app.css",
-		`class="elum-navbar"`,
+		`class="elum-navbar `,
 		`href="/settings" aria-current="page"`,
 		`class="elum-switch"`,
 	} {

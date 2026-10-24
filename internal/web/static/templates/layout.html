@@ -10,15 +10,12 @@
 </head>
 <body>
     <a class="elum-skip-link" href="#main">Skip to content</a>
-    <nav class="elum-navbar" aria-label="Main navigation">
+    <nav class="elum-navbar ur-navbar" aria-label="Main navigation">
         <a class="elum-navbar-brand ur-brand" href="/"><b>Umber</b><span>relay</span></a>
         <section class="elum-navlinks">
             <a class="elum-navlink" href="/"{{if eq .Active "activity"}} aria-current="page"{{end}}>Activity</a>
             <a class="elum-navlink" href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a>
         </section>
-        <span class="elum-system-bar-group">
-            <span class="elum-system-bar-item"><span class="elum-system-bar-key">window</span><span class="elum-system-bar-value">24h</span></span>
-        </span>
     </nav>
     <main id="main">
         {{template "content" .}}
