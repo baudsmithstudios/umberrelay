@@ -951,7 +951,7 @@ func TestTrackerChartRangeSitsAboveTheChartCard(t *testing.T) {
 	}
 }
 
-// seedTrackerJump gives one device a clean query in the prior week and a tracker query today: a +100pp change.
+// seedTrackerJump gives one device a clean query in the prior week and a tracker query today: a +100 pts change.
 func seedTrackerJump(t *testing.T, s *Server, now time.Time, mac string) {
 	t.Helper()
 	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now.Add(-3 * 24 * time.Hour), LastSeen: now}); err != nil {
@@ -972,7 +972,7 @@ func TestNetworkHeaderComparesTrackerRateWithThePriorWeek(t *testing.T) {
 	seedTrackerJump(t, s, now, "aa:bb:cc:dd:ee:ff")
 
 	body := getPage(t, s, "/")
-	if !strings.Contains(body, `Whole network · last 24h · 1 queries · 1 domains · +100pp vs prior 7d</p>`) {
+	if !strings.Contains(body, `Whole network · last 24h · 1 queries · 1 domains · +100 pts vs prior 7d</p>`) {
 		t.Fatalf("network header missing the change against the prior 7 days")
 	}
 }
@@ -997,8 +997,24 @@ func TestDeviceFactsCompareTrackerRateWithThePriorWeek(t *testing.T) {
 	seedTrackerJump(t, s, now, "aa:bb:cc:dd:ee:ff")
 
 	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
-	if !strings.Contains(body, `<span class="elum-system-bar-value">1 queries · 1 domains · +100pp vs prior 7d</span>`) {
+	if !strings.Contains(body, `<span class="elum-system-bar-value">1 queries · 1 domains · +100 pts vs prior 7d</span>`) {
 		t.Fatalf("device facts missing the change against the prior 7 days")
+	}
+}
+
+func TestTrackerTrendTextCountsPoints(t *testing.T) {
+	for _, c := range []struct {
+		trend store.Trend
+		want  string
+	}{
+		{store.Trend{HasPrior: false, Change: 5}, ""},
+		{store.Trend{HasPrior: true, Change: 0.4}, "0 pts"},
+		{store.Trend{HasPrior: true, Change: 7.7}, "+8 pts"},
+		{store.Trend{HasPrior: true, Change: -3.2}, "-3 pts"},
+	} {
+		if got := trackerTrendText(c.trend); got != c.want {
+			t.Errorf("trackerTrendText(%+v) = %q, want %q", c.trend, got, c.want)
+		}
 	}
 }
 

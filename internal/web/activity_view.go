@@ -112,7 +112,7 @@ func flagFor(a store.Anomaly) actorFlag {
 	switch a.Type {
 	case "tracker_spike":
 		flag.Word, flag.Tone, flag.priority = "tracker spike", "error", 3
-		flag.Badge = fmt.Sprintf("+%.0fpp", a.Delta)
+		flag.Badge = fmt.Sprintf("+%.0f pts", a.Delta)
 		flag.Explanation = fmt.Sprintf("%s jumped above its usual tracker rate, led by %s from %s.", a.DeviceName, a.TopDomain, a.TopDomainSourceList)
 	case "dns_bypass_likely":
 		flag.Word, flag.priority = "bypass likely", 2

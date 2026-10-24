@@ -125,9 +125,9 @@ func trackerTrendText(t store.Trend) string {
 		return ""
 	}
 	if math.Abs(t.Change) < 0.5 {
-		return "0pp"
+		return "0 pts"
 	}
-	return fmt.Sprintf("%+dpp", int(math.Round(t.Change)))
+	return fmt.Sprintf("%+d pts", int(math.Round(t.Change)))
 }
 
 func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}) {
