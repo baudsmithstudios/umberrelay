@@ -238,26 +238,3 @@ body {
     display: block;
     height: 100%;
 }
-
-/* Reference tick under an elum-meter-track, positioned with an inline left offset. */
-.ur-ref {
-    padding-bottom: 1.4rem;
-    position: relative;
-}
-
-.ur-ref .tick {
-    background: var(--elum-color-fg);
-    bottom: 1.1rem;
-    position: absolute;
-    top: -4px;
-    width: 2px;
-}
-
-.ur-ref .tick-label {
-    bottom: 0;
-    color: var(--elum-color-muted);
-    font-size: var(--elum-text-xs);
-    position: absolute;
-    transform: translateX(-50%);
-    white-space: nowrap;
-}

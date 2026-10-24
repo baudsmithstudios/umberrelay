@@ -66,22 +66,6 @@ func TestMakeListMatchesOrder(t *testing.T) {
 	}
 }
 
-func TestTrackerBadge(t *testing.T) {
-	cases := []struct {
-		trend store.Trend
-		want  string
-	}{
-		{store.Trend{HasPrior: false}, ""},
-		{store.Trend{HasPrior: true, Change: 19}, "+19 vs prior 7d"},
-		{store.Trend{HasPrior: true, Change: -3.46}, "-3.5 vs prior 7d"},
-	}
-	for _, c := range cases {
-		if got := trackerBadge(c.trend); got != c.want {
-			t.Errorf("trackerBadge(%+v) = %q, want %q", c.trend, got, c.want)
-		}
-	}
-}
-
 func TestFlagFor(t *testing.T) {
 	cases := []struct {
 		anomalyType string

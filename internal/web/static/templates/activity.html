@@ -71,8 +71,8 @@
 
         <div id="panel-overview" class="elum-stack">
             <h2 class="elum-separator-labeled ur-panel-title">Overview</h2>
-            {{with .Network}}{{template "tracker" .Tracker}}{{end}}
-            {{with .Detail}}{{template "tracker" .Tracker}}{{end}}
+            {{with .Network}}{{template "list-matches" .ListMatches}}{{end}}
+            {{with .Detail}}{{template "list-matches" .ListMatches}}{{end}}
             <div class="ur-chart">
                 <fieldset class="elum-segmented ur-chart-range" aria-label="Chart range">
                     <label class="elum-segmented-option" for="chart-range-24h"><input id="chart-range-24h" name="chart-range" type="radio" value="24h" checked>24h</label>
@@ -203,25 +203,6 @@
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/feed.js"></script>
 <script src="/static/js/activity.js"></script>
-{{end}}
-
-{{define "tracker"}}
-<div class="elum-stack">
-    <div class="elum-meter">
-        <div class="elum-meter-header">
-            <span class="elum-meter-label" id="tracker-rate-label">Tracker rate</span>
-            <span class="elum-meter-value">{{printf "%.1f" .Percent}}%{{if .Badge}} <span class="elum-badge" data-tone="error">[{{.Badge}}]</span>{{end}}</span>
-        </div>
-        <div class="ur-ref">
-            <div class="elum-meter-track" role="meter" aria-valuenow="{{printf "%.1f" .Percent}}" aria-valuemin="0" aria-valuemax="100" aria-valuetext="{{printf "%.1f" .Percent}}%{{with .RefLabel}}, {{.}}{{end}}" aria-labelledby="tracker-rate-label" data-tone="error" style="--elum-meter-fill-width: {{printf "%.1f" .Percent}}%"></div>
-            {{if .RefLabel}}
-            <span class="tick" aria-hidden="true" style="left: {{printf "%.1f" .RefPct}}%"></span>
-            <span class="tick-label" aria-hidden="true" style="left: {{printf "%.1f" .RefPct}}%">{{.RefLabel}}</span>
-            {{end}}
-        </div>
-    </div>
-    {{template "list-matches" .Matches}}
-</div>
 {{end}}
 
 {{define "list-matches"}}

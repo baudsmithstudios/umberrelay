@@ -42,7 +42,7 @@ type privacyDetail struct {
 	SourceIP        string
 	SourceLabel     string
 	PrivacySummary  store.DevicePrivacySummary
-	Tracker         trackerSummary
+	ListMatches     listMatches
 	Flag            *actorFlag
 	IdentifiedBy    string
 	Domains         []privacyDomainRow
@@ -271,7 +271,7 @@ func findSource(sources []store.SourceWithTrends, sourceIP string) *store.Source
 	return nil
 }
 
-func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePrivacySummary, tracker trackerSummary, topDomains []store.DomainWithSource, pagination detailDomainPagination) privacyDetail {
+func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePrivacySummary, matches listMatches, topDomains []store.DomainWithSource, pagination detailDomainPagination) privacyDetail {
 	domains := make([]privacyDomainRow, 0, len(topDomains))
 	for _, domain := range topDomains {
 		domains = append(domains, makePrivacyDomainRow(domain, totalActors, actorKey))
@@ -280,7 +280,7 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 	return privacyDetail{
 		LiveActorKey:    actorKey,
 		PrivacySummary:  summary,
-		Tracker:         tracker,
+		ListMatches:     matches,
 		Domains:         domains,
 		RangeQuery:      "actor=" + url.QueryEscape(actorKey),
 		DomainPage:      pagination.Page,
@@ -294,20 +294,8 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 	}
 }
 
-func actorTracker(percent float64, trackerTrend store.Trend, counts []store.CategoryWindowCount) trackerSummary {
-	return trackerSummary{
-		Percent: percent,
-		Badge:   trackerBadge(trackerTrend),
-		Matches: makeListMatches(counts),
-	}
-}
-
 func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActors int, domainsPage int) (privacyDetail, error) {
 	privacySummary, err := s.db.DevicePrivacySummaryAt(device.MAC, now)
-	if err != nil {
-		return privacyDetail{}, err
-	}
-	_, trackerTrend, err := s.db.LoadTrendsAt(now, "device_mac = ?", device.MAC)
 	if err != nil {
 		return privacyDetail{}, err
 	}
@@ -321,7 +309,7 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 		return privacyDetail{}, err
 	}
 
-	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, actorTracker(privacySummary.TrackerPercent, trackerTrend, counts), topDomains, pagination)
+	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, makeListMatches(counts), topDomains, pagination)
 	detail.Mode = actorTypeDevice
 	detail.IdentifiedBy = identificationNote(device)
 	detail.Device = device
@@ -338,10 +326,6 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 	if err != nil {
 		return privacyDetail{}, err
 	}
-	_, trackerTrend, err := s.db.LoadTrendsAt(now, "device_mac = '' AND source_ip = ?", sourceIP)
-	if err != nil {
-		return privacyDetail{}, err
-	}
 	counts, err := s.db.SourceCategoryCountsAt(sourceIP, now)
 	if err != nil {
 		return privacyDetail{}, err
@@ -352,7 +336,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		return privacyDetail{}, err
 	}
 
-	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, actorTracker(privacySummary.TrackerPercent, trackerTrend, counts), topDomains, pagination)
+	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, makeListMatches(counts), topDomains, pagination)
 	detail.Mode = actorTypeSource
 	detail.IdentifiedBy = "No MAC address was seen for this source, so it is tracked by IP."
 	detail.DeviceName = sourceActorDisplayName(sourceIP, label)
@@ -374,11 +358,6 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stats, err := s.db.DashboardSummaryAt(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	_, networkTrend, err := s.db.LoadTrendsAt(now, "")
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -423,13 +402,11 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		detail.Tracker.RefPct = networkTrend.Current
-		detail.Tracker.RefLabel = fmt.Sprintf("network %.1f%%", networkTrend.Current)
 		selectedKey = detail.LiveActorKey
 		view.Title = detail.DeviceName
 		view.Detail = &detail
 	} else {
-		pane, err := s.loadNetworkPane(now, stats, networkTrend, anomalies, totalActors)
+		pane, err := s.loadNetworkPane(now, stats, anomalies, totalActors)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -441,7 +418,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 	s.renderPage(w, "activity", view)
 }
 
-func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, networkTrend store.Trend, anomalies []store.Anomaly, totalActors int) (networkPane, error) {
+func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, anomalies []store.Anomaly, totalActors int) (networkPane, error) {
 	counts, err := s.db.NetworkCategoryCountsAt(now)
 	if err != nil {
 		return networkPane{}, err
@@ -451,16 +428,8 @@ func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, netw
 		return networkPane{}, err
 	}
 	pane := networkPane{
-		Stats: stats,
-		Tracker: trackerSummary{
-			Percent: stats.TrackerPercent,
-			Badge:   trackerBadge(networkTrend),
-			Matches: makeListMatches(counts),
-		},
-	}
-	if networkTrend.HasPrior {
-		pane.Tracker.RefPct = networkTrend.Previous
-		pane.Tracker.RefLabel = fmt.Sprintf("prior 7d %.1f%%", networkTrend.Previous)
+		Stats:       stats,
+		ListMatches: makeListMatches(counts),
 	}
 	for _, anomaly := range anomalies {
 		pane.Flags = append(pane.Flags, flagFor(anomaly))

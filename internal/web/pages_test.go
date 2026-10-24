@@ -703,16 +703,13 @@ func TestRosterMiniMeterWidthRenders(t *testing.T) {
 	}
 }
 
-func TestOverviewShowsTrackerMeterAndMatches(t *testing.T) {
+func TestOverviewShowsListMatches(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
 
 	body := getPage(t, s, "/")
-	if !strings.Contains(body, `role="meter"`) {
-		t.Fatalf("tracker meter missing")
-	}
 	start := strings.Index(body, "Matched a list")
 	end := strings.Index(body, "queries matched no list")
 	if start < 0 || end < start {
@@ -732,7 +729,7 @@ func TestOverviewShowsTrackerMeterAndMatches(t *testing.T) {
 func TestOverviewEmptyDatabase(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
-	for _, want := range []string{"0.0%", "No queries matched a list in the last 24 hours"} {
+	for _, want := range []string{"No queries matched a list in the last 24 hours"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("empty overview missing %q", want)
 		}
@@ -741,18 +738,6 @@ func TestOverviewEmptyDatabase(t *testing.T) {
 		if strings.Contains(body, bad) {
 			t.Errorf("empty overview contains %q", bad)
 		}
-	}
-}
-
-func TestDeviceOverviewReferenceIsNetwork(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
-	if !strings.Contains(body, "network 50.0%") {
-		t.Fatalf("device meter missing network reference")
 	}
 }
 
@@ -908,21 +893,6 @@ func TestNoPicoAssetsServed(t *testing.T) {
 	}
 }
 
-func TestNetworkMeterOmitsReferenceWithoutPriorData(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	body := getPage(t, s, "/")
-	if strings.Contains(body, "prior 7d") && !strings.Contains(body, "vs prior 7d") {
-		t.Fatalf("meter claims a prior-7d reference with no prior data")
-	}
-	if strings.Contains(body, `class="tick"`) {
-		t.Fatalf("meter draws a reference tick with no prior data")
-	}
-}
-
 func TestLiveStreamCarriesCategoryTones(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/?tab=live")
@@ -964,11 +934,11 @@ func TestRosterFilterIsABareField(t *testing.T) {
 	}
 }
 
-func TestTrackerMeterStacksAboveListMatches(t *testing.T) {
+func TestOverviewLeavesTheTrackerRateToTheChart(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
-	if !regexp.MustCompile(`<div class="elum-stack">\s*<div class="elum-meter">`).MatchString(body) {
-		t.Fatalf("tracker meter should sit above the list-match table in one column")
+	if strings.Contains(body, "elum-meter") {
+		t.Fatalf("overview still shows a tracker meter alongside the chart")
 	}
 }
 

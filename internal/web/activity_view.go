@@ -97,17 +97,6 @@ func formatPoints(v float64) string {
 	return strconv.FormatFloat(math.Round(v*10)/10, 'f', -1, 64)
 }
 
-func trackerBadge(t store.Trend) string {
-	if !t.HasPrior {
-		return ""
-	}
-	sign := ""
-	if math.Round(t.Change*10) > 0 {
-		sign = "+"
-	}
-	return sign + formatPoints(t.Change) + " vs prior 7d"
-}
-
 type actorFlag struct {
 	Word        string
 	Tone        string
@@ -157,19 +146,11 @@ func flagsByMAC(anomalies []store.Anomaly) map[string]actorFlag {
 	return out
 }
 
-type trackerSummary struct {
-	Percent  float64
-	Badge    string
-	RefPct   float64
-	RefLabel string
-	Matches  listMatches
-}
-
 type networkPane struct {
-	Stats      store.DashboardStats
-	Tracker    trackerSummary
-	Flags      []actorFlag
-	TopDomains []privacyDomainRow
+	Stats       store.DashboardStats
+	ListMatches listMatches
+	Flags       []actorFlag
+	TopDomains  []privacyDomainRow
 }
 
 type activityView struct {
