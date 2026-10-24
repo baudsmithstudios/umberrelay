@@ -424,7 +424,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		view.Title = "Activity"
 		view.Network = &pane
 	}
-	view.Roster = makeRoster(devices, sources, stats, flags, selectedKey)
+	view.Roster = makeRoster(devices, sources, stats, networkTrend, flags, selectedKey)
 	s.renderPage(w, "activity", view)
 }
 

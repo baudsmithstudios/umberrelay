@@ -1002,6 +1002,18 @@ func TestDeviceFactsCompareTrackerRateWithThePriorWeek(t *testing.T) {
 	}
 }
 
+func TestWholeNetworkRowShowsItsChangeLikeDeviceRows(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedTrackerJump(t, s, now, "aa:bb:cc:dd:ee:ff")
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `<span class="elum-row-meta">1 devices · 1 q · +100pp</span>`) {
+		t.Fatalf("Whole network row missing its change against the prior 7 days")
+	}
+}
+
 func TestPanelTitlesAreMarkedForHidingBehindTabs(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")

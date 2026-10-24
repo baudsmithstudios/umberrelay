@@ -179,11 +179,11 @@ type roster struct {
 	Sources []rosterRow
 }
 
-func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTrends, stats store.DashboardStats, flags map[string]actorFlag, selectedKey string) roster {
+func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTrends, stats store.DashboardStats, networkTrend store.Trend, flags map[string]actorFlag, selectedKey string) roster {
 	r := roster{Network: rosterRow{
 		Href:           "/",
 		Name:           "Whole network",
-		Meta:           fmt.Sprintf("%d devices · %d queries", stats.DeviceCount, stats.TotalQueries),
+		Meta:           joinMeta(fmt.Sprintf("%d devices · %d q", stats.DeviceCount, stats.TotalQueries), trackerTrendText(networkTrend)),
 		TrackerPercent: stats.TrackerPercent,
 		QueryCount:     stats.TotalQueries,
 		Selected:       selectedKey == "",
