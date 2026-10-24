@@ -5,28 +5,17 @@ import (
 	"testing"
 )
 
-func TestRedactIdentifierMasksRawValue(t *testing.T) {
+func TestRedactIdentifier(t *testing.T) {
 	raw := "aa:bb:cc:dd:ee:ff"
 	redacted := redactIdentifier(raw)
-	if redacted == "" {
-		t.Fatal("redacted identifier is empty")
+	if redacted == "" || strings.Contains(redacted, raw) {
+		t.Fatalf("redactIdentifier(%q) = %q, want a non-empty mask", raw, redacted)
 	}
-	if strings.Contains(redacted, raw) {
-		t.Fatalf("redacted identifier leaked raw value: %q", redacted)
+	if again := redactIdentifier(raw); again != redacted {
+		t.Fatalf("redaction is not stable: %q != %q", redacted, again)
 	}
-}
-
-func TestRedactIdentifierIsStable(t *testing.T) {
-	raw := "192.168.1.42"
-	first := redactIdentifier(raw)
-	second := redactIdentifier(raw)
-	if first != second {
-		t.Fatalf("redaction is not stable: %q != %q", first, second)
-	}
-}
-
-func TestRedactIdentifierHandlesEmptyValue(t *testing.T) {
 	if got := redactIdentifier(""); got != "unknown" {
 		t.Fatalf("redactIdentifier(empty) = %q, want unknown", got)
 	}
 }
+

@@ -7,32 +7,20 @@ import (
 	"testing"
 )
 
-func TestDefaults(t *testing.T) {
-	cfg := Defaults()
-	if cfg.Listen != "0.0.0.0:53" {
-		t.Errorf("Listen = %q, want 0.0.0.0:53", cfg.Listen)
-	}
-	if len(cfg.Upstream) != 2 {
-		t.Errorf("Upstream count = %d, want 2", len(cfg.Upstream))
-	}
-	if cfg.DataDir != "/data" {
-		t.Errorf("DataDir = %q, want /data", cfg.DataDir)
-	}
-	if cfg.HTTPPort != 8080 {
-		t.Errorf("HTTPPort = %d, want 8080", cfg.HTTPPort)
-	}
-	if cfg.HTTPListen != "0.0.0.0" {
-		t.Errorf("HTTPListen = %q, want 0.0.0.0", cfg.HTTPListen)
-	}
-}
-
 func TestLoadMissingFileReturnsDefaults(t *testing.T) {
 	cfg, err := Load(filepath.Join(t.TempDir(), "missing.toml"))
 	if err != nil {
 		t.Fatalf("Load missing file: %v", err)
 	}
-	if !reflect.DeepEqual(cfg, Defaults()) {
-		t.Fatalf("cfg = %+v, want defaults", cfg)
+	want := Config{
+		Listen:     "0.0.0.0:53",
+		Upstream:   []string{"1.1.1.1:53", "8.8.8.8:53"},
+		DataDir:    "/data",
+		HTTPListen: "0.0.0.0",
+		HTTPPort:   8080,
+	}
+	if !reflect.DeepEqual(cfg, want) {
+		t.Fatalf("cfg = %+v, want %+v", cfg, want)
 	}
 }
 

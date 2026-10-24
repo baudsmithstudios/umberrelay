@@ -11,7 +11,7 @@ import (
 	"umberrelay/internal/store"
 )
 
-func TestPurgeRemovesRowsOlderThanConfiguredRetention(t *testing.T) {
+func TestRunPurgeAppliesRetentionBeforeWaiting(t *testing.T) {
 	captureLogs(t)
 	db := testDB(t)
 	now := time.Now()
@@ -25,33 +25,6 @@ func TestPurgeRemovesRowsOlderThanConfiguredRetention(t *testing.T) {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	purge(db)
-
-	queries, err := db.QueryLog("", "", time.Time{}, time.Now().Add(time.Hour), 100, 0)
-	if err != nil {
-		t.Fatalf("QueryLog: %v", err)
-	}
-	if len(queries) != 1 {
-		t.Fatalf("len(queries) = %d, want 1", len(queries))
-	}
-	if queries[0].Domain != "recent.example.com" {
-		t.Fatalf("domain = %q, want recent.example.com", queries[0].Domain)
-	}
-}
-
-func TestRunPurgeRunsImmediateCycleBeforeWaiting(t *testing.T) {
-	captureLogs(t)
-	db := testDB(t)
-	now := time.Now()
-	if err := db.SetConfig("retention_days", "1"); err != nil {
-		t.Fatalf("SetConfig: %v", err)
-	}
-	if err := db.WriteQueries([]store.Query{
-		{SourceIP: "10.0.0.1", Domain: "old.example.com", QueryType: "A", Timestamp: now.Add(-72 * time.Hour)},
-	}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	runPurge(ctx, db)
@@ -60,8 +33,8 @@ func TestRunPurgeRunsImmediateCycleBeforeWaiting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryLog: %v", err)
 	}
-	if len(queries) != 0 {
-		t.Fatalf("len(queries) = %d, want 0", len(queries))
+	if len(queries) != 1 || queries[0].Domain != "recent.example.com" {
+		t.Fatalf("queries = %+v, want only recent.example.com", queries)
 	}
 }
 

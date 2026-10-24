@@ -1590,32 +1590,16 @@ func seedCategoryWindows(t *testing.T, db *DB, now time.Time) {
 	}
 }
 
-func TestDeviceCategoryCountsAt(t *testing.T) {
+func TestCategoryCountsAt(t *testing.T) {
 	db := testDB(t)
 	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
 	seedCategoryWindows(t, db, now)
 
-	got, err := db.DeviceCategoryCountsAt("aa:bb:cc:dd:ee:ff", now)
+	device, err := db.DeviceCategoryCountsAt("aa:bb:cc:dd:ee:ff", now)
 	if err != nil {
 		t.Fatalf("DeviceCategoryCountsAt: %v", err)
 	}
-	want := []CategoryWindowCount{
-		{Category: "", Current: 1, Prior: 0},
-		{Category: "advertising", Current: 0, Prior: 2},
-		{Category: "telemetry", Current: 1, Prior: 0},
-		{Category: "tracking", Current: 2, Prior: 1},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("counts = %+v, want %+v", got, want)
-	}
-}
-
-func TestNetworkCategoryCountsAt(t *testing.T) {
-	db := testDB(t)
-	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
-	seedCategoryWindows(t, db, now)
-
-	got, err := db.NetworkCategoryCountsAt(now)
+	network, err := db.NetworkCategoryCountsAt(now)
 	if err != nil {
 		t.Fatalf("NetworkCategoryCountsAt: %v", err)
 	}
@@ -1623,10 +1607,15 @@ func TestNetworkCategoryCountsAt(t *testing.T) {
 		{Category: "", Current: 1, Prior: 0},
 		{Category: "advertising", Current: 0, Prior: 2},
 		{Category: "telemetry", Current: 1, Prior: 0},
-		{Category: "tracking", Current: 3, Prior: 1},
+		{Category: "tracking", Current: 2, Prior: 1},
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("counts = %+v, want %+v", got, want)
+	if !reflect.DeepEqual(device, want) {
+		t.Fatalf("device counts = %+v, want %+v", device, want)
+	}
+	// The network also counts the second device's tracker query.
+	want[3].Current = 3
+	if !reflect.DeepEqual(network, want) {
+		t.Fatalf("network counts = %+v, want %+v", network, want)
 	}
 }
 
