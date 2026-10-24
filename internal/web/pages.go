@@ -43,6 +43,7 @@ type privacyDetail struct {
 	SourceLabel     string
 	PrivacySummary  store.DevicePrivacySummary
 	ListMatches     listMatches
+	TrackerChange   string
 	Flag            *actorFlag
 	IdentifiedBy    string
 	Domains         []privacyDomainRow
@@ -362,6 +363,11 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	_, networkTrend, err := s.db.LoadTrendsAt(now, "")
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	totalActors := len(devices) + len(sources)
 	flags := flagsByMAC(anomalies)
 
@@ -388,15 +394,18 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			detail, err = s.loadDeviceDetail(now, selected.Device, totalActors, domainsPage)
+			detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
 			if flag, ok := flags[selected.MAC]; ok {
 				detail.Flag = &flag
 			}
 		default:
-			if findSource(sources, value) == nil {
+			selected := findSource(sources, value)
+			if selected == nil {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
 			detail, err = s.loadSourceDetail(now, value, totalActors, domainsPage)
+			detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
 		}
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -411,6 +420,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		pane.TrackerChange = trackerTrendText(networkTrend)
 		view.Title = "Activity"
 		view.Network = &pane
 	}

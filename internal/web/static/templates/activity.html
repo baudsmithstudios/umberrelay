@@ -33,7 +33,7 @@
     <section class="ur-pane" aria-label="Details">
         {{with .Network}}
         <header class="elum-stack">
-            <p class="elum-card-subtitle">Whole network · last 24h · {{.Stats.TotalQueries}} queries · {{.Stats.UniqueDomainCount}} domains</p>
+            <p class="elum-card-subtitle">Whole network · last 24h · {{.Stats.TotalQueries}} queries · {{.Stats.UniqueDomainCount}} domains{{with .TrackerChange}} · {{.}} vs prior 7d{{end}}</p>
             <h1>{{printf "%.0f" .Stats.TrackerPercent}}% of DNS queries hit known trackers across {{.Stats.DeviceCount}} devices</h1>
         </header>
         {{end}}
@@ -57,7 +57,7 @@
                 {{if .Device.IP}}<span class="elum-system-bar-item"><span class="elum-system-bar-key">ip</span><span class="elum-system-bar-value">{{.Device.IP}}</span></span>{{end}}
                 <span class="elum-system-bar-item"><span class="elum-system-bar-key">last seen</span><span class="elum-system-bar-value">{{.Device.LastSeen.Local.Format "2006-01-02 15:04"}}</span></span>
                 {{end}}
-                <span class="elum-system-bar-item"><span class="elum-system-bar-key">24h</span><span class="elum-system-bar-value">{{.PrivacySummary.QueryCount}} queries · {{.PrivacySummary.UniqueDomains}} domains</span></span>
+                <span class="elum-system-bar-item"><span class="elum-system-bar-key">24h</span><span class="elum-system-bar-value">{{.PrivacySummary.QueryCount}} queries · {{.PrivacySummary.UniqueDomains}} domains{{with .TrackerChange}} · {{.}} vs prior 7d{{end}}</span></span>
             </span>
         </section>
 

@@ -147,10 +147,11 @@ func flagsByMAC(anomalies []store.Anomaly) map[string]actorFlag {
 }
 
 type networkPane struct {
-	Stats       store.DashboardStats
-	ListMatches listMatches
-	Flags       []actorFlag
-	TopDomains  []privacyDomainRow
+	Stats         store.DashboardStats
+	ListMatches   listMatches
+	TrackerChange string
+	Flags         []actorFlag
+	TopDomains    []privacyDomainRow
 }
 
 type activityView struct {
