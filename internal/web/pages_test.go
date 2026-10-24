@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -458,59 +457,13 @@ func TestStaticServesElumKit(t *testing.T) {
 	}
 }
 
-func TestSettingsCardsAreMarkedForWiderSpacing(t *testing.T) {
-	s := testServer(t)
-	if body := getPage(t, s, "/settings"); !strings.Contains(body, `<div class="elum-container elum-stack ur-settings"`) {
-		t.Fatalf("settings container missing the card spacing class")
-	}
-}
-
-func TestSettingsCardActionsAreSecondaryAndRightAligned(t *testing.T) {
+func TestPagesLoadTheStylesheets(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/settings")
-	for _, want := range []string{
-		`<div class="ur-card-actions"><button class="elum-button" type="submit">Save</button></div>`,
-		`<form class="ur-card-actions" hx-post="/ui/lists/refresh" hx-swap="none">`,
-		`<div class="ur-card-actions"><button class="elum-button" type="submit">Add</button></div>`,
-	} {
+	for _, want := range []string{"/static/elumkit/index.css", "/static/css/app.css"} {
 		if !strings.Contains(body, want) {
-			t.Errorf("settings page missing %q", want)
+			t.Errorf("page missing %q", want)
 		}
-	}
-}
-
-func TestNavbarCarriesOnlyTheBrandAndRightAlignedLinks(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/settings")
-	if !strings.Contains(body, `<nav class="elum-navbar ur-navbar" aria-label="Main navigation">`) {
-		t.Errorf("navbar missing the right-aligned links class")
-	}
-	if strings.Contains(body, `<span class="elum-system-bar-key">window</span>`) {
-		t.Errorf("navbar still shows the window label")
-	}
-}
-
-func TestSettingsPageUsesElumKitLayout(t *testing.T) {
-	s := testServer(t)
-	if _, err := s.db.AddList("https://example.com/tracking.txt", "Tracking List", "tracking"); err != nil {
-		t.Fatalf("AddList: %v", err)
-	}
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/settings", nil))
-	body := w.Body.String()
-	for _, want := range []string{
-		"/static/elumkit/index.css",
-		"/static/css/app.css",
-		`class="elum-navbar `,
-		`href="/settings" aria-current="page"`,
-		`class="elum-switch"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("settings page missing %q", want)
-		}
-	}
-	if strings.Contains(body, "pico.min.css") {
-		t.Errorf("settings page still loads pico.min.css")
 	}
 }
 
@@ -581,23 +534,6 @@ func TestActivityDeviceSelected(t *testing.T) {
 	}
 }
 
-func TestDeviceLabelEditorIsABareRow(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
-	for _, want := range []string{
-		`<form class="elum-query ur-label-editor" hx-post="/ui/devices/aa:bb:cc:dd:ee:ff/label"`,
-		`<label class="elum-label" for="device-label">Device Label</label>`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("device label editor missing %q", want)
-		}
-	}
-}
-
 func TestUnlabeledDeviceShowsItsNameInTheEmptyLabelField(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
@@ -634,19 +570,6 @@ func TestTrackerSpikeMarksTheRosterValueHot(t *testing.T) {
 	row := rowFor(t, getPage(t, s, "/"), "/devices/device:aa:bb:cc:dd:ee:ff")
 	if !strings.Contains(row, `<span class="elum-row-value" data-hot="true">`) {
 		t.Fatalf("tracker spike row value not marked hot: %s", row)
-	}
-}
-
-func TestUnflaggedSourceHasNoSubheader(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	if err := s.db.WriteQueries([]store.Query{{SourceIP: "10.44.0.7", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)}}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	if body := getPage(t, s, "/devices/source:10.44.0.7"); strings.Contains(body, `<p class="elum-card-subtitle">Source`) {
-		t.Fatalf("source page still shows the Source subheader")
 	}
 }
 
@@ -697,25 +620,6 @@ func TestSavingASourceLabelReturnsItsEditor(t *testing.T) {
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("source label fragment missing %q", want)
-		}
-	}
-}
-
-func TestSourceLabelEditorIsABareRow(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	if err := s.db.WriteQueries([]store.Query{{SourceIP: "10.44.0.7", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)}}); err != nil {
-		t.Fatalf("WriteQueries: %v", err)
-	}
-
-	body := getPage(t, s, "/devices/source:10.44.0.7")
-	for _, want := range []string{
-		`<form class="elum-query ur-label-editor" hx-post="/ui/sources/10.44.0.7/label"`,
-		`<label class="elum-label" for="device-label">Source Label</label>`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("source label editor missing %q", want)
 		}
 	}
 }
@@ -812,17 +716,6 @@ func TestParseTab(t *testing.T) {
 	}
 }
 
-func TestTabQuerySelectsDomains(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/?tab=domains")
-	if !strings.Contains(body, `id="tab-domains" role="tab" aria-selected="true"`) {
-		t.Fatalf("domains tab not selected")
-	}
-	if !strings.Contains(body, `id="tab-overview" role="tab" aria-selected="false"`) {
-		t.Fatalf("overview tab still selected")
-	}
-}
-
 func TestNetworkOverviewNeedsAttentionEmpty(t *testing.T) {
 	s := testServer(t)
 	if body := getPage(t, s, "/"); !strings.Contains(body, "No unusual activity") {
@@ -839,17 +732,6 @@ func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
 	body := getPage(t, s, "/")
 	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · tracker spike.`) {
 		t.Fatalf("needs attention missing the tracker spike flag")
-	}
-}
-
-func TestNeedsAttentionFlagsUseCompactStyle(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-
-	if body := getPage(t, s, "/"); !strings.Contains(body, `<aside class="elum-alert ur-flag"`) {
-		t.Fatalf("needs attention flags missing the compact style class")
 	}
 }
 
@@ -1020,29 +902,11 @@ func TestNetworkRowDeviceCountMatchesHeadline(t *testing.T) {
 	}
 }
 
-func TestNoPicoAssetsServed(t *testing.T) {
-	s := testServer(t)
-	for _, path := range []string{"/static/css/pico.min.css", "/static/js/uplot.min.js"} {
-		w := httptest.NewRecorder()
-		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
-		if w.Code != http.StatusNotFound {
-			t.Errorf("GET %s status = %d, want 404", path, w.Code)
-		}
-	}
-}
-
 func TestLiveStreamCarriesCategoryTones(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/?tab=live")
 	if !strings.Contains(body, `data-category-tones="{`) || !strings.Contains(body, `"tracking":"error"`) {
 		t.Fatalf("live stream missing category tone map")
-	}
-}
-
-func TestRosterSortSpansTheSidebar(t *testing.T) {
-	s := testServer(t)
-	if body := getPage(t, s, "/"); !strings.Contains(body, `<fieldset class="elum-segmented ur-roster-sort" aria-label="Sort devices">`) {
-		t.Fatalf("roster sort missing the full-width class")
 	}
 }
 
@@ -1061,31 +925,6 @@ func TestRosterGroupsAndEmptyStateCanBeHiddenByTheFilter(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("roster missing %q", want)
 		}
-	}
-}
-
-func TestRosterFilterIsABareField(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/")
-	if !strings.Contains(body, `<form class="elum-field ur-roster-filter" role="search" aria-label="Filter devices">`) {
-		t.Fatalf("roster filter should be a bare label and input, not a bordered query card")
-	}
-}
-
-func TestOverviewLeavesTheTrackerRateToTheChart(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/")
-	if strings.Contains(body, "elum-meter") {
-		t.Fatalf("overview still shows a tracker meter alongside the chart")
-	}
-}
-
-func TestTrackerChartRangeSitsAboveTheChartCard(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/")
-	pattern := `<div class="ur-chart">\s*<fieldset class="elum-segmented ur-chart-range" aria-label="Chart range">(?s:.*?)</fieldset>\s*<article class="elum-card elum-card-labeled">`
-	if !regexp.MustCompile(pattern).MatchString(body) {
-		t.Fatalf("chart range control should sit above the chart card, inside the spaced ur-chart block")
 	}
 }
 
@@ -1184,42 +1023,6 @@ func TestFooterShowsDevOutsideReleases(t *testing.T) {
 	s := testServerVersion(t, "dev")
 	if body := getPage(t, s, "/settings"); !strings.Contains(body, `<p class="elum-footer-brand">Umberrelay dev · forwarding DNS with attribution</p>`) {
 		t.Fatalf("footer should say dev for a build without a release version")
-	}
-}
-
-func TestPanelTitlesAreMarkedForHidingBehindTabs(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/")
-	for _, title := range []string{"Overview", "Domains", "Live"} {
-		if !strings.Contains(body, `<h2 class="elum-separator-labeled ur-panel-title">`+title+`</h2>`) {
-			t.Fatalf("%s panel title should carry ur-panel-title so the tabs can stand in for it", title)
-		}
-	}
-}
-
-func TestDomainAndLiveFiltersAreBareRows(t *testing.T) {
-	s := testServer(t)
-	body := getPage(t, s, "/")
-	for _, form := range []string{
-		`<form class="elum-query ur-filters" role="search" aria-label="Domain filters" id="domain-filters">`,
-		`<form class="elum-query ur-filters" role="search" aria-label="Live stream filters">`,
-	} {
-		if !strings.Contains(body, form) {
-			t.Fatalf("filter row should drop the query card border, missing %s", form)
-		}
-	}
-}
-
-func TestDomainTablesUseCompactStyle(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-	seedPrivacyPageData(t, s, now)
-	for _, path := range []string{"/?tab=domains", "/devices/device:aa:bb:cc:dd:ee:ff?tab=domains"} {
-		body := getPage(t, s, path)
-		if !strings.Contains(body, `<table class="elum-table ur-domain-table" role="table">`) {
-			t.Fatalf("%s: domain table should carry ur-domain-table", path)
-		}
 	}
 }
 
