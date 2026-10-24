@@ -17,7 +17,6 @@ var listMatchOrder = []string{category.Tracking, category.Advertising, category.
 
 type listMatchRow struct {
 	Category string
-	Tone     string
 	Count    int
 	Share    string
 	Delta    string
@@ -46,7 +45,6 @@ func makeListMatches(counts []store.CategoryWindowCount) listMatches {
 		share := float64(c.Current) / float64(currentTotal) * 100
 		matches.Rows = append(matches.Rows, listMatchRow{
 			Category: name,
-			Tone:     categoryTone(name),
 			Count:    c.Current,
 			Share:    fmt.Sprintf("%.1f%%", share),
 			Delta:    shareDelta(share, c.Prior, priorTotal),

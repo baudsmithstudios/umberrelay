@@ -215,7 +215,7 @@
             <tbody role="rowgroup">
                 {{range .Rows}}
                 <tr role="row">
-                    <td data-label="Matched a list" role="cell"><span class="elum-status-label" data-tone="{{.Tone}}">{{.Category}}</span></td>
+                    <td data-label="Matched a list" role="cell"><span class="elum-status-label" data-tone="{{categoryTone .Category}}">{{.Category}}</span></td>
                     <td data-label="Queries" data-align="end" data-numeric="true" role="cell">{{.Count}}</td>
                     <td data-label="Share" data-align="end" data-numeric="true" role="cell">{{.Share}}</td>
                     <td data-label="vs prior 7d" data-align="end" data-numeric="true" role="cell">{{.Delta}}</td>

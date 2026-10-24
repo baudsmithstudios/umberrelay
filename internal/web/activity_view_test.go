@@ -19,7 +19,7 @@ func TestMakeListMatches(t *testing.T) {
 		t.Fatalf("rows = %+v, want tracking and analytics", got.Rows)
 	}
 	tracking := got.Rows[0]
-	want := listMatchRow{Category: "tracking", Tone: "error", Count: 404, Share: "10.4%", Delta: "▲ 0.4"}
+	want := listMatchRow{Category: "tracking", Count: 404, Share: "10.4%", Delta: "▲ 0.4"}
 	if tracking != want {
 		t.Fatalf("tracking row = %+v, want %+v", tracking, want)
 	}
