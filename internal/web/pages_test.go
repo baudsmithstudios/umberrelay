@@ -964,6 +964,15 @@ func TestTrackerChartCardCarriesTheRangeSummary(t *testing.T) {
 	}
 }
 
+func TestTrackerChartComparisonsSitUnderTheRate(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	pattern := `<span class="ur-chart-rate" data-chart-rate></span>\s*<span class="ur-chart-comparisons">\s*<span class="elum-badge" data-tone="error" data-chart-change hidden>`
+	if !regexp.MustCompile(pattern).MatchString(body) {
+		t.Fatalf("the prior-period badge should sit in its own row under the rate")
+	}
+}
+
 func TestDeviceChartComparesWithTheNetwork(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()

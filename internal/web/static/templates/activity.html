@@ -86,9 +86,11 @@
                     </header>
                     <p class="ur-chart-summary" aria-live="polite">
                         <span class="ur-chart-rate" data-chart-rate></span>
-                        <span class="elum-badge" data-tone="error" data-chart-change hidden></span>
-                        <span class="ur-chart-aside" data-chart-note hidden></span>
-                        {{with .Detail}}<span class="ur-chart-aside" data-chart-network></span>{{end}}
+                        <span class="ur-chart-comparisons">
+                            <span class="elum-badge" data-tone="error" data-chart-change hidden></span>
+                            <span class="ur-chart-aside" data-chart-note hidden></span>
+                            {{with .Detail}}<span class="ur-chart-aside" data-chart-network></span>{{end}}
+                        </span>
                     </p>
                     <div class="tracker-chart" id="tracker-chart" data-chart-query="{{with .Detail}}{{.RangeQuery}}{{end}}"></div>
                 </article>

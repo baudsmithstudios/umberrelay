@@ -192,13 +192,18 @@ body {
     margin-top: var(--elum-space-4);
 }
 
-/* The selected range's average tracker rate, set beside its comparisons. */
+/* The selected range's average tracker rate, with its comparisons on the row beneath. */
 .ur-chart-summary {
+    display: grid;
+    gap: var(--elum-space-1);
+    margin: 0 0 var(--elum-space-2);
+}
+
+.ur-chart-comparisons {
     align-items: baseline;
     display: flex;
     flex-wrap: wrap;
     gap: var(--elum-space-2);
-    margin: 0 0 var(--elum-space-2);
 }
 
 /* ElumKit's badge display rule would override [hidden]. */
