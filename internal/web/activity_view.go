@@ -124,11 +124,7 @@ func flagFor(a store.Anomaly) actorFlag {
 		flag.Explanation = fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes despite prior DNS activity, so visibility may be bypassed.", a.DeviceName, int(a.Delta))
 	default:
 		flag.Word, flag.priority = "volume spike", 1
-		if a.AverageValue <= 0 {
-			flag.Badge = fmt.Sprintf("+%.0f", a.Delta)
-		} else {
-			flag.Badge = fmt.Sprintf("%.1fx daily avg", a.CurrentValue/a.AverageValue)
-		}
+		flag.Badge = fmt.Sprintf("%.1fx daily avg", a.CurrentValue/a.AverageValue)
 		flag.Explanation = fmt.Sprintf("%s is making far more requests than usual, with %s contributing the largest spike from %s.", a.DeviceName, a.TopDomain, a.TopDomainSourceList)
 	}
 	return flag

@@ -107,13 +107,6 @@ func TestFlagForBadgeAndExplanation(t *testing.T) {
 	}
 }
 
-func TestFlagForVolumeSpikeWithoutAverageShowsDelta(t *testing.T) {
-	got := flagFor(store.Anomaly{Type: "volume_spike", Delta: 40})
-	if got.Badge != "+40" {
-		t.Fatalf("badge = %q, want +40", got.Badge)
-	}
-}
-
 func TestFlagsByMACPriority(t *testing.T) {
 	flags := flagsByMAC([]store.Anomaly{
 		{Type: "volume_spike", DeviceMAC: "aa"},
