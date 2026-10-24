@@ -42,7 +42,7 @@
         <header class="elum-stack">
             {{with .Flag}}<p class="elum-card-subtitle"><span class="elum-status-label" data-tone="{{.Tone}}">{{.Word}}</span></p>{{end}}
             <h1 class="ur-visually-hidden">{{.DeviceName}}</h1>
-            {{if eq .Mode "source"}}{{template "source-label-edit" .}}{{else}}{{template "label-edit" .}}{{end}}
+            {{template "label-edit" .LabelEditor}}
         </header>
         <section class="elum-system-bar" aria-label="{{if eq .Mode "source"}}Source{{else}}Device{{end}} facts">
             {{if eq .Mode "source"}}

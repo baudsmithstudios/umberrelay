@@ -51,6 +51,29 @@ type privacyDetail struct {
 	Pagination     detailDomainPagination
 }
 
+// labelEditor is the form that names a device or source; htmx saves it and swaps the returned editor in place.
+type labelEditor struct {
+	Action      string
+	Value       string
+	Placeholder string
+	Label       string
+}
+
+func deviceLabelEditor(device store.Device) labelEditor {
+	return labelEditor{Action: "/ui/devices/" + device.MAC + "/label", Value: device.Label, Placeholder: deviceDisplayName(device), Label: "Device Label"}
+}
+
+func sourceLabelEditor(sourceIP, label string) labelEditor {
+	return labelEditor{Action: "/ui/sources/" + sourceIP + "/label", Value: label, Placeholder: sourceActorDisplayName(sourceIP, label), Label: "Source Label"}
+}
+
+func (d privacyDetail) LabelEditor() labelEditor {
+	if d.Mode == actorTypeSource {
+		return sourceLabelEditor(d.SourceIP, d.SourceLabel)
+	}
+	return deviceLabelEditor(d.Device)
+}
+
 const detailDomainsPageSize = 20
 
 type detailDomainPagination struct {
@@ -514,13 +537,7 @@ func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "fragments", "label-edit", struct {
-			Device     store.Device
-			DeviceName string
-		}{
-			Device:     device,
-			DeviceName: deviceDisplayName(device),
-		})
+		s.renderFragment(w, "fragments", "label-edit", deviceLabelEditor(device))
 		return
 	}
 
@@ -544,15 +561,7 @@ func (s *Server) handleUIUpdateSourceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "fragments", "source-label-edit", struct {
-			DeviceName  string
-			SourceIP    string
-			SourceLabel string
-		}{
-			DeviceName:  sourceActorDisplayName(sourceIP, label),
-			SourceIP:    sourceIP,
-			SourceLabel: label,
-		})
+		s.renderFragment(w, "fragments", "label-edit", sourceLabelEditor(sourceIP, label))
 		return
 	}
 

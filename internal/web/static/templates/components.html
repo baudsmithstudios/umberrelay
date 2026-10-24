@@ -1,21 +1,9 @@
 {{define "label-edit"}}
 <div id="device-label-editor">
-    <form class="elum-query ur-label-editor" hx-post="/ui/devices/{{.Device.MAC}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
+    <form class="elum-query ur-label-editor" hx-post="{{.Action}}" hx-target="#device-label-editor" hx-swap="outerHTML">
         <div class="elum-field-float">
-            <input class="elum-input" id="device-label" type="text" name="label" value="{{.Device.Label}}" maxlength="128" placeholder="{{.DeviceName}}">
-            <label class="elum-label" for="device-label">Device Label</label>
-        </div>
-        <button class="elum-button" type="submit">Save</button>
-    </form>
-</div>
-{{end}}
-
-{{define "source-label-edit"}}
-<div id="device-label-editor">
-    <form class="elum-query ur-label-editor" hx-post="/ui/sources/{{.SourceIP}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
-        <div class="elum-field-float">
-            <input class="elum-input" id="device-label" type="text" name="label" value="{{.SourceLabel}}" maxlength="128" placeholder="{{.DeviceName}}">
-            <label class="elum-label" for="device-label">Source Label</label>
+            <input class="elum-input" id="device-label" type="text" name="label" value="{{.Value}}" maxlength="128" placeholder="{{.Placeholder}}">
+            <label class="elum-label" for="device-label">{{.Label}}</label>
         </div>
         <button class="elum-button" type="submit">Save</button>
     </form>
