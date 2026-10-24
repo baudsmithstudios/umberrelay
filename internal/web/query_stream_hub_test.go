@@ -1,45 +1,39 @@
 package web
 
 import (
-	"sync"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"umberrelay/internal/store"
 )
 
-type fakeQueryFeed struct {
-	mu   sync.Mutex
-	rows []store.Query
+func hubDB(t *testing.T) *store.DB {
+	t.Helper()
+	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
 }
 
-func (f *fakeQueryFeed) add(ids ...int64) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for _, id := range ids {
-		f.rows = append(f.rows, store.Query{ID: id, Domain: "example.com"})
-	}
+func newDBHub(db *store.DB, batch int) *queryStreamHub {
+	return newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
+		return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
+	}, db.LatestQueryID, batch)
 }
 
-func (f *fakeQueryFeed) fetch(afterID int64, limit int) ([]store.Query, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	var out []store.Query
-	for _, row := range f.rows {
-		if row.ID > afterID && len(out) < limit {
-			out = append(out, row)
-		}
+// writeQueries stores n queries; IDs count up from 1 in a fresh database.
+func writeQueries(t *testing.T, db *store.DB, n int) {
+	t.Helper()
+	queries := make([]store.Query, n)
+	for i := range queries {
+		queries[i] = store.Query{SourceIP: "10.0.0.7", Domain: "example.com", QueryType: "A", Timestamp: time.Now()}
 	}
-	return out, nil
-}
-
-func (f *fakeQueryFeed) latestID() (int64, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.rows) == 0 {
-		return 0, nil
+	if err := db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
 	}
-	return f.rows[len(f.rows)-1].ID, nil
 }
 
 func subscribe(t *testing.T, hub *queryStreamHub) <-chan store.Query {
@@ -67,13 +61,13 @@ func receiveQueryIDs(t *testing.T, stream <-chan store.Query, n int) []int64 {
 }
 
 func TestQueryStreamHubBroadcastsToAllSubscribers(t *testing.T) {
-	feed := &fakeQueryFeed{}
-	hub := newQueryStreamHub(feed.fetch, feed.latestID, 100)
+	db := hubDB(t)
+	hub := newDBHub(db, 100)
 	defer hub.Close()
 	first := subscribe(t, hub)
 	second := subscribe(t, hub)
 
-	feed.add(1)
+	writeQueries(t, db, 1)
 	hub.NotifyNewQueries()
 
 	for _, stream := range []<-chan store.Query{first, second} {
@@ -84,13 +78,13 @@ func TestQueryStreamHubBroadcastsToAllSubscribers(t *testing.T) {
 }
 
 func TestQueryStreamHubSkipsRowsWrittenBeforeFirstSubscriber(t *testing.T) {
-	feed := &fakeQueryFeed{}
-	feed.add(1, 2)
-	hub := newQueryStreamHub(feed.fetch, feed.latestID, 100)
+	db := hubDB(t)
+	writeQueries(t, db, 2)
+	hub := newDBHub(db, 100)
 	defer hub.Close()
 	stream := subscribe(t, hub)
 
-	feed.add(3)
+	writeQueries(t, db, 1)
 	hub.NotifyNewQueries()
 
 	if got := receiveQueryIDs(t, stream, 1); got[0] != 3 {
@@ -99,12 +93,12 @@ func TestQueryStreamHubSkipsRowsWrittenBeforeFirstSubscriber(t *testing.T) {
 }
 
 func TestQueryStreamHubDrainsMultipleBatches(t *testing.T) {
-	feed := &fakeQueryFeed{}
-	hub := newQueryStreamHub(feed.fetch, feed.latestID, 2)
+	db := hubDB(t)
+	hub := newDBHub(db, 2)
 	defer hub.Close()
 	stream := subscribe(t, hub)
 
-	feed.add(1, 2, 3, 4, 5)
+	writeQueries(t, db, 5)
 	hub.NotifyNewQueries()
 
 	got := receiveQueryIDs(t, stream, 5)
