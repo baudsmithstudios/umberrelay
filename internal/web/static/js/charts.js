@@ -88,7 +88,7 @@
         const plotH = height - PAD.top - PAD.bottom;
         const points = series.points;
         const rates = points.map(function (p) { return p.rate; }).filter(function (r) { return r !== null; });
-        const yMax = niceMax(Math.max.apply(null, rates.concat([series.average || 0, chart.prior.rate || 0, 1])), 4);
+        const yMax = niceMax(Math.max.apply(null, rates.concat([series.average || 0, 1])), 4);
         const x = function (i) { return PAD.left + (points.length > 1 ? i / (points.length - 1) * plotW : plotW / 2); };
         const y = function (v) { return PAD.top + plotH - v / yMax * plotH; };
         chart.x = x;
@@ -129,22 +129,6 @@
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
             ctx.fillText('avg ' + formatRate(series.average), PAD.left + plotW, ay - 3);
-        }
-
-        // Labelled at the left so it stays clear of the average's label on the right.
-        if (chart.prior.rate !== null) {
-            const ry = Math.round(y(chart.prior.rate)) + 0.5;
-            ctx.setLineDash([1, 3]);
-            ctx.strokeStyle = colors.fg;
-            ctx.beginPath();
-            ctx.moveTo(PAD.left, ry);
-            ctx.lineTo(PAD.left + plotW, ry);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = colors.fg;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('prior ' + chart.prior.days + 'd ' + formatRate(chart.prior.rate), PAD.left + 4, ry - 3);
         }
 
         ctx.strokeStyle = colors.line;
@@ -264,11 +248,9 @@
         fetchActivity(range, chart.query)
             .then(function (activity) {
                 chart.series = toSeries(activity.buckets, range);
-                chart.prior = { rate: activity.prior_rate, days: activity.prior_days };
                 chart.active = null;
                 chart.canvas.setAttribute('aria-label', 'Tracker rate ' + (range === '24h' ? 'by hour' : 'by day') +
                     (chart.series.average === null ? ', no queries' : ', average ' + formatRate(chart.series.average)) +
-                    (activity.prior_rate === null ? '' : ', prior ' + activity.prior_days + ' days ' + formatRate(activity.prior_rate)) +
                     '. Use left and right arrows to read each point.');
                 summarize(chart, activity);
                 draw(chart);
@@ -310,7 +292,6 @@
             network: document.querySelector('[data-chart-network]'),
             query: container.dataset.chartQuery || '',
             series: { points: [], average: null, peak: -1 },
-            prior: { rate: null, days: 0 },
             active: null,
             x: function () { return 0; },
         };
