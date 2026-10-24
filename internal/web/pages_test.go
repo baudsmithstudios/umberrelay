@@ -650,6 +650,58 @@ func TestUnflaggedSourceHasNoSubheader(t *testing.T) {
 	}
 }
 
+// postLabelFragment saves a label the way the editor's htmx form does and returns the fragment it swaps in.
+func postLabelFragment(t *testing.T, s *Server, path, label string) string {
+	t.Helper()
+	req := httptest.NewRequest("POST", path, strings.NewReader(url.Values{"label": {label}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST %s status = %d, want 200", path, w.Code)
+	}
+	return w.Body.String()
+}
+
+func TestSavingADeviceLabelReturnsItsEditor(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := postLabelFragment(t, s, "/ui/devices/aa:bb:cc:dd:ee:ff/label", "Den TV")
+	for _, want := range []string{
+		`hx-post="/ui/devices/aa:bb:cc:dd:ee:ff/label"`,
+		`name="label" value="Den TV" maxlength="128" placeholder="Den TV">`,
+		`<label class="elum-label" for="device-label">Device Label</label>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("device label fragment missing %q", want)
+		}
+	}
+}
+
+func TestSavingASourceLabelReturnsItsEditor(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{SourceIP: "10.44.0.7", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := postLabelFragment(t, s, "/ui/sources/10.44.0.7/label", "Lab box")
+	for _, want := range []string{
+		`hx-post="/ui/sources/10.44.0.7/label"`,
+		`name="label" value="Lab box" maxlength="128" placeholder="Lab box · 10.44.0.7">`,
+		`<label class="elum-label" for="device-label">Source Label</label>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("source label fragment missing %q", want)
+		}
+	}
+}
+
 func TestSourceLabelEditorIsABareRow(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
