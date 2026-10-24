@@ -150,6 +150,12 @@ body {
     top: 0;
 }
 
+/* Sets the tabs further from the heading and closer to the panel they switch. The pane's gap does not
+   collapse with margins, so these shift the tabs within it. */
+.ur-pane > .elum-tabs {
+    margin-block: var(--elum-space-2) calc(var(--elum-space-2) * -1);
+}
+
 /* tabs.js gives the panels role="tabpanel" once the tabs show, and the selected tab then names the panel.
    Without JavaScript the panels stack and keep these titles. */
 [role="tabpanel"] > .ur-panel-title {
