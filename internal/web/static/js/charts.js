@@ -36,6 +36,11 @@
         return (Math.round(value * 10) / 10) + '%';
     }
 
+    function formatChange(points) {
+        const rounded = Math.round(points * 10) / 10;
+        return (rounded > 0 ? '+' : '') + rounded;
+    }
+
     // Rate per bucket; empty buckets are null so the line breaks instead of dropping to zero.
     function toSeries(buckets, range) {
         let total = 0;
@@ -83,7 +88,7 @@
         const plotH = height - PAD.top - PAD.bottom;
         const points = series.points;
         const rates = points.map(function (p) { return p.rate; }).filter(function (r) { return r !== null; });
-        const yMax = niceMax(Math.max.apply(null, rates.concat([series.average || 0, 1])), 4);
+        const yMax = niceMax(Math.max.apply(null, rates.concat([series.average || 0, chart.prior.rate || 0, 1])), 4);
         const x = function (i) { return PAD.left + (points.length > 1 ? i / (points.length - 1) * plotW : plotW / 2); };
         const y = function (v) { return PAD.top + plotH - v / yMax * plotH; };
         chart.x = x;
@@ -124,6 +129,22 @@
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
             ctx.fillText('avg ' + formatRate(series.average), PAD.left + plotW, ay - 3);
+        }
+
+        // Labelled at the left so it stays clear of the average's label on the right.
+        if (chart.prior.rate !== null) {
+            const ry = Math.round(y(chart.prior.rate)) + 0.5;
+            ctx.setLineDash([1, 3]);
+            ctx.strokeStyle = colors.fg;
+            ctx.beginPath();
+            ctx.moveTo(PAD.left, ry);
+            ctx.lineTo(PAD.left + plotW, ry);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = colors.fg;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('prior ' + chart.prior.days + 'd ' + formatRate(chart.prior.rate), PAD.left + 4, ry - 3);
         }
 
         ctx.strokeStyle = colors.line;
@@ -202,30 +223,62 @@
         return best;
     }
 
+    function summarize(chart, activity) {
+        const average = chart.series.average;
+        chart.rate.textContent = average === null ? 'no queries' : formatRate(average);
+        chart.change.hidden = average === null || activity.prior_rate === null;
+        if (!chart.change.hidden) {
+            chart.change.textContent = '[' + formatChange(average - activity.prior_rate) + ' vs prior ' + activity.prior_days + 'd]';
+        }
+        chart.note.hidden = activity.prior_rate !== null;
+        chart.note.textContent = 'comparison needs ' + activity.history_days + ' days of history';
+    }
+
+    function fetchActivity(range, query) {
+        let url = '/api/activity?range=' + encodeURIComponent(range);
+        if (query) {
+            url += '&' + query;
+        }
+        return fetch(url).then(function (response) {
+            if (!response.ok) {
+                throw new Error('request failed');
+            }
+            return response.json();
+        });
+    }
+
+    // A device's rate reads against the whole network's over the same range.
+    function loadNetwork(chart, range) {
+        fetchActivity(range, '')
+            .then(function (activity) {
+                const average = toSeries(activity.buckets, range).average;
+                chart.network.textContent = '· network ' + (average === null ? 'no queries' : formatRate(average));
+            })
+            .catch(function () {
+                chart.network.textContent = '· network rate unavailable';
+            });
+    }
+
     function load(chart, range) {
         chart.subtitle.textContent = range === '24h' ? 'by hour' : 'by day';
-        let url = '/api/activity?range=' + encodeURIComponent(range);
-        if (chart.query) {
-            url += '&' + chart.query;
-        }
-        fetch(url)
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('request failed');
-                }
-                return response.json();
-            })
+        fetchActivity(range, chart.query)
             .then(function (activity) {
                 chart.series = toSeries(activity.buckets, range);
+                chart.prior = { rate: activity.prior_rate, days: activity.prior_days };
                 chart.active = null;
                 chart.canvas.setAttribute('aria-label', 'Tracker rate ' + (range === '24h' ? 'by hour' : 'by day') +
                     (chart.series.average === null ? ', no queries' : ', average ' + formatRate(chart.series.average)) +
+                    (activity.prior_rate === null ? '' : ', prior ' + activity.prior_days + ' days ' + formatRate(activity.prior_rate)) +
                     '. Use left and right arrows to read each point.');
+                summarize(chart, activity);
                 draw(chart);
             })
             .catch(function () {
                 chart.container.textContent = 'Failed to load chart data';
             });
+        if (chart.network) {
+            loadNetwork(chart, range);
+        }
     }
 
     function bind() {
@@ -251,8 +304,13 @@
             canvas: canvas,
             tooltip: tooltip,
             subtitle: document.querySelector('[data-chart-subtitle]'),
+            rate: document.querySelector('[data-chart-rate]'),
+            change: document.querySelector('[data-chart-change]'),
+            note: document.querySelector('[data-chart-note]'),
+            network: document.querySelector('[data-chart-network]'),
             query: container.dataset.chartQuery || '',
             series: { points: [], average: null, peak: -1 },
+            prior: { rate: null, days: 0 },
             active: null,
             x: function () { return 0; },
         };

@@ -981,6 +981,30 @@ func TestTrackerChartRangeSitsAboveTheChartCard(t *testing.T) {
 	}
 }
 
+func TestTrackerChartCardCarriesTheRangeSummary(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	for _, want := range []string{"data-chart-rate", "data-chart-change", "data-chart-note"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("chart card missing %s", want)
+		}
+	}
+	if strings.Contains(body, "data-chart-network") {
+		t.Errorf("whole network chart should not compare itself with the network")
+	}
+}
+
+func TestDeviceChartComparesWithTheNetwork(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	if body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff"); !strings.Contains(body, "data-chart-network") {
+		t.Fatalf("device chart card missing the network comparison")
+	}
+}
+
 func TestPanelTitlesAreMarkedForHidingBehindTabs(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")
