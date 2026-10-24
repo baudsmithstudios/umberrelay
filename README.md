@@ -3,7 +3,7 @@
 </p>
 
 <p align="center" style="margin-top: 0;">
-  <img src="assets/readme-home.png" alt="Umberrelay home dashboard" width="800" style="border-radius: 5px;">
+  <img src="assets/readme-home.png" alt="Umberrelay Activity view" width="800" style="border-radius: 5px;">
 </p>
 
 <p align="center">
@@ -25,8 +25,9 @@ Umberrelay is a forwarding DNS server that logs every query, identifies which ne
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
 - **Web UI** — an Activity view that lists every device and source-IP actor beside a detail pane for the whole network or the selected actor (tracker rate against a baseline, blocklist matches by category, tracker-rate chart, domains with overrides, live query stream), plus a Settings page for runtime configuration
+- **Anomaly flags** — flags known devices whose 24h tracker rate is more than 5 points above their prior 7 days, or whose 24h query count is more than three times their daily average
 - **Best-effort DoH/DoT bypass signal** — flags devices that appear active on LAN but stop using local DNS, with higher confidence when encrypted-DNS bootstrap domains were seen
-- **REST API** — JSON API for actors, devices, queries, activity, domains, lists, settings, and overrides
+- **REST API** — JSON API for actors, devices, queries, activity, anomalies, bypass signals, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
 - **Configurable via UI** — retention, list refresh interval, blocklist management all from the settings page
@@ -162,6 +163,7 @@ The API is unauthenticated — see [Access And Hardening](#access-and-hardening)
 - Mutation endpoints accept `application/json`.
 - Mutation endpoints return either JSON or an empty success status (`204 No Content` / `202 Accepted`).
 - Errors return JSON in the form `{ "error": "message" }`.
+- Cross-origin mutation requests are rejected with a plain-text `403 Forbidden`.
 - `/ui/...` routes are internal SSR form handlers, not part of the public API contract.
 
 | Method | Endpoint | Description |
@@ -236,7 +238,7 @@ Selected error responses use this JSON shape:
 | `domain` | Filter by domain |
 | `from` | Start time (RFC3339) |
 | `to` | End time (RFC3339, defaults to now) |
-| `limit` | Results per page (default 100) |
+| `limit` | Results per page (default 100, max 1000) |
 | `offset` | Pagination offset |
 
 When `actor` is set, it takes precedence over `device`.
@@ -249,7 +251,7 @@ When `actor` is set, it takes precedence over `device`.
 | `device` | Filter by device MAC |
 | `domain` | Filter by domain |
 | `category` | Filter by category (`tracking`, `advertising`, `analytics`, `telemetry`, `malware`, `uncategorized`) |
-| `after` | Only emit events with query ID greater than this cursor (default: the latest query ID, so only new queries stream) |
+| `after` | Only emit events with query ID greater than this cursor (default: the `Last-Event-ID` header when sent, otherwise the latest query ID, so only new queries stream) |
 | `limit` | Batch size per poll (default 100, max 500) |
 
 When `actor` is set, it takes precedence over `device`.
@@ -265,13 +267,13 @@ When `actor` is set, it takes precedence over `device`.
 
 Filter precedence is `actor`, then `source`, then `device`.
 
-`GET /api/domains` returns an object with `total_devices` plus a `domains` array. Each domain item includes:
-
 `GET /api/domains` supports:
 
 | Param | Description |
 |---|---|
 | `limit` | Results per page (default 100, max 1000) |
+
+It returns an object with `total_devices` (distinct attribution actors that sent queries in the last 24h) plus a `domains` array. Each domain item includes:
 
 | Field | Description |
 |---|---|
@@ -344,9 +346,8 @@ Purge Loop (goroutine)
     └─ Delete queries older than retention_days (daily)
 
 Web Server
-    ├─ Activity and Settings pages
-    ├─ Per-device detail view
-    ├─ HTMX fragment handlers for settings, overrides, and list management
+    ├─ Activity page (network and per-actor views) and Settings page
+    ├─ HTMX fragment handlers for labels, settings, overrides, and list management
     └─ REST API
 ```
 
