@@ -381,13 +381,26 @@ func (s *Server) handleAPIActivity(w http.ResponseWriter, r *http.Request) {
 		Tracker   int   `json:"tracker"`
 	}
 
-	response := make([]activityBucket, 0, len(activity.Buckets))
+	// PriorRate stays null when the actor's history does not yet reach back HistoryDays.
+	response := struct {
+		Buckets     []activityBucket `json:"buckets"`
+		PriorDays   int              `json:"prior_days"`
+		PriorRate   *float64         `json:"prior_rate"`
+		HistoryDays int              `json:"history_days"`
+	}{
+		Buckets:     make([]activityBucket, 0, len(activity.Buckets)),
+		PriorDays:   activity.PriorDays,
+		HistoryDays: activity.HistoryDays,
+	}
 	for _, bucket := range activity.Buckets {
-		response = append(response, activityBucket{
+		response.Buckets = append(response.Buckets, activityBucket{
 			Timestamp: bucket.Timestamp.Unix(),
 			Total:     bucket.TotalCount,
 			Tracker:   bucket.TrackerCount,
 		})
+	}
+	if activity.HasPrior {
+		response.PriorRate = &activity.PriorRate
 	}
 
 	writeJSON(w, http.StatusOK, response)

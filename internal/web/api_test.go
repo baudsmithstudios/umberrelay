@@ -600,16 +600,49 @@ func TestAPIActivitySupportsRanges(t *testing.T) {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var response []struct {
-		Timestamp int64 `json:"timestamp"`
-		Total     int   `json:"total"`
-		Tracker   int   `json:"tracker"`
+	var response struct {
+		Buckets []struct {
+			Timestamp int64 `json:"timestamp"`
+			Total     int   `json:"total"`
+			Tracker   int   `json:"tracker"`
+		} `json:"buckets"`
+		PriorDays   int      `json:"prior_days"`
+		PriorRate   *float64 `json:"prior_rate"`
+		HistoryDays int      `json:"history_days"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
-	if len(response) != 7 {
-		t.Fatalf("bucket count = %d, want 7", len(response))
+	if len(response.Buckets) != 7 {
+		t.Fatalf("bucket count = %d, want 7", len(response.Buckets))
+	}
+	if response.PriorDays != 7 || response.HistoryDays != 14 || response.PriorRate != nil {
+		t.Fatalf("prior = %d days / %v, history %d days; want 7 / null / 14 when history is short", response.PriorDays, response.PriorRate, response.HistoryDays)
+	}
+}
+
+func TestAPIActivityReportsThePriorRateWhenHistoryAllows(t *testing.T) {
+	s := testServer(t)
+	priorStart := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -13)
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: priorStart},
+		{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "clean.example.com", QueryType: "A", Timestamp: priorStart.AddDate(0, 0, 1)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/activity?range=7d", nil)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+
+	var response struct {
+		PriorRate *float64 `json:"prior_rate"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if response.PriorRate == nil || *response.PriorRate != 50 {
+		t.Fatalf("prior_rate = %v, want 50", response.PriorRate)
 	}
 }
 

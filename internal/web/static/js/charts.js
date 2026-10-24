@@ -215,8 +215,8 @@
                 }
                 return response.json();
             })
-            .then(function (buckets) {
-                chart.series = toSeries(buckets, range);
+            .then(function (activity) {
+                chart.series = toSeries(activity.buckets, range);
                 chart.active = null;
                 chart.canvas.setAttribute('aria-label', 'Tracker rate ' + (range === '24h' ? 'by hour' : 'by day') +
                     (chart.series.average === null ? ', no queries' : ', average ' + formatRate(chart.series.average)) +

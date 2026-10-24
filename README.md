@@ -209,7 +209,7 @@ Selected read endpoints return these JSON shapes:
 |---|---|
 | `GET /api/health` | `{ "status": "ok" }` |
 | `GET /api/actors` | `[{"key":"device:aa:bb:cc:dd:ee:ff","type":"device","name":"Living Room TV","device_mac":"aa:bb:cc:dd:ee:ff","source_ip":"","query_count":120,"tracker_percent":47.5},{"key":"source:10.0.0.7","type":"source","name":"Unattributed · 10.0.0.7","device_mac":"","source_ip":"10.0.0.7","query_count":25,"tracker_percent":12}]` |
-| `GET /api/activity` | `[{"timestamp": 1711670400, "total": 42, "tracker": 18}]` |
+| `GET /api/activity` | `{"buckets": [{"timestamp": 1711670400, "total": 42, "tracker": 18}], "prior_days": 7, "prior_rate": 14.2, "history_days": 8}` |
 | `GET /api/anomalies` | `[{"device_mac": "aa:bb:cc:dd:ee:ff", "device_name": "Living Room TV", "type": "tracker_spike", "current_value": 75, "average_value": 20, "delta": 55, "top_domain": "ads.example.com", "top_domain_category": "tracking", "top_domain_source_list": "Tracking List"}]` |
 | `GET /api/bypass` | `[{"device_mac":"aa:bb:cc:dd:ee:ff","device_name":"Living Room TV","confidence":"likely","hint_domain":"dns.google","silent_minutes":180,"prior_query_count":42,"last_seen":1711670400,"last_query":1711659600}]` |
 | `GET /api/domains` | `{ "total_devices": 12, "domains": [{"domain": "ads.example.com", "category": "tracking", "query_count": 120, "device_count": 4, "source_list": "Tracking List"}] }` |
@@ -262,6 +262,8 @@ When `actor` is set, it takes precedence over `device`.
 | `device` | Filter by device MAC |
 | `source` | Filter by unattributed source IP |
 | `range` | Time window: `24h` (default, hourly buckets), `7d` (daily buckets), or `30d` (daily buckets) |
+
+`prior_rate` is the tracker rate of the `prior_days` before the range: 7 days for `24h` and `7d`, 30 days for `30d`. It is `null` until the actor's history reaches back `history_days` (8, 14 or 60).
 
 Filter precedence is `actor`, then `source`, then `device`.
 
