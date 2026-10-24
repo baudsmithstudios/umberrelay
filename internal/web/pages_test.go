@@ -802,6 +802,33 @@ func TestNeedsAttentionFlagsUseCompactStyle(t *testing.T) {
 	}
 }
 
+func TestDomainsTabFirstPageLinksToTheNext(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+	queries := make([]store.Query, 0, 25)
+	for i := 1; i <= 25; i++ {
+		queries = append(queries, store.Query{DeviceMAC: mac, Domain: fmt.Sprintf("domain-%02d.example.com", i), QueryType: "A", Timestamp: now.Add(-time.Duration(i) * time.Minute)})
+	}
+	if err := s.db.WriteQueries(queries); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := html.UnescapeString(getPage(t, s, "/devices/"+mac+"?tab=domains"))
+	for _, want := range []string{"showing 1-20", "Page 1 of 2", `href="?tab=domains&page=2">Next</a>`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("first page missing %q", want)
+		}
+	}
+	if strings.Contains(body, ">Prev</a>") {
+		t.Errorf("first page links to a previous page")
+	}
+}
+
 func TestDomainsTabPageBeyondRangeClamps(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
