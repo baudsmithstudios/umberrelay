@@ -61,7 +61,7 @@
             row.dataset.tone = tone;
         }
         row.innerHTML =
-            '<span class="elum-badge"' + (tone ? ' data-tone="' + tone + '"' : '') + '>[' + escapeHTML(category.toUpperCase()) + ']</span>' +
+            '<span class="elum-badge"' + (tone ? ' data-tone="' + tone + '"' : '') + '>[' + escapeHTML(category) + ']</span>' +
             '<span>' + escapeHTML(query.domain) + ' <span class="elum-card-subtitle">' + escapeHTML(query.query_type || '') + '</span>' +
             (showActor ? ' · ' + escapeHTML(formatLiveActor(query)) : '') + '</span>' +
             '<span class="elum-feed-meta">' + escapeHTML(formatLiveTime(query.timestamp)) + '</span>';
