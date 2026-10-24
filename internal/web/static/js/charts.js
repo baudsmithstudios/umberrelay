@@ -15,9 +15,6 @@
     }
 
     function niceMax(value, steps) {
-        if (!isFinite(value) || value <= 0) {
-            return steps;
-        }
         const roughStep = value / steps;
         const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
         const normalized = roughStep / magnitude;
