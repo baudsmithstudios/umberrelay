@@ -84,13 +84,14 @@ func categoryTone(name string) string {
 }
 
 // categoryTonesJSON gives the live feed, which builds its rows in the browser, the same tones as the server-rendered pages.
-func categoryTonesJSON() (string, error) {
+func categoryTonesJSON() string {
 	tones := make(map[string]string)
 	for _, option := range category.Options() {
 		tones[option.Value] = categoryTone(option.Value)
 	}
-	b, err := json.Marshal(tones)
-	return string(b), err
+	// Marshalling a map of strings cannot fail.
+	b, _ := json.Marshal(tones)
+	return string(b)
 }
 
 func formatPoints(v float64) string {
