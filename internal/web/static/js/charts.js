@@ -249,8 +249,13 @@
                     '. Use left and right arrows to read each point.');
                 draw(chart);
             })
+            // Clears the chart instead of replacing it, so the next range can still draw.
             .catch(function () {
-                chart.container.textContent = 'Failed to load chart data';
+                chart.subtitle.textContent = 'failed to load';
+                chart.canvas.setAttribute('aria-label', 'Tracker rate failed to load.');
+                chart.series = { points: [], average: null, peak: -1 };
+                chart.active = null;
+                draw(chart);
             });
     }
 
@@ -273,7 +278,6 @@
         container.append(canvas, tooltip);
 
         const chart = {
-            container: container,
             canvas: canvas,
             tooltip: tooltip,
             subtitle: document.querySelector('[data-chart-subtitle]'),
