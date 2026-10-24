@@ -294,7 +294,8 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 	}
 }
 
-func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActors int, domainsPage int) (privacyDetail, error) {
+func (s *Server) loadDeviceDetail(now time.Time, selected store.DeviceWithTrends, totalActors int, domainsPage int) (privacyDetail, error) {
+	device := selected.Device
 	privacySummary, err := s.db.DevicePrivacySummaryAt(device.MAC, now)
 	if err != nil {
 		return privacyDetail{}, err
@@ -311,13 +312,15 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 
 	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, makeListMatches(counts), topDomains, pagination)
 	detail.Mode = actorTypeDevice
+	detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
 	detail.IdentifiedBy = identificationNote(device)
 	detail.Device = device
 	detail.DeviceName = deviceDisplayName(device)
 	return detail, nil
 }
 
-func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors int, domainsPage int) (privacyDetail, error) {
+func (s *Server) loadSourceDetail(now time.Time, selected store.SourceWithTrends, totalActors int, domainsPage int) (privacyDetail, error) {
+	sourceIP := selected.SourceIP
 	privacySummary, err := s.db.SourcePrivacySummaryAt(sourceIP, now)
 	if err != nil {
 		return privacyDetail{}, err
@@ -338,6 +341,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 
 	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, makeListMatches(counts), topDomains, pagination)
 	detail.Mode = actorTypeSource
+	detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
 	detail.IdentifiedBy = "No MAC address was seen for this source, so it is tracked by IP."
 	detail.DeviceName = sourceActorDisplayName(sourceIP, label)
 	detail.SourceIP = sourceIP
@@ -387,8 +391,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
-			detail, err = s.loadDeviceDetail(now, selected.Device, totalActors, domainsPage)
-			detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
+			detail, err = s.loadDeviceDetail(now, *selected, totalActors, domainsPage)
 			if flag, ok := flags[selected.MAC]; ok {
 				detail.Flag = &flag
 			}
@@ -398,8 +401,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
-			detail, err = s.loadSourceDetail(now, value, totalActors, domainsPage)
-			detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
+			detail, err = s.loadSourceDetail(now, *selected, totalActors, domainsPage)
 		}
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
