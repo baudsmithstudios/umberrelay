@@ -152,7 +152,7 @@
             </div>
             {{end}}
             {{with .Detail}}
-            <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.DomainPageStart}}-{{.DomainPageEnd}}{{end}}</p>
+            <p class="elum-card-subtitle">{{.PrivacySummary.UniqueDomains}} unique{{if gt .PrivacySummary.UniqueDomains 0}} · showing {{.Pagination.Start}}-{{.Pagination.End}}{{end}}</p>
             <div class="elum-table-wrap" tabindex="0" role="region" aria-label="Domains">
                 <table class="elum-table ur-domain-table" role="table">
                     <thead role="rowgroup">
@@ -170,11 +170,11 @@
                     </tbody>
                 </table>
             </div>
-            {{if gt .DomainPageCount 1}}
+            {{if gt .Pagination.PageCount 1}}
             <nav class="elum-pagination" aria-label="Pagination">
-                {{if .DomainHasPrev}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.DomainPrevPage}}">Prev</a>{{end}}
-                <span class="elum-pagination-status">Page {{.DomainPage}} of {{.DomainPageCount}}</span>
-                {{if .DomainHasNext}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.DomainNextPage}}">Next</a>{{end}}
+                {{if .Pagination.HasPrev}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.Pagination.PrevPage}}">Prev</a>{{end}}
+                <span class="elum-pagination-status">Page {{.Pagination.Page}} of {{.Pagination.PageCount}}</span>
+                {{if .Pagination.HasNext}}<a class="elum-button" data-variant="tertiary" href="?tab=domains&page={{.Pagination.NextPage}}">Next</a>{{end}}
             </nav>
             {{end}}
             <details class="elum-disclosure">

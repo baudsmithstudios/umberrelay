@@ -35,27 +35,20 @@ type privacyDomainRow struct {
 }
 
 type privacyDetail struct {
-	Mode            string
-	LiveActorKey    string
-	Device          store.Device
-	DeviceName      string
-	SourceIP        string
-	SourceLabel     string
-	PrivacySummary  store.DevicePrivacySummary
-	ListMatches     listMatches
-	TrackerChange   string
-	Flag            *actorFlag
-	IdentifiedBy    string
-	Domains         []privacyDomainRow
-	RangeQuery      string
-	DomainPage      int
-	DomainPageCount int
-	DomainPageStart int
-	DomainPageEnd   int
-	DomainHasPrev   bool
-	DomainHasNext   bool
-	DomainPrevPage  int
-	DomainNextPage  int
+	Mode           string
+	LiveActorKey   string
+	Device         store.Device
+	DeviceName     string
+	SourceIP       string
+	SourceLabel    string
+	PrivacySummary store.DevicePrivacySummary
+	ListMatches    listMatches
+	TrackerChange  string
+	Flag           *actorFlag
+	IdentifiedBy   string
+	Domains        []privacyDomainRow
+	RangeQuery     string
+	Pagination     detailDomainPagination
 }
 
 const detailDomainsPageSize = 20
@@ -278,19 +271,12 @@ func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePri
 	}
 
 	return privacyDetail{
-		LiveActorKey:    actorKey,
-		PrivacySummary:  summary,
-		ListMatches:     matches,
-		Domains:         domains,
-		RangeQuery:      "actor=" + url.QueryEscape(actorKey),
-		DomainPage:      pagination.Page,
-		DomainPageCount: pagination.PageCount,
-		DomainPageStart: pagination.Start,
-		DomainPageEnd:   pagination.End,
-		DomainHasPrev:   pagination.HasPrev,
-		DomainHasNext:   pagination.HasNext,
-		DomainPrevPage:  pagination.PrevPage,
-		DomainNextPage:  pagination.NextPage,
+		LiveActorKey:   actorKey,
+		PrivacySummary: summary,
+		ListMatches:    matches,
+		Domains:        domains,
+		RangeQuery:     "actor=" + url.QueryEscape(actorKey),
+		Pagination:     pagination,
 	}
 }
 
