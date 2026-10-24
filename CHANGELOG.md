@@ -8,13 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- The web UI is rebuilt on ElumKit. Home, Devices and Device Detail merge into one Activity view: a roster of devices and unattributed sources beside a detail pane for the whole network or the selected actor, with Overview, Domains and Live tabs.
-- The stacked category bar is removed. The tracker rate's change against the prior 7 days is shown in points (for example "+3 pts vs prior 7d") in the 24h line of the network, device and source views, on roster rows, and on tracker-spike flags.
-- Needs-attention flags lead with a measurement: volume spikes show their multiple of the daily average ("4.2x daily avg") and DNS bypass flags show how long the device has been silent ("2h 3m silent").
-- Blocklist matches are listed per category (tracking, advertising, malware, analytics, telemetry) with share and change against the prior 7 days; telemetry is no longer counted as unclassified.
-- The tracker-rate chart plots one series on one axis, with an average line and hover/keyboard tooltips.
-- `/devices` and `/domains` are removed; device and source pages stay at `/devices/{actorKey}`.
-- The footer shows the running version from the release tag (for example `v0.2.0`), or `dev` for builds that are not releases, instead of a hardcoded number.
+- The web UI is rebuilt on ElumKit as one Activity view: a device and source roster beside a detail pane with Overview, Domains and Live tabs.
+- Tracker rate change against the prior 7 days is shown in points ("+3 pts vs prior 7d").
+- Volume spike flags show their multiple of the daily average ("4.2x daily avg"); bypass flags show silent time ("2h 3m silent").
+- Blocklist matches are listed per category with share and change; telemetry is no longer counted as unclassified.
+- The tracker-rate chart plots one series with an average line and tooltips.
+- The footer shows the release version, or `dev` for other builds.
 
 ### Fixed
 
@@ -22,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- The stacked category bar.
+- The `/devices` and `/domains` pages; actor pages stay at `/devices/{actorKey}`.
 - Pico CSS and the unused uPlot assets.
 
 ## [0.2.0] - 2026-10-18
