@@ -55,47 +55,20 @@
         return { points: points, average: total > 0 ? tracker / total * 100 : null, peak: peak };
     }
 
-    function draw(chart) {
-        const canvas = chart.canvas;
-        const series = chart.series;
-        const dpr = window.devicePixelRatio || 1;
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
-        canvas.width = Math.round(width * dpr);
-        canvas.height = Math.round(height * dpr);
-        const ctx = canvas.getContext('2d');
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, width, height);
-
-        const colors = {
-            line: token('--elum-color-error'),
-            muted: token('--elum-color-muted'),
-            grid: token('--elum-color-border'),
-            fg: token('--elum-color-fg'),
-            bg: token('--elum-color-bg'),
-        };
-        ctx.font = '11px ' + token('--elum-font-family');
-
-        const plotW = width - PAD.left - PAD.right;
-        const plotH = height - PAD.top - PAD.bottom;
-        const points = series.points;
-        const rates = points.map(function (p) { return p.rate; }).filter(function (r) { return r !== null; });
-        const yMax = niceMax(Math.max.apply(null, rates.concat([series.average || 0, 1])), 4);
-        const x = function (i) { return PAD.left + (points.length > 1 ? i / (points.length - 1) * plotW : plotW / 2); };
-        const y = function (v) { return PAD.top + plotH - v / yMax * plotH; };
-        chart.x = x;
-
-        ctx.strokeStyle = colors.grid;
+    // Grid lines across the plot, labelled with their rate, and time labels along the bottom.
+    function drawAxes(frame, points) {
+        const ctx = frame.ctx;
+        ctx.strokeStyle = frame.colors.grid;
         ctx.lineWidth = 1;
-        ctx.fillStyle = colors.muted;
+        ctx.fillStyle = frame.colors.muted;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         for (let step = 0; step <= 4; step++) {
-            const value = yMax / 4 * step;
-            const py = Math.round(y(value)) + 0.5;
+            const value = frame.yMax / 4 * step;
+            const py = Math.round(frame.y(value)) + 0.5;
             ctx.beginPath();
             ctx.moveTo(PAD.left, py);
-            ctx.lineTo(PAD.left + plotW, py);
+            ctx.lineTo(PAD.left + frame.plotW, py);
             ctx.stroke();
             ctx.fillText(formatRate(value), PAD.left - 6, py);
         }
@@ -105,25 +78,29 @@
         const labelEvery = Math.max(1, Math.ceil(points.length / 6));
         points.forEach(function (p, i) {
             if (i % labelEvery === 0 || i === points.length - 1) {
-                ctx.fillText(p.label, x(i), PAD.top + plotH + 8);
+                ctx.fillText(p.label, frame.x(i), PAD.top + frame.plotH + 8);
             }
         });
+    }
 
-        if (series.average !== null) {
-            const ay = Math.round(y(series.average)) + 0.5;
-            ctx.setLineDash([4, 4]);
-            ctx.strokeStyle = colors.muted;
-            ctx.beginPath();
-            ctx.moveTo(PAD.left, ay);
-            ctx.lineTo(PAD.left + plotW, ay);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('avg ' + formatRate(series.average), PAD.left + plotW, ay - 3);
-        }
+    function drawAverage(frame, average) {
+        const ctx = frame.ctx;
+        const ay = Math.round(frame.y(average)) + 0.5;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = frame.colors.muted;
+        ctx.beginPath();
+        ctx.moveTo(PAD.left, ay);
+        ctx.lineTo(PAD.left + frame.plotW, ay);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('avg ' + formatRate(average), PAD.left + frame.plotW, ay - 3);
+    }
 
-        ctx.strokeStyle = colors.line;
+    function drawRateLine(frame, points) {
+        const ctx = frame.ctx;
+        ctx.strokeStyle = frame.colors.line;
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -135,41 +112,92 @@
                 return;
             }
             if (drawing) {
-                ctx.lineTo(x(i), y(p.rate));
+                ctx.lineTo(frame.x(i), frame.y(p.rate));
             } else {
-                ctx.moveTo(x(i), y(p.rate));
+                ctx.moveTo(frame.x(i), frame.y(p.rate));
                 drawing = true;
             }
         });
         ctx.stroke();
+    }
 
-        if (series.peak >= 0) {
-            const peak = points[series.peak];
-            const px = x(series.peak);
-            const py = y(peak.rate);
-            ctx.fillStyle = colors.line;
-            ctx.strokeStyle = colors.bg;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px, py, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            const text = formatRate(peak.rate) + ' at ' + peak.label;
-            const half = ctx.measureText(text).width / 2;
-            ctx.fillStyle = colors.fg;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(text, Math.min(Math.max(px, PAD.left + half), PAD.left + plotW - half), py - 8);
+    // Marks the highest point and labels it, keeping the label inside the plot.
+    function drawPeak(frame, points, index) {
+        const ctx = frame.ctx;
+        const peak = points[index];
+        const px = frame.x(index);
+        const py = frame.y(peak.rate);
+        ctx.fillStyle = frame.colors.line;
+        ctx.strokeStyle = frame.colors.bg;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        const text = formatRate(peak.rate) + ' at ' + peak.label;
+        const half = ctx.measureText(text).width / 2;
+        ctx.fillStyle = frame.colors.fg;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(text, Math.min(Math.max(px, PAD.left + half), PAD.left + frame.plotW - half), py - 8);
+    }
+
+    function drawCursor(frame, index) {
+        const ctx = frame.ctx;
+        const cx = Math.round(frame.x(index)) + 0.5;
+        ctx.strokeStyle = frame.colors.fg;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, PAD.top);
+        ctx.lineTo(cx, PAD.top + frame.plotH);
+        ctx.stroke();
+    }
+
+    function draw(chart) {
+        const canvas = chart.canvas;
+        const series = chart.series;
+        const dpr = window.devicePixelRatio || 1;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.font = '11px ' + token('--elum-font-family');
+
+        const plotW = width - PAD.left - PAD.right;
+        const plotH = height - PAD.top - PAD.bottom;
+        const points = series.points;
+        const rates = points.map(function (p) { return p.rate; }).filter(function (r) { return r !== null; });
+        const yMax = niceMax(Math.max.apply(null, rates.concat([series.average || 0, 1])), 4);
+        const frame = {
+            ctx: ctx,
+            colors: {
+                line: token('--elum-color-error'),
+                muted: token('--elum-color-muted'),
+                grid: token('--elum-color-border'),
+                fg: token('--elum-color-fg'),
+                bg: token('--elum-color-bg'),
+            },
+            plotW: plotW,
+            plotH: plotH,
+            yMax: yMax,
+            x: function (i) { return PAD.left + (points.length > 1 ? i / (points.length - 1) * plotW : plotW / 2); },
+            y: function (v) { return PAD.top + plotH - v / yMax * plotH; },
+        };
+        chart.x = frame.x;
+
+        drawAxes(frame, points);
+        if (series.average !== null) {
+            drawAverage(frame, series.average);
         }
-
+        drawRateLine(frame, points);
+        if (series.peak >= 0) {
+            drawPeak(frame, points, series.peak);
+        }
         if (chart.active !== null) {
-            const cx = Math.round(x(chart.active)) + 0.5;
-            ctx.strokeStyle = colors.fg;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(cx, PAD.top);
-            ctx.lineTo(cx, PAD.top + plotH);
-            ctx.stroke();
+            drawCursor(frame, chart.active);
         }
         updateTooltip(chart);
     }
