@@ -37,15 +37,6 @@
         });
         let anyGroupShown = false;
         document.querySelectorAll('.ur-roster [data-roster-group]').forEach(function (group) {
-            const shown = Array.prototype.some.call(group.children, function (item) {
-                return !item.hidden;
-            });
-            group.hidden = !shown;
-            document.getElementById(group.getAttribute('aria-labelledby')).hidden = !shown;
-            anyGroupShown = anyGroupShown || shown;
-        });
-        document.getElementById('roster-no-matches').hidden = needle === '' || anyGroupShown;
-        document.querySelectorAll('.ur-roster [data-roster-group]').forEach(function (group) {
             Array.prototype.slice.call(group.children).sort(function (leftItem, rightItem) {
                 const left = leftItem.firstElementChild.dataset;
                 const right = rightItem.firstElementChild.dataset;
@@ -57,7 +48,14 @@
             }).forEach(function (item) {
                 group.appendChild(item);
             });
+            const shown = Array.prototype.some.call(group.children, function (item) {
+                return !item.hidden;
+            });
+            group.hidden = !shown;
+            document.getElementById(group.getAttribute('aria-labelledby')).hidden = !shown;
+            anyGroupShown = anyGroupShown || shown;
         });
+        document.getElementById('roster-no-matches').hidden = needle === '' || anyGroupShown;
     }
 
     // New actors appear on the next page load; live updates only touch rows already rendered.
