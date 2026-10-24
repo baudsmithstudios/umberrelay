@@ -18,12 +18,17 @@ import (
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
+	return testServerVersion(t, "dev")
+}
+
+func testServerVersion(t *testing.T, version string) *Server {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := store.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(db, classify.NewManager(db))
+	s := NewServer(db, classify.NewManager(db), version)
 	s.refreshListSources = func(context.Context, *classify.Manager, []classify.ListSource) error { return nil }
 	t.Cleanup(func() {
 		s.Close()

@@ -1018,6 +1018,20 @@ func TestTrackerTrendTextCountsPoints(t *testing.T) {
 	}
 }
 
+func TestFooterShowsTheReleaseVersion(t *testing.T) {
+	s := testServerVersion(t, "0.3.1")
+	if body := getPage(t, s, "/"); !strings.Contains(body, `<p class="elum-footer-brand">Umberrelay v0.3.1 · forwarding DNS with attribution</p>`) {
+		t.Fatalf("footer missing the release version")
+	}
+}
+
+func TestFooterShowsDevOutsideReleases(t *testing.T) {
+	s := testServerVersion(t, "dev")
+	if body := getPage(t, s, "/settings"); !strings.Contains(body, `<p class="elum-footer-brand">Umberrelay dev · forwarding DNS with attribution</p>`) {
+		t.Fatalf("footer should say dev for a build without a release version")
+	}
+}
+
 func TestPanelTitlesAreMarkedForHidingBehindTabs(t *testing.T) {
 	s := testServer(t)
 	body := getPage(t, s, "/")

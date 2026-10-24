@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Blocklist matches are listed per category (tracking, advertising, malware, analytics, telemetry) with share and change against the prior 7 days; telemetry is no longer counted as unclassified.
 - The tracker-rate chart plots one series on one axis, with an average line and hover/keyboard tooltips.
 - `/devices` and `/domains` are removed; device and source pages stay at `/devices/{actorKey}`.
+- The footer shows the running version from the release tag (for example `v0.2.0`), or `dev` for builds that are not releases, instead of a hardcoded number.
 
 ### Fixed
 

@@ -21,7 +21,8 @@
         {{template "content" .}}
     </main>
     <footer class="elum-footer">
-        <p class="elum-footer-brand">Umberrelay 0.2.0 · forwarding DNS with attribution</p>
+        {{/* Release builds carry their tag's number; every other build reports "dev". */}}
+        <p class="elum-footer-brand">Umberrelay {{if eq version "dev"}}dev{{else}}v{{version}}{{end}} · forwarding DNS with attribution</p>
     </footer>
     <script src="/static/js/htmx.min.js"></script>
     {{block "page_scripts" .}}{{end}}

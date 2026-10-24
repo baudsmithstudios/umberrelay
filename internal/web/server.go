@@ -38,7 +38,7 @@ type Server struct {
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
 
-func NewServer(db *store.DB, mgr *classify.Manager) *Server {
+func NewServer(db *store.DB, mgr *classify.Manager, version string) *Server {
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 	s := &Server{
 		db:       db,
@@ -47,7 +47,7 @@ func NewServer(db *store.DB, mgr *classify.Manager) *Server {
 			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
 		}, db.LatestQueryID, 500),
 		mux:                    http.NewServeMux(),
-		pages:                  parsePages(),
+		pages:                  parsePages(version),
 		now:                    time.Now,
 		backgroundCtx:          backgroundCtx,
 		backgroundCancel:       backgroundCancel,
@@ -63,8 +63,13 @@ func refreshManagerSources(ctx context.Context, mgr *classify.Manager, sources [
 	return mgr.Refresh(ctx, sources)
 }
 
-func parsePages() map[string]*template.Template {
-	funcs := template.FuncMap{"categoryTone": categoryTone, "categoryOptions": category.Options, "categoryTonesJSON": categoryTonesJSON}
+func parsePages(version string) map[string]*template.Template {
+	funcs := template.FuncMap{
+		"categoryTone":      categoryTone,
+		"categoryOptions":   category.Options,
+		"categoryTonesJSON": categoryTonesJSON,
+		"version":           func() string { return version },
+	}
 	base := template.Must(template.New("layout.html").Funcs(funcs).ParseFS(static.FS, "templates/layout.html", "templates/components.html"))
 	pageFiles := []string{"activity", "settings"}
 	pages := make(map[string]*template.Template, len(pageFiles)+1)
