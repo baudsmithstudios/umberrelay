@@ -402,7 +402,7 @@ func trafficPatterns() []deviceTraffic {
 			{"multiscreen.samsung.com", "", 4},
 			{"api.samsungapps.com", "", 3},
 			{"osb-apps.samsungqbe.com", "", 5},
-			{"d1oxlq5h9komer.cloudfront.net", "", 8},
+			{"d111111abcdef8.cloudfront.net", "", 8},
 			{"api.hulu.com", "", 4},
 			{"play.hulu.com", "", 6},
 			{"ads-e-darwin.hulustream.com", "advertising", 3},
