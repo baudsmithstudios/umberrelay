@@ -17,31 +17,15 @@
   top: 0;
   border-top: var(--elum-border-width) solid var(--elum-color-border);
 }
-.elum-footer-brand,
-.elum-footer-link {
+.elum-footer-brand {
   align-items: center;
   display: inline-flex;
   font-size: var(--elum-text-sm);
   letter-spacing: 0.08em;
   line-height: var(--elum-lh-tight);
   text-transform: uppercase;
-}
-
-.elum-footer-brand {
   color: var(--elum-color-muted);
   font-weight: 500;
   padding: 0;
-}
-
-.elum-footer-links {
-  align-items: center;
-  display: flex;
-  gap: var(--elum-space-4);
-}
-
-.elum-footer-link {
-  color: var(--elum-color-accent);
-  text-decoration: none;
-  font-weight: 300;
 }
 

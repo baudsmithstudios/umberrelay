@@ -88,12 +88,6 @@
   text-transform: uppercase;
 }
 
-.elum-empty-message {
-  color: var(--elum-color-muted);
-  font-size: var(--elum-text-sm);
-  margin: 0;
-}
-
 .elum-disclosure {
   background: transparent;
   border: var(--elum-border-width) solid var(--elum-color-border);
@@ -122,44 +116,6 @@
   color: var(--elum-color-muted);
   font-size: var(--elum-text-sm);
   padding: var(--elum-space-3);
-}
-
-.elum-detail-list {
-  border: var(--elum-border-width) solid var(--elum-color-border);
-  border-radius: var(--elum-radius-md);
-}
-
-:where(.elum-detail-list) {
-  margin: 0;
-}
-
-.elum-detail {
-  align-items: baseline;
-  display: grid;
-  gap: var(--elum-space-2);
-  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
-  padding: var(--elum-space-2) var(--elum-space-3);
-}
-
-.elum-detail + .elum-detail {
-  border-top: var(--elum-border-width) solid var(--elum-color-border);
-}
-
-.elum-detail-term {
-  color: var(--elum-color-muted);
-  font-size: var(--elum-text-xs);
-  letter-spacing: 0.08em;
-  margin: 0;
-  overflow-wrap: anywhere;
-  text-transform: uppercase;
-}
-
-.elum-detail-value {
-  color: var(--elum-color-fg);
-  font-variant-numeric: tabular-nums;
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .elum-table-wrap {
@@ -247,18 +203,3 @@
   }
 }
 
-@media (min-width: 48.001rem) {
-  .elum-table [data-column="status"] {
-    width: 9rem;
-  }
-
-  .elum-table td[data-column="status"] {
-    white-space: nowrap;
-  }
-}
-
-@media (max-width: 42rem) {
-  .elum-detail {
-    grid-template-columns: 1fr;
-  }
-}

@@ -8,12 +8,8 @@
 @import "./components/telemetry.css";
 @import "./components/data.css";
 @import "./components/feed.css";
-@import "./components/output.css";
-@import "./components/dialog.css";
-@import "./components/menu.css";
 @import "./components/separator.css";
 @import "./components/tabs.css";
-@import "./components/toolbar.css";
 @import "./components/query.css";
 @import "./components/navigation.css";
 @import "./components/footer.css";

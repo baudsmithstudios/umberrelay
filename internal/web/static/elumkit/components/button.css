@@ -34,20 +34,8 @@
   opacity: 0.6;
 }
 
-.elum-button[data-variant="primary"] {
-  background: var(--elum-color-accent);
-  border-color: var(--elum-color-accent);
-  color: var(--elum-color-bg);
-}
-
 .elum-button[data-variant="tertiary"] {
   border-color: transparent;
-}
-
-.elum-button[data-variant="primary"]:hover {
-  background: var(--elum-color-fg);
-  border-color: var(--elum-color-fg);
-  color: var(--elum-color-bg);
 }
 
 .elum-button[data-variant="tertiary"]:hover {
