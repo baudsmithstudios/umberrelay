@@ -10,6 +10,7 @@
             liveQueryStream.source = null;
         }
         liveQueryStream.signature = '';
+        document.getElementById('live-query-status').innerHTML = '';
     }
 
     function escapeHTML(value) {
@@ -46,19 +47,24 @@
         return date.toLocaleTimeString();
     }
 
-    function appendLiveQueryRow(feed, query) {
+    function appendLiveQueryRow(feed, query, showActor, tones) {
         if (feed.dataset.hasRows !== 'true') {
             feed.innerHTML = '';
             feed.dataset.hasRows = 'true';
         }
 
-        const row = document.createElement('tr');
+        const category = query.category || 'unclassified';
+        const tone = tones[query.category] || '';
+        const row = document.createElement('li');
+        row.className = 'elum-feed-item';
+        if (tone) {
+            row.dataset.tone = tone;
+        }
         row.innerHTML =
-            '<td data-label="Time">' + escapeHTML(formatLiveTime(query.timestamp)) + '</td>' +
-            '<td data-label="Actor">' + escapeHTML(formatLiveActor(query)) + '</td>' +
-            '<td data-label="Domain">' + escapeHTML(query.domain) + '</td>' +
-            '<td data-label="Type">' + escapeHTML(query.query_type || '') + '</td>' +
-            '<td data-label="Category">' + escapeHTML(query.category || 'unclassified') + '</td>';
+            '<span class="elum-badge"' + (tone ? ' data-tone="' + tone + '"' : '') + '>[' + escapeHTML(category) + ']</span>' +
+            '<span>' + escapeHTML(query.domain) + ' <span class="elum-card-subtitle">' + escapeHTML(query.query_type || '') + '</span>' +
+            (showActor ? ' · ' + escapeHTML(formatLiveActor(query)) : '') + '</span>' +
+            '<span class="elum-feed-meta">' + escapeHTML(formatLiveTime(query.timestamp)) + '</span>';
         feed.insertBefore(row, feed.firstChild);
 
         while (feed.children.length > 100) {
@@ -67,27 +73,17 @@
     }
 
     function bindLiveQueryStream() {
-        const panel = document.getElementById('live-query-stream');
-        if (!panel) {
-            closeLiveQueryStream();
-            return;
-        }
-        if (panel.dataset.bound === 'true') {
-            return;
-        }
-        panel.dataset.bound = 'true';
-
         if (typeof window.EventSource === 'undefined') {
             return;
         }
 
+        const panel = document.getElementById('live-query-stream');
         const domainInput = document.getElementById('live-query-domain-filter');
         const categorySelect = document.getElementById('live-query-category-filter');
         const feed = document.getElementById('live-query-feed');
         const clearButton = document.getElementById('live-query-clear');
-        if (!domainInput || !categorySelect || !feed || !clearButton) {
-            return;
-        }
+        const status = document.getElementById('live-query-status');
+        const tones = JSON.parse(panel.dataset.categoryTones);
 
         let debounceTimer = null;
 
@@ -122,6 +118,12 @@
             }
 
             liveQueryStream.source = new EventSource(url);
+            liveQueryStream.source.addEventListener('open', function () {
+                status.innerHTML = '<span class="elum-spinner">streaming</span>';
+            });
+            liveQueryStream.source.addEventListener('error', function () {
+                status.innerHTML = '';
+            });
             liveQueryStream.source.addEventListener('query', function (event) {
                 let query;
                 try {
@@ -129,7 +131,7 @@
                 } catch (_) {
                     return;
                 }
-                appendLiveQueryRow(feed, query);
+                appendLiveQueryRow(feed, query, !actor, tones);
             });
         }
 
@@ -144,15 +146,22 @@
             domainInput.value = '';
             categorySelect.value = '';
             feed.dataset.hasRows = 'false';
-            feed.innerHTML = '<tr><td colspan="5">Waiting for live queries\u2026</td></tr>';
+            feed.innerHTML = '<li class="elum-feed-item">Waiting for live queries\u2026</li>';
             openStream();
         });
 
-        openStream();
+        // Stream only while the Live tab shows; each stream holds one of the browser's few HTTP/1.1 connections.
+        const tabPanel = panel.closest('[role="tabpanel"]');
+        function syncWithTab() {
+            if (tabPanel.hidden) {
+                closeLiveQueryStream();
+            } else {
+                openStream();
+            }
+        }
+        new MutationObserver(syncWithTab).observe(tabPanel, { attributes: true, attributeFilter: ['hidden'] });
+        syncWithTab();
     }
 
     document.addEventListener('DOMContentLoaded', bindLiveQueryStream);
-    document.body.addEventListener('htmx:afterSwap', function () {
-        bindLiveQueryStream();
-    });
 })();

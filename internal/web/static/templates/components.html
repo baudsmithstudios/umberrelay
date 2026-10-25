@@ -1,76 +1,58 @@
 {{define "label-edit"}}
-<div class="device-label-block" id="device-label-editor">
-    <form class="label-form" hx-post="/ui/devices/{{.Device.MAC}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
-        <input type="text" name="label" value="{{.Device.Label}}" maxlength="128" placeholder="Edit Label">
-        <button type="submit" class="secondary">Save Label</button>
-    </form>
-</div>
-{{end}}
-
-{{define "source-label-edit"}}
-<div class="device-label-block" id="device-label-editor">
-    <form class="label-form" hx-post="/ui/sources/{{.SourceIP}}/label" hx-target="#device-label-editor" hx-swap="outerHTML">
-        <input type="text" name="label" value="{{.SourceLabel}}" maxlength="128" placeholder="Edit Label">
-        <button type="submit" class="secondary">Save Label</button>
+<div id="device-label-editor">
+    <form class="elum-query ur-label-editor" hx-post="{{.Action}}" hx-target="#device-label-editor" hx-swap="outerHTML">
+        <div class="elum-field-float">
+            <input class="elum-input" id="device-label" type="text" name="label" value="{{.Value}}" maxlength="128" placeholder="{{.Placeholder}}">
+            <label class="elum-label" for="device-label">{{.Label}}</label>
+        </div>
+        <button class="elum-button" type="submit">Save</button>
     </form>
 </div>
 {{end}}
 
 {{define "live-query-stream"}}
-<section class="live-query-stream" id="live-query-stream" data-actor-key="{{.LiveActorKey}}">
-    <div class="section-title">
-        <span>Live Query Stream</span>
-        <span class="section-note">real-time DNS feed</span>
-    </div>
-    <div class="sort-row">
-        <input type="search" id="live-query-domain-filter" class="sidebar-search" placeholder="Filter domain...">
-        <select id="live-query-category-filter" aria-label="Filter live stream category">
-            <option value="">All categories</option>
-            {{range .CategoryOptions}}
-            <option value="{{.Value}}">{{.Label}}</option>
-            {{end}}
-        </select>
-        <button type="button" id="live-query-clear" class="secondary">Clear</button>
-    </div>
-    <div class="domain-table-wrap">
-        <table class="domain-table" role="grid">
-            <thead>
-                <tr>
-                    <th scope="col">Time</th>
-                    <th scope="col">Actor</th>
-                    <th scope="col">Domain</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Category</th>
-                </tr>
-            </thead>
-            <tbody id="live-query-feed">
-                <tr>
-                    <td colspan="5">Waiting for live queries…</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+<section class="elum-stack" id="live-query-stream" data-actor-key="{{.}}" data-category-tones="{{categoryTonesJSON}}" aria-label="Live query stream">
+    <form class="elum-query ur-filters" role="search" aria-label="Live stream filters">
+        <div class="elum-field">
+            <label class="elum-label" for="live-query-domain-filter">Domain</label>
+            <input class="elum-input" type="search" id="live-query-domain-filter" placeholder="filter domain">
+        </div>
+        <div class="elum-field">
+            <label class="elum-label" for="live-query-category-filter">Category</label>
+            <select class="elum-select" id="live-query-category-filter">
+                <option value="">All categories</option>
+                {{range categoryOptions}}
+                <option value="{{.Value}}">{{.Label}}</option>
+                {{end}}
+            </select>
+        </div>
+        <button class="elum-button" type="button" id="live-query-clear">Clear</button>
+    </form>
+    <p role="status" id="live-query-status"></p>
+    <ul class="elum-feed" id="live-query-feed">
+        <li class="elum-feed-item">Waiting for live queries…</li>
+    </ul>
 </section>
 {{end}}
 
 {{define "domain-row"}}
-<tr id="domain-row-{{.Domain}}">
-    <td data-label="Domain">{{.Domain}}</td>
-    <td data-label="Classification"><span class="classification-pill {{.ClassificationClass}}">{{.ClassificationLabel}}</span></td>
-    <td data-label="Queries">{{.QueryCount}}</td>
+<tr role="row" id="domain-row-{{.Domain}}">
+    <td data-label="Domain" role="cell">{{.Domain}}</td>
+    <td data-label="Class" role="cell"><span class="elum-status-label" data-tone="{{categoryTone .Category}}">{{.ClassificationLabel}}</span></td>
+    <td data-label="Queries" data-align="end" data-numeric="true" role="cell">{{.QueryCount}}</td>
     {{if eq .Scope "network"}}
-    <td data-label="Reach">{{.DeviceCountLabel}}</td>
+    <td data-label="Reach" data-align="end" data-numeric="true" role="cell">{{.DeviceCountLabel}}</td>
     {{end}}
-    <td data-label="Actions">
-        <form class="override-form" hx-post="/ui/overrides/{{.Domain}}" hx-target="closest tr" hx-swap="outerHTML">
+    <td data-label="Override" role="cell">
+        <form hx-post="/ui/overrides/{{.Domain}}" hx-target="closest tr" hx-swap="outerHTML" class="ur-override-form">
             <input type="hidden" name="actor_key" value="{{.ActorKey}}">
-            <select name="category" aria-label="Override category for {{.Domain}}">
+            <select class="elum-select" name="category" aria-label="Override category for {{.Domain}}">
                 {{$row := .}}
-                {{range .CategoryOptions}}
-                <option value="{{.Value}}"{{if eq $row.Category .Value}} selected{{end}}>{{.Label}}</option>
+                {{range categoryOptions}}
+                <option value="{{.Value}}"{{if or (eq $row.Category .Value) (and (eq $row.Category "") (eq .Value "uncategorized"))}} selected{{end}}>{{.Label}}</option>
                 {{end}}
             </select>
-            <button type="submit" class="secondary">Classify</button>
+            <button class="elum-button" data-variant="tertiary" type="submit">Set</button>
         </form>
     </td>
 </tr>

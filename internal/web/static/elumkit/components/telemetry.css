@@ -1,0 +1,46 @@
+.elum-system-bar {
+  align-items: center;
+  background: transparent;
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  border-radius: var(--elum-radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--elum-space-2) var(--elum-space-4);
+  justify-content: space-between;
+  padding: var(--elum-space-2) var(--elum-space-3);
+}
+
+.elum-system-bar-brand {
+  color: var(--elum-color-accent);
+  font-size: var(--elum-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: var(--elum-lh-tight);
+  text-transform: uppercase;
+}
+
+.elum-system-bar-group {
+  align-items: center;
+  color: var(--elum-color-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--elum-text-sm);
+  gap: var(--elum-space-2);
+}
+
+.elum-system-bar-item {
+  align-items: baseline;
+  display: inline-flex;
+  gap: var(--elum-space-1);
+  white-space: nowrap;
+}
+
+.elum-system-bar-key {
+  color: var(--elum-color-muted);
+}
+
+.elum-system-bar-value {
+  color: var(--elum-color-fg);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

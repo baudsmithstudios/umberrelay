@@ -18,7 +18,7 @@ Before walking the DNS path, sanity-check the service itself.
 docker compose logs -f umberrelay
 ```
 
-Startup errors (port 53 already bound, missing config, schema mismatches) surface here first. Keep this open in another terminal while reproducing a problem.
+Startup errors (port 53 already bound, an invalid `config.toml`, schema mismatches) surface here first. Keep this open in another terminal while reproducing a problem.
 
 ### Restart after config changes
 
@@ -113,7 +113,7 @@ http://<PI_IP>:8080/
 ```
 
 Expected result:
-- the Home page loads
+- the Activity page loads
 - top-level query counters increase
 - the domain list updates after fresh DNS activity
 
@@ -121,7 +121,7 @@ Expected result:
 
 ### DoH/DoT bypass signals are best-effort
 
-The bypass signal in the attention feed and `/api/bypass` is intentionally heuristic. It detects devices that look active on LAN but have gone quiet on local DNS, with higher confidence when historical encrypted-DNS bootstrap domains were observed.
+The bypass signal (the bypass flags under *Needs attention* and `/api/bypass`) is intentionally heuristic. It detects devices that look active on LAN but have gone quiet on local DNS, with higher confidence when historical encrypted-DNS bootstrap domains were observed.
 
 Use it as a trust warning, not packet-level proof. If you need to verify a specific client:
 - run direct DNS tests from that client (`dig @<PI_IP> ...`)
@@ -157,7 +157,7 @@ sudo tcpdump -D
 
 ### Cross-subnet attribution uses source-IP fallback
 
-Across routed subnets the Pi rarely learns remote client MACs, so queries record `source_ip` with `device_mac` blank. Those appear as source-IP fallback actors in the Devices page and via `/api/actors`.
+Across routed subnets the Pi rarely learns remote client MACs, so queries record `source_ip` with `device_mac` blank. Those appear under *Unattributed sources* in the Activity roster and via `/api/actors`.
 
 ## Result Triage
 

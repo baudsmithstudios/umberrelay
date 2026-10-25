@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The web UI is rebuilt on ElumKit as one Activity view: a device and source roster beside a detail pane with Overview, Domains and Live tabs.
+- Tracker rate change against the prior 7 days is shown in points ("+3 pts vs prior 7d").
+- Volume spike flags show their multiple of the daily average ("4.2x daily avg"); bypass flags show silent time ("2h 3m silent").
+- Blocklist matches are listed per category with share and change; telemetry is no longer counted as unclassified.
+- The tracker-rate chart plots one series with an average line and tooltips.
+- The footer shows the release version, or `dev` for other builds.
+
+### Fixed
+
+- Unclassified domains no longer preselect "tracking" in the override menu.
+
+### Removed
+
+- The stacked category bar.
+- The `/devices` and `/domains` pages; actor pages stay at `/devices/{actorKey}`.
+- Pico CSS and the unused uPlot assets.
+
 ## [0.2.0] - 2026-10-18
 
 ### Changed

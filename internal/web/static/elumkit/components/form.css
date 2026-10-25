@@ -1,0 +1,250 @@
+.elum-label {
+  color: var(--elum-color-fg);
+  display: block;
+  font-size: var(--elum-text-sm);
+  margin-bottom: var(--elum-space-1);
+}
+
+.elum-input,
+.elum-select {
+  background: transparent;
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  border-radius: var(--elum-radius-md);
+  caret-color: var(--elum-color-accent);
+  color: var(--elum-color-fg);
+  font-family: inherit;
+  font-size: var(--elum-text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--elum-lh-normal);
+  min-height: 2.5rem;
+  padding: var(--elum-space-2) var(--elum-space-3);
+  width: 100%;
+}
+
+.elum-prompt-field {
+  align-items: center;
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  border-radius: var(--elum-radius-md);
+  display: flex;
+  min-height: 2.5rem;
+  padding: 0 var(--elum-space-3);
+  width: 100%;
+}
+
+.elum-prompt-field:focus-within {
+  border-color: var(--elum-color-focus);
+  outline: 2px solid var(--elum-color-focus);
+  outline-offset: 2px;
+}
+
+.elum-input-prompt {
+  color: var(--elum-color-muted);
+  flex: 0 0 auto;
+  font-size: var(--elum-text-xs);
+  line-height: var(--elum-lh-normal);
+  margin-right: var(--elum-space-1);
+}
+
+.elum-prompt-field > .elum-input {
+  border: 0;
+  min-height: auto;
+  padding: var(--elum-space-2) 0;
+}
+
+.elum-prompt-field > .elum-input:focus-visible {
+  outline: 0;
+}
+
+.elum-input::placeholder {
+  color: var(--elum-color-muted);
+}
+
+.elum-input[aria-invalid="true"],
+.elum-select[aria-invalid="true"] {
+  border-color: var(--elum-color-error);
+}
+
+.elum-input:disabled,
+.elum-select:disabled {
+  color: var(--elum-color-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.elum-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--elum-space-1);
+}
+
+fieldset.elum-field {
+  background: transparent;
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  border-radius: var(--elum-radius-md);
+  padding: var(--elum-space-3);
+}
+
+fieldset.elum-field > .elum-label {
+  color: var(--elum-color-accent);
+  font-size: var(--elum-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--elum-space-1);
+  padding: 0 var(--elum-space-2);
+  text-transform: uppercase;
+}
+
+.elum-choice {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--elum-space-2);
+}
+
+.elum-choice[data-disabled="true"] {
+  color: var(--elum-color-muted);
+  cursor: not-allowed;
+}
+
+.elum-switch {
+  appearance: none;
+  background: linear-gradient(var(--elum-color-muted), var(--elum-color-muted)) no-repeat left 0.125rem center / 0.625rem 0.625rem;
+  block-size: 1rem;
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  border-radius: var(--elum-radius-md);
+  cursor: pointer;
+  flex: none;
+  inline-size: 2rem;
+  margin: 0;
+  transition: background-position var(--elum-motion-fast);
+}
+
+.elum-switch:checked {
+  background-image: linear-gradient(var(--elum-color-accent), var(--elum-color-accent));
+  background-position: right 0.125rem center;
+  border-color: var(--elum-color-accent);
+}
+
+@media (forced-colors: active) {
+  .elum-switch,
+  .elum-switch:checked {
+    forced-color-adjust: none;
+    background-image: linear-gradient(CanvasText, CanvasText);
+    border-color: CanvasText;
+  }
+}
+
+.elum-segmented {
+  border: 0;
+  display: inline-flex;
+  padding: 0;
+}
+
+.elum-segmented-option {
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  color: var(--elum-color-muted);
+  cursor: pointer;
+  /* a flex row trims the markup's whitespace inside the brackets */
+  display: inline-flex;
+  font-size: var(--elum-text-sm);
+  line-height: var(--elum-lh-tight);
+  padding: var(--elum-space-2) var(--elum-space-3);
+  position: relative;
+}
+
+.elum-segmented-option::before,
+.elum-segmented-option::after {
+  visibility: hidden;
+}
+
+.elum-segmented-option::before {
+  content: "[" / "";
+}
+
+.elum-segmented-option::after {
+  content: "]" / "";
+}
+
+.elum-segmented-option:has(:checked)::before,
+.elum-segmented-option:has(:checked)::after {
+  visibility: visible;
+}
+
+.elum-segmented-option + .elum-segmented-option {
+  border-inline-start: 0;
+}
+
+.elum-segmented-option:first-of-type {
+  border-end-start-radius: var(--elum-radius-md);
+  border-start-start-radius: var(--elum-radius-md);
+}
+
+.elum-segmented-option:last-of-type {
+  border-end-end-radius: var(--elum-radius-md);
+  border-start-end-radius: var(--elum-radius-md);
+}
+
+.elum-segmented-option > input {
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.elum-segmented-option:hover {
+  color: var(--elum-color-fg);
+}
+
+.elum-segmented-option:has(:checked) {
+  background: var(--elum-color-accent);
+  color: var(--elum-color-bg);
+}
+
+.elum-segmented-option:has(:focus-visible) {
+  outline: 2px solid var(--elum-color-focus);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
+  .elum-segmented-option:has(:checked) {
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}
+
+.elum-switch:disabled,
+.elum-segmented-option:has(:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.elum-field-float {
+  position: relative;
+}
+
+.elum-field-float > .elum-label {
+  color: var(--elum-color-muted);
+  inset-inline-start: var(--elum-space-3);
+  margin: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: top var(--elum-motion-fast), transform var(--elum-motion-fast), 
+    font-size var(--elum-motion-fast), color var(--elum-motion-fast);
+}
+
+.elum-field-float > .elum-input:focus + .elum-label,
+.elum-field-float > .elum-input:not(:placeholder-shown) + .elum-label {
+  background: var(--elum-color-bg);
+  color: var(--elum-color-accent);
+  font-size: var(--elum-text-xs);
+  padding-inline: var(--elum-space-1);
+  top: 0;
+  transform: translateY(-50%);
+}

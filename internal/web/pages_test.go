@@ -101,67 +101,53 @@ func TestDeviceDetailPageSourceRoute(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	for _, want := range []string{"Source Detail", "10.44.0.7", "Kitchen Display"} {
+	for _, want := range []string{`<h1 class="ur-visually-hidden">Kitchen Display · 10.44.0.7</h1>`, "/ui/sources/10.44.0.7/label"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("response missing %q", want)
 		}
 	}
 }
 
-func TestDeviceDetailPageDomainPagination(t *testing.T) {
+func TestDomainsTabPagination(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	mac := "aa:bb:cc:dd:ee:ff"
-
-	if err := s.db.UpsertDevice(store.Device{
-		MAC:       mac,
-		IP:        "192.168.1.10",
-		Hostname:  "tracker-box",
-		FirstSeen: now.Add(-24 * time.Hour),
-		LastSeen:  now,
-	}); err != nil {
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
 		t.Fatalf("UpsertDevice: %v", err)
 	}
-
 	queries := make([]store.Query, 0, 25)
 	for i := 1; i <= 25; i++ {
-		queries = append(queries, store.Query{
-			DeviceMAC: mac,
-			Domain:    fmt.Sprintf("domain-%02d.example.com", i),
-			QueryType: "A",
-			Category:  "",
-			Timestamp: now.Add(-time.Duration(i) * time.Minute),
-		})
+		queries = append(queries, store.Query{DeviceMAC: mac, Domain: fmt.Sprintf("domain-%02d.example.com", i), QueryType: "A", Timestamp: now.Add(-time.Duration(i) * time.Minute)})
 	}
 	if err := s.db.WriteQueries(queries); err != nil {
 		t.Fatalf("WriteQueries: %v", err)
 	}
 
-	req := httptest.NewRequest("GET", "/devices/"+mac+"?page=2", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-
-	body := html.UnescapeString(w.Body.String())
-	for _, want := range []string{
-		"showing 21-25",
-		"Page 2 of 2",
-		`href="?page=1"`,
-		"domain-21.example.com",
+	for _, c := range []struct {
+		query  string
+		want   []string
+		absent []string
+	}{
+		{"?tab=domains", []string{"showing 1-20", "Page 1 of 2", `href="?tab=domains&page=2">Next</a>`}, []string{">Prev</a>"}},
+		{"?tab=domains&page=2", []string{"showing 21-25", "Page 2 of 2", `href="?tab=domains&page=1"`, "domain-21.example.com", `id="tab-domains" role="tab" aria-selected="true"`}, []string{"domain-01.example.com"}},
+		{"?tab=domains&page=999", []string{"Page 2 of 2"}, nil},
 	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("response missing %q", want)
+		body := getPage(t, s, "/devices/"+mac+c.query)
+		for _, want := range c.want {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s missing %q", c.query, want)
+			}
 		}
-	}
-	if strings.Contains(body, "domain-01.example.com") {
-		t.Fatalf("response unexpectedly contains page-1 domain")
+		for _, absent := range c.absent {
+			if strings.Contains(body, absent) {
+				t.Errorf("%s unexpectedly contains %q", c.query, absent)
+			}
+		}
 	}
 }
 
-func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
+func TestDeviceDetailUnknownDeviceRedirectsToActivity(t *testing.T) {
 	s := testServer(t)
 
 	req := httptest.NewRequest("GET", "/devices/ff:ee:dd:cc:bb:aa", nil)
@@ -170,8 +156,8 @@ func TestDeviceDetailUnknownDeviceRedirectsToDevicesList(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusSeeOther)
 	}
-	if location := w.Header().Get("Location"); location != "/devices" {
-		t.Fatalf("Location = %q, want %q", location, "/devices")
+	if location := w.Header().Get("Location"); location != "/" {
+		t.Fatalf("Location = %q, want %q", location, "/")
 	}
 }
 
@@ -350,7 +336,7 @@ func TestUIUpdateDeviceLabelRedirectsBackToPrivacyPage(t *testing.T) {
 	}
 }
 
-func TestDevicesListPageShowsUpdatedSourceLabel(t *testing.T) {
+func TestSavingASourceLabelRenamesItsRosterRow(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
@@ -378,7 +364,7 @@ func TestDevicesListPageShowsUpdatedSourceLabel(t *testing.T) {
 		t.Fatalf("Location = %q, want %q", location, "/devices/source:10.44.0.7")
 	}
 
-	listReq := httptest.NewRequest("GET", "/devices", nil)
+	listReq := httptest.NewRequest("GET", "/", nil)
 	listRes := httptest.NewRecorder()
 	s.Handler().ServeHTTP(listRes, listReq)
 	if listRes.Code != http.StatusOK {
@@ -417,6 +403,9 @@ func TestUIOverrideReturnsUpdatedDomainRow(t *testing.T) {
 	if !strings.Contains(body, "tracking · manual") {
 		t.Fatalf("response missing updated override category/source: %s", body)
 	}
+	if !strings.Contains(body, `<span class="elum-status-label" data-tone="error">tracking · manual</span>`) {
+		t.Fatalf("override row class is not a toned status label: %s", body)
+	}
 }
 
 func TestUIOverrideRejectsInvalidCategory(t *testing.T) {
@@ -436,5 +425,539 @@ func TestUIOverrideRejectsInvalidCategory(t *testing.T) {
 	s.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestStaticServesElumKit(t *testing.T) {
+	s := testServer(t)
+	for _, path := range []string{"/static/elumkit/index.css", "/static/elumkit/tabs.js"} {
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s status = %d, want 200", path, w.Code)
+		}
+		if path == "/static/elumkit/index.css" && !strings.Contains(w.Body.String(), "@import") {
+			t.Fatalf("index.css missing @import: %q", w.Body.String())
+		}
+	}
+}
+
+func TestPagesLoadTheStylesheets(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/settings")
+	for _, want := range []string{"/static/elumkit/index.css", "/static/css/app.css"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+}
+
+func getPage(t *testing.T, s *Server, path string) string {
+	t.Helper()
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, want 200", path, w.Code)
+	}
+	return html.UnescapeString(w.Body.String())
+}
+
+// rowFor returns the roster row link whose href is exactly href.
+func rowFor(t *testing.T, body, href string) string {
+	t.Helper()
+	start := strings.Index(body, `<a class="elum-row" href="`+href+`"`)
+	if start < 0 {
+		t.Fatalf("no roster row with href %q", href)
+	}
+	end := strings.Index(body[start:], "</a>")
+	return body[start : start+end]
+}
+
+func TestActivityNetworkSelected(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if row := rowFor(t, body, "/"); !strings.Contains(row, `data-selected="true"`) || !strings.Contains(row, "Whole network") {
+		t.Fatalf("network row not selected: %q", row)
+	}
+	for _, want := range []string{"Living Room TV", ">Devices<", "of DNS queries hit known trackers"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("activity page missing %q", want)
+		}
+	}
+	if strings.Contains(body, "Unattributed sources") {
+		t.Errorf("activity page shows a sources group with no sources")
+	}
+}
+
+func TestActivityDeviceSelected(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	row := rowFor(t, body, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(row, `data-selected="true"`) {
+		t.Fatalf("device row not selected: %q", row)
+	}
+	for _, want := range []string{`data-actor-key="device:aa:bb:cc:dd:ee:ff"`, `data-tracker-percent="66.67"`, `data-query-count="3"`, `data-name="Living Room TV"`} {
+		if !strings.Contains(row, want) {
+			t.Errorf("device row missing %s", want)
+		}
+	}
+	if row := rowFor(t, body, "/"); strings.Contains(row, `data-selected="true"`) {
+		t.Fatalf("network row selected on a device page: %q", row)
+	}
+	for _, want := range []string{`<h1 class="ur-visually-hidden">Living Room TV</h1>`, "/ui/devices/aa:bb:cc:dd:ee:ff/label", "roku-tv"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("device pane missing %q", want)
+		}
+	}
+}
+
+func TestUnlabeledDeviceShowsItsNameInTheEmptyLabelField(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	mac := "aa:bb:cc:dd:ee:10"
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", Hostname: "kitchen-echo", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/device:"+mac)
+	if !strings.Contains(body, `name="label" value="" maxlength="128" placeholder="kitchen-echo">`) {
+		t.Fatalf("empty label field missing the device's fallback name")
+	}
+}
+
+func TestFlaggedDeviceSubheaderShowsOnlyTheFlag(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(body, `<p class="elum-card-subtitle"><span class="elum-status-label" data-tone="error">tracker spike</span></p>`) {
+		t.Fatalf("detail subheader is not the bare flag")
+	}
+}
+
+func TestTrackerSpikeMarksTheRosterValueHot(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	row := rowFor(t, getPage(t, s, "/"), "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(row, `<span class="elum-row-value" data-hot="true">`) {
+		t.Fatalf("tracker spike row value not marked hot: %s", row)
+	}
+}
+
+func postLabelFragment(t *testing.T, s *Server, path, label string) string {
+	t.Helper()
+	req := httptest.NewRequest("POST", path, strings.NewReader(url.Values{"label": {label}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST %s status = %d, want 200", path, w.Code)
+	}
+	return w.Body.String()
+}
+
+func TestSavingADeviceLabelReturnsItsEditor(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := postLabelFragment(t, s, "/ui/devices/aa:bb:cc:dd:ee:ff/label", "Den TV")
+	for _, want := range []string{
+		`hx-post="/ui/devices/aa:bb:cc:dd:ee:ff/label"`,
+		`name="label" value="Den TV" maxlength="128" placeholder="Den TV">`,
+		`<label class="elum-label" for="device-label">Device Label</label>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("device label fragment missing %q", want)
+		}
+	}
+}
+
+func TestSavingASourceLabelReturnsItsEditor(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{SourceIP: "10.44.0.7", Domain: "unknown.example.com", QueryType: "A", Timestamp: now.Add(-5 * time.Minute)}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := postLabelFragment(t, s, "/ui/sources/10.44.0.7/label", "Lab box")
+	for _, want := range []string{
+		`hx-post="/ui/sources/10.44.0.7/label"`,
+		`name="label" value="Lab box" maxlength="128" placeholder="Lab box · 10.44.0.7">`,
+		`<label class="elum-label" for="device-label">Source Label</label>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("source label fragment missing %q", want)
+		}
+	}
+}
+
+func TestActivitySourceIPv6Selected(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{
+		SourceIP:  "fe80::1",
+		Domain:    "v6.example.com",
+		QueryType: "AAAA",
+		Timestamp: now.Add(-5 * time.Minute),
+	}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/source:fe80::1")
+	if !strings.Contains(body, "Unattributed sources") {
+		t.Fatalf("sources group missing")
+	}
+	if row := rowFor(t, body, "/devices/source:fe80::1"); !strings.Contains(row, `data-selected="true"`) {
+		t.Fatalf("source row not selected: %q", row)
+	}
+}
+
+func TestDevicesListRouteIs404(t *testing.T) {
+	s := testServer(t)
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/devices", nil))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestRosterMiniMeterWidthRenders(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if strings.Contains(body, "ZgotmplZ") {
+		t.Fatalf("template sanitized a value: %q", body)
+	}
+	if !strings.Contains(rowFor(t, body, "/devices/device:aa:bb:cc:dd:ee:ff"), `<i style="width: 66.7%">`) {
+		t.Fatalf("mini-meter width missing")
+	}
+}
+
+func TestOverviewShowsListMatches(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	start := strings.Index(body, "Matched a list")
+	end := strings.Index(body, "queries matched no list")
+	if start < 0 || end < start {
+		t.Fatalf("matches table missing")
+	}
+	matches := body[start:end]
+	for _, want := range []string{`data-tone="error">tracking<`, `data-tone="success">analytics<`, `data-tone="success">telemetry<`} {
+		if !strings.Contains(matches, want) {
+			t.Errorf("matches table missing %q", want)
+		}
+	}
+	if strings.Contains(matches, "unclassified") || strings.Contains(matches, "uncategorized") {
+		t.Errorf("matches table lists unmatched queries as a category")
+	}
+}
+
+func TestOverviewEmptyDatabase(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	for _, want := range []string{"No queries matched a list in the last 24 hours"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("empty overview missing %q", want)
+		}
+	}
+	for _, bad := range []string{"NaN", "Inf"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("empty overview contains %q", bad)
+		}
+	}
+}
+
+func TestParseTab(t *testing.T) {
+	for raw, want := range map[string]string{"domains": "domains", "live": "live", "bogus": "overview", "": "overview"} {
+		if got := parseTab(raw); got != want {
+			t.Errorf("parseTab(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+func TestNetworkOverviewNeedsAttentionEmpty(t *testing.T) {
+	s := testServer(t)
+	if body := getPage(t, s, "/"); !strings.Contains(body, "No unusual activity") {
+		t.Fatalf("needs attention empty state missing")
+	}
+}
+
+func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · tracker spike.`) {
+		t.Fatalf("needs attention missing the tracker spike flag")
+	}
+}
+
+func TestNetworkDomainTableShowsReach(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	for _, want := range []string{`role="region" aria-label="Top domains">`, `role="columnheader">Reach</th>`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("network domain table missing %q", want)
+		}
+	}
+}
+
+func TestDeviceDomainTableLeavesOutReach(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(body, `role="region" aria-label="Domains">`) {
+		t.Errorf("device domain table missing its region label")
+	}
+	if strings.Contains(body, `role="columnheader">Reach</th>`) {
+		t.Errorf("device domain table shows a Reach column")
+	}
+}
+
+func TestEmptyDomainTablesSpanTheirColumns(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	mac := "aa:bb:cc:dd:ee:ff"
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now, LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	for path, want := range map[string]string{
+		"/":                      `<td colspan="5" role="cell">No domains in the last 24 hours.</td>`,
+		"/devices/device:" + mac: `<td colspan="4" role="cell">No domains in the last 24 hours.</td>`,
+	} {
+		if body := getPage(t, s, path); !strings.Contains(body, want) {
+			t.Errorf("%s missing %q", path, want)
+		}
+	}
+}
+
+func TestNetworkDomainsTabHasOverrides(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/?tab=domains")
+	if !strings.Contains(body, `hx-post="/ui/overrides/ads.example.com"`) {
+		t.Fatalf("network domains tab missing override form")
+	}
+}
+
+func TestIdentificationNote(t *testing.T) {
+	full := identificationNote(store.Device{MAC: "aa", Hostname: "roku-tv", Vendor: "Roku"})
+	if full != "MAC from the ARP table. Hostname roku-tv from DHCP. Vendor Roku from the MAC prefix." {
+		t.Errorf("full note = %q", full)
+	}
+	if bare := identificationNote(store.Device{MAC: "aa"}); bare != "MAC from the ARP table." {
+		t.Errorf("bare note = %q", bare)
+	}
+}
+
+func TestLiveTabMarkup(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/?tab=live")
+	if !strings.Contains(body, `<ul class="elum-feed" id="live-query-feed"`) {
+		t.Fatalf("live feed list missing")
+	}
+	if !strings.Contains(body, `id="live-query-domain-filter"`) {
+		t.Fatalf("live feed filter missing")
+	}
+}
+
+func TestUnclassifiedDomainRowPreselectsUncategorized(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/?tab=domains")
+	start := strings.Index(body, `id="domain-row-clean.example.com"`)
+	if start < 0 {
+		t.Fatalf("clean.example.com row missing")
+	}
+	row := body[start : start+strings.Index(body[start:], "</tr>")]
+	if !strings.Contains(row, `<option value="uncategorized" selected>`) {
+		t.Fatalf("unclassified row does not preselect uncategorized: %q", row)
+	}
+}
+
+func TestNetworkRowDeviceCountMatchesHeadline(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+	if err := s.db.UpsertDevice(store.Device{MAC: "99:99:99:99:99:99", IP: "192.168.1.99", FirstSeen: now.Add(-30 * 24 * time.Hour), LastSeen: now.Add(-30 * 24 * time.Hour)}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, "across 2 devices") {
+		t.Fatalf("headline device count changed")
+	}
+	if row := rowFor(t, body, "/"); !strings.Contains(row, "2 devices ·") {
+		t.Fatalf("network row count differs from headline: %q", row)
+	}
+}
+
+func TestLiveStreamCarriesCategoryTones(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/?tab=live")
+	if !strings.Contains(body, `data-category-tones="{`) || !strings.Contains(body, `"tracking":"error"`) {
+		t.Fatalf("live stream missing category tone map")
+	}
+}
+
+func TestRosterGroupsAndEmptyStateCanBeHiddenByTheFilter(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+
+	body := getPage(t, s, "/")
+	for _, want := range []string{
+		`<h2 class="elum-separator-labeled" id="roster-devices-title">Devices</h2>`,
+		`<ul class="elum-list" role="list" aria-labelledby="roster-devices-title" data-roster-group>`,
+		`<div class="elum-empty" id="roster-no-matches" hidden><div class="elum-empty-title">No matching devices</div></div>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("roster missing %q", want)
+		}
+	}
+}
+
+// seedTrackerJump gives one device a +100 pts change: clean last week, tracker today.
+func seedTrackerJump(t *testing.T, s *Server, now time.Time, mac string) {
+	t.Helper()
+	if err := s.db.UpsertDevice(store.Device{MAC: mac, IP: "192.168.1.10", FirstSeen: now.Add(-3 * 24 * time.Hour), LastSeen: now}); err != nil {
+		t.Fatalf("UpsertDevice: %v", err)
+	}
+	if err := s.db.WriteQueries([]store.Query{
+		{DeviceMAC: mac, Domain: "clean.example.com", QueryType: "A", Timestamp: now.Add(-48 * time.Hour)},
+		{DeviceMAC: mac, Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+}
+
+func TestNetworkHeaderComparesTrackerRateWithThePriorWeek(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedTrackerJump(t, s, now, "aa:bb:cc:dd:ee:ff")
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `Whole network · last 24h · 1 queries · 1 domains · +100 pts vs prior 7d</p>`) {
+		t.Fatalf("network header missing the change against the prior 7 days")
+	}
+}
+
+func TestNetworkHeaderOmitsTheComparisonWithoutAPriorWeek(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{{DeviceMAC: "aa:bb:cc:dd:ee:ff", Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-time.Hour)}}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	if body := getPage(t, s, "/"); strings.Contains(body, "vs prior 7d</p>") {
+		t.Fatalf("network header claims a comparison with no prior week")
+	}
+}
+
+func TestDeviceFactsCompareTrackerRateWithThePriorWeek(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedTrackerJump(t, s, now, "aa:bb:cc:dd:ee:ff")
+
+	body := getPage(t, s, "/devices/device:aa:bb:cc:dd:ee:ff")
+	if !strings.Contains(body, `<span class="elum-system-bar-value">1 queries · 1 domains · +100 pts vs prior 7d</span>`) {
+		t.Fatalf("device facts missing the change against the prior 7 days")
+	}
+}
+
+func TestSourceFactsCompareTrackerRateWithThePriorWeek(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	if err := s.db.WriteQueries([]store.Query{
+		{SourceIP: "192.168.1.50", Domain: "clean.example.com", QueryType: "A", Timestamp: now.Add(-48 * time.Hour)},
+		{SourceIP: "192.168.1.50", Domain: "tracker.example.com", QueryType: "A", Category: "tracking", Timestamp: now.Add(-time.Hour)},
+	}); err != nil {
+		t.Fatalf("WriteQueries: %v", err)
+	}
+
+	body := getPage(t, s, "/devices/source:192.168.1.50")
+	if !strings.Contains(body, `<span class="elum-system-bar-value">1 queries · 1 domains · +100 pts vs prior 7d</span>`) {
+		t.Fatalf("source facts missing the change against the prior 7 days")
+	}
+}
+
+func TestTrackerTrendTextCountsPoints(t *testing.T) {
+	for _, c := range []struct {
+		trend store.Trend
+		want  string
+	}{
+		{store.Trend{HasPrior: false, Change: 5}, ""},
+		{store.Trend{HasPrior: true, Change: 0.4}, "0 pts"},
+		{store.Trend{HasPrior: true, Change: 7.7}, "+8 pts"},
+		{store.Trend{HasPrior: true, Change: -3.2}, "-3 pts"},
+	} {
+		if got := trackerTrendText(c.trend); got != c.want {
+			t.Errorf("trackerTrendText(%+v) = %q, want %q", c.trend, got, c.want)
+		}
+	}
+}
+
+func TestFooterShowsTheVersion(t *testing.T) {
+	for version, want := range map[string]string{"0.3.1": "Umberrelay v0.3.1 ·", "dev": "Umberrelay dev ·"} {
+		if body := getPage(t, testServerVersion(t, version), "/"); !strings.Contains(body, `<p class="elum-footer-brand">`+want) {
+			t.Errorf("footer for version %q missing %q", version, want)
+		}
+	}
+}
+
+func TestMainIsNotALiveRegion(t *testing.T) {
+	s := testServer(t)
+	body := getPage(t, s, "/")
+	if strings.Contains(body, `<main id="main" aria-live`) {
+		t.Fatalf("main is a live region, so every live feed row is announced")
 	}
 }

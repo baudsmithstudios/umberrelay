@@ -7,7 +7,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,86 +21,57 @@ type pageData struct {
 	Active string
 }
 
-type categoryRow struct {
-	Key     string
-	Label   string
-	Count   int
-	Percent float64
-	Class   string
-}
-
-type TrendDisplay struct {
-	Text  string
-	Class string
-}
-
-type deviceTrendRow struct {
-	ActorKey       string
-	ActorType      string
-	MAC            string
-	SourceIP       string
-	Hostname       string
-	Vendor         string
-	Label          string
-	IP             string
-	QueryCount     int
-	TrackerPercent float64
-	QueryTrend     TrendDisplay
-	TrackerTrend   TrendDisplay
-	AnomalyClass   string
-}
-
-type anomalyRow struct {
-	DeviceMAC   string
-	DeviceName  string
-	Badge       string
-	Class       string
-	Explanation string
-}
-
 type privacyDomainRow struct {
 	Domain              string
 	Category            string
-	CategoryOptions     []category.Option
 	CategoryLabel       string
 	SourceList          string
 	QueryCount          int
 	DeviceCount         int
 	DeviceCountLabel    string
 	ClassificationLabel string
-	ClassificationClass string
 	ActorKey            string
 	Scope               string
 }
 
 type privacyDetail struct {
-	Mode             string
-	Title            string
-	Subtitle         string
-	LiveActorKey     string
-	CategoryOptions  []category.Option
-	Device           store.Device
-	DeviceName       string
-	SourceIP         string
-	SourceLabel      string
-	PrivacySummary   store.DevicePrivacySummary
-	QueryTrend       TrendDisplay
-	TrackerTrend     TrendDisplay
-	Breakdown        []categoryRow
-	Domains          []privacyDomainRow
-	RangeQuery       string
-	ChartID          string
-	ChartTitle       string
-	ChartDescription string
-	EmptyMessage     string
-	DomainPage       int
-	DomainPageCount  int
-	DomainPageStart  int
-	DomainPageEnd    int
-	DomainHasPrev    bool
-	DomainHasNext    bool
-	DomainPrevPage   int
-	DomainNextPage   int
+	Mode           string
+	LiveActorKey   string
+	Device         store.Device
+	DeviceName     string
+	SourceIP       string
+	SourceLabel    string
+	PrivacySummary store.DevicePrivacySummary
+	ListMatches    listMatches
+	TrackerChange  string
+	Flag           *actorFlag
+	IdentifiedBy   string
+	Domains        []privacyDomainRow
+	RangeQuery     string
+	Pagination     detailDomainPagination
+}
+
+// labelEditor is the device or source label form; saving swaps the returned editor in place.
+type labelEditor struct {
+	Action      string
+	Value       string
+	Placeholder string
+	Label       string
+}
+
+func deviceLabelEditor(device store.Device) labelEditor {
+	return labelEditor{Action: "/ui/devices/" + device.MAC + "/label", Value: device.Label, Placeholder: deviceDisplayName(device), Label: "Device Label"}
+}
+
+func sourceLabelEditor(sourceIP, label string) labelEditor {
+	return labelEditor{Action: "/ui/sources/" + sourceIP + "/label", Value: label, Placeholder: sourceActorDisplayName(sourceIP, label), Label: "Source Label"}
+}
+
+func (d privacyDetail) LabelEditor() labelEditor {
+	if d.Mode == actorTypeSource {
+		return sourceLabelEditor(d.SourceIP, d.SourceLabel)
+	}
+	return deviceLabelEditor(d.Device)
 }
 
 const detailDomainsPageSize = 20
@@ -156,95 +126,24 @@ func makeDetailDomainPagination(requestedPage, totalDomains int) detailDomainPag
 	}
 }
 
-type homePageView struct {
-	pageData
-	Stats             store.DashboardStats
-	TrackerRate       float64
-	OverviewBreakdown []categoryRow
-	Anomalies         []anomalyRow
-	TopDomains        []privacyDomainRow
-	TotalActors       int
-}
-
-type devicesListView struct {
-	pageData
-	Devices     []deviceTrendRow
-	TotalActors int
-}
-
-type deviceDetailView struct {
-	pageData
-	Detail             privacyDetail
-	SelectedDeviceName string
-}
-
 func listRefreshStatusView(status store.ListRefreshStatus) (string, string) {
 	if status.LastAttemptAt.IsZero() {
-		return "List refresh has not run yet.", "status-neutral"
+		return "List refresh has not run yet.", ""
 	}
 	if status.LastError != "" {
-		return fmt.Sprintf("Last refresh failed at %s: %s", status.LastAttemptAt.Local().Format("2006-01-02 15:04:05"), status.LastError), "status-error"
+		return fmt.Sprintf("Last refresh failed at %s: %s", status.LastAttemptAt.Local().Format("2006-01-02 15:04:05"), status.LastError), "error"
 	}
-	return fmt.Sprintf("Last refresh succeeded at %s.", status.LastSuccessAt.Local().Format("2006-01-02 15:04:05")), "status-ok"
+	return fmt.Sprintf("Last refresh succeeded at %s.", status.LastSuccessAt.Local().Format("2006-01-02 15:04:05")), "success"
 }
 
-func formatTrend(t store.Trend, isTrackerPct bool) TrendDisplay {
+func trackerTrendText(t store.Trend) string {
 	if !t.HasPrior {
-		return TrendDisplay{}
+		return ""
 	}
-
-	display := TrendDisplay{}
-	switch {
-	case math.Abs(t.Change) < 0.5:
-		display.Class = "trend-flat"
-	case t.Change > 0:
-		display.Class = "trend-up"
-	default:
-		display.Class = "trend-down"
+	if math.Abs(t.Change) < 0.5 {
+		return "0 pts"
 	}
-
-	suffix := "%"
-	if isTrackerPct {
-		suffix = "pp"
-	}
-	display.Text = fmt.Sprintf("%+d%s", int(math.Round(t.Change)), suffix)
-	if display.Class == "trend-flat" {
-		display.Text = fmt.Sprintf("%d%s", int(math.Round(t.Change)), suffix)
-	}
-	return display
-}
-
-func makeDeviceTrendRows(devices []store.DeviceWithTrends, sources []store.SourceWithTrends) []deviceTrendRow {
-	rows := make([]deviceTrendRow, 0, len(devices)+len(sources))
-	for _, device := range devices {
-		rows = append(rows, deviceTrendRow{
-			ActorKey:       actorKeyForDevice(device.MAC),
-			ActorType:      actorTypeDevice,
-			MAC:            device.MAC,
-			Hostname:       device.Hostname,
-			Vendor:         device.Vendor,
-			Label:          device.Label,
-			IP:             device.IP,
-			QueryCount:     device.QueryCount,
-			TrackerPercent: device.TrackerPercent,
-			QueryTrend:     formatTrend(device.QueryTrend, false),
-			TrackerTrend:   formatTrend(device.TrackerTrend, true),
-		})
-	}
-	for _, source := range sources {
-		rows = append(rows, deviceTrendRow{
-			ActorKey:       actorKeyForSource(source.SourceIP),
-			ActorType:      actorTypeSource,
-			SourceIP:       source.SourceIP,
-			Label:          source.Label,
-			IP:             source.SourceIP,
-			QueryCount:     source.QueryCount,
-			TrackerPercent: source.TrackerPercent,
-			QueryTrend:     formatTrend(source.QueryTrend, false),
-			TrackerTrend:   formatTrend(source.TrackerTrend, true),
-		})
-	}
-	return rows
+	return fmt.Sprintf("%+d pts", int(math.Round(t.Change)))
 }
 
 func (s *Server) renderPage(w http.ResponseWriter, name string, data interface{}) {
@@ -288,88 +187,6 @@ func deviceDisplayName(device store.Device) string {
 	}
 }
 
-func deviceTrendDisplayName(device deviceTrendRow) string {
-	if device.ActorType == actorTypeSource {
-		return sourceActorDisplayName(device.SourceIP, "")
-	}
-	switch {
-	case device.Label != "":
-		return device.Label
-	case device.Hostname != "":
-		return device.Hostname
-	case device.Vendor != "":
-		return device.Vendor
-	default:
-		return device.MAC
-	}
-}
-
-func detailSubtitle(device store.Device) string {
-	parts := make([]string, 0, 4)
-	if device.Vendor != "" {
-		parts = append(parts, device.Vendor)
-	}
-	if device.IP != "" {
-		parts = append(parts, device.IP)
-	}
-	if device.MAC != "" {
-		parts = append(parts, device.MAC)
-	}
-	if !device.FirstSeen.IsZero() {
-		parts = append(parts, "First seen "+device.FirstSeen.Local().Format("2006-01-02"))
-	}
-	return strings.Join(parts, " · ")
-}
-
-func groupCategory(category string) string {
-	switch category {
-	case "tracking", "advertising", "malware":
-		return "tracking"
-	case "analytics":
-		return "analytics"
-	default:
-		return "unclassified"
-	}
-}
-
-func breakdownRowMeta(key string) (string, string) {
-	switch key {
-	case "tracking":
-		return "Tracking", "breakdown-tracking"
-	case "analytics":
-		return "Analytics", "breakdown-analytics"
-	default:
-		return "Unclassified", "breakdown-unclassified"
-	}
-}
-
-func makeBreakdownRows(total int, counts []store.CategoryCount) []categoryRow {
-	grouped := map[string]int{
-		"tracking":     0,
-		"analytics":    0,
-		"unclassified": 0,
-	}
-	for _, count := range counts {
-		grouped[groupCategory(count.Category)] += count.Count
-	}
-
-	rows := make([]categoryRow, 0, 3)
-	for _, key := range []string{"tracking", "analytics", "unclassified"} {
-		label, className := breakdownRowMeta(key)
-		row := categoryRow{
-			Key:   key,
-			Label: label,
-			Count: grouped[key],
-			Class: className,
-		}
-		if total > 0 {
-			row.Percent = float64(row.Count) / float64(total) * 100
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
-
 func categoryLabel(category string) string {
 	if category == "" {
 		return "unclassified"
@@ -381,21 +198,15 @@ func classificationLabel(domain store.DomainWithSource) string {
 	return fmt.Sprintf("%s · %s", categoryLabel(domain.Category), domain.SourceList)
 }
 
-func classificationPillClass(category string) string {
-	return "classification-pill-" + groupCategory(category)
-}
-
 func makePrivacyDomainRow(domain store.DomainWithSource, totalActors int, actorKey string) privacyDomainRow {
 	row := privacyDomainRow{
 		Domain:              domain.Domain,
 		Category:            domain.Category,
-		CategoryOptions:     category.Options(),
 		CategoryLabel:       categoryLabel(domain.Category),
 		SourceList:          domain.SourceList,
 		QueryCount:          domain.QueryCount,
 		DeviceCount:         domain.DeviceCount,
 		ClassificationLabel: classificationLabel(domain),
-		ClassificationClass: classificationPillClass(domain.Category),
 		ActorKey:            actorKey,
 	}
 	if actorKey == "" {
@@ -417,96 +228,17 @@ func findDomainRow(domains []store.DomainWithSource, domain string, totalActors 
 	return privacyDomainRow{}
 }
 
-func anomalyClass(anomalyType string) string {
-	switch anomalyType {
-	case "tracker_spike":
-		return "anomaly-tracker"
-	case "dns_bypass_likely", "dns_bypass_suspected":
-		return "anomaly-bypass"
-	default:
-		return "anomaly-volume"
-	}
-}
-
-func anomalyBadge(anomaly store.Anomaly) string {
-	switch anomaly.Type {
-	case "tracker_spike":
-		return fmt.Sprintf("+%.0fpp", anomaly.Delta)
-	case "dns_bypass_likely":
-		return "Likely"
-	case "dns_bypass_suspected":
-		return "Suspected"
-	default:
-		if anomaly.AverageValue <= 0 {
-			return fmt.Sprintf("+%.0f", anomaly.Delta)
-		}
-		return fmt.Sprintf("%.1fx", anomaly.CurrentValue/anomaly.AverageValue)
-	}
-}
-
-func anomalyExplanation(anomaly store.Anomaly) string {
-	switch anomaly.Type {
-	case "tracker_spike":
-		return fmt.Sprintf("%s jumped above its usual tracker rate, led by %s from %s.", anomaly.DeviceName, anomaly.TopDomain, anomaly.TopDomainSourceList)
-	case "dns_bypass_likely":
-		return fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes. Earlier queries included %s, which suggests encrypted DNS usage.", anomaly.DeviceName, int(anomaly.Delta), anomaly.TopDomain)
-	case "dns_bypass_suspected":
-		return fmt.Sprintf("%s is present on the LAN but has not used local DNS for %d minutes despite prior DNS activity, so visibility may be bypassed.", anomaly.DeviceName, int(anomaly.Delta))
-	default:
-		return fmt.Sprintf("%s is making far more requests than usual, with %s contributing the largest spike from %s.", anomaly.DeviceName, anomaly.TopDomain, anomaly.TopDomainSourceList)
-	}
-}
-
-func makeAnomalyRows(anomalies []store.Anomaly) []anomalyRow {
-	rows := make([]anomalyRow, 0, len(anomalies))
-	for _, anomaly := range anomalies {
-		rows = append(rows, anomalyRow{
-			DeviceMAC:   anomaly.DeviceMAC,
-			DeviceName:  anomaly.DeviceName,
-			Badge:       anomalyBadge(anomaly),
-			Class:       anomalyClass(anomaly.Type),
-			Explanation: anomalyExplanation(anomaly),
-		})
-	}
-	return rows
-}
-
-func anomalyPriority(className string) int {
-	switch className {
-	case "anomaly-tracker":
-		return 3
-	case "anomaly-bypass":
-		return 2
-	default:
-		return 1
-	}
-}
-
-func selectedDeviceAnomalies(anomalies []store.Anomaly) map[string]string {
-	out := make(map[string]string, len(anomalies))
-	for _, anomaly := range anomalies {
-		className := anomalyClass(anomaly.Type)
-		existing, ok := out[anomaly.DeviceMAC]
-		if ok && anomalyPriority(existing) >= anomalyPriority(className) {
-			continue
-		}
-		out[anomaly.DeviceMAC] = className
-	}
-	return out
-}
-
 func bypassSignalAsAnomaly(signal store.BypassSignal) store.Anomaly {
 	anomalyType := "dns_bypass_suspected"
 	if signal.Confidence == "likely" {
 		anomalyType = "dns_bypass_likely"
 	}
 	return store.Anomaly{
-		DeviceMAC:    signal.DeviceMAC,
-		DeviceName:   signal.DeviceName,
-		Type:         anomalyType,
-		CurrentValue: float64(signal.SilentMinutes),
-		Delta:        float64(signal.SilentMinutes),
-		TopDomain:    signal.HintDomain,
+		DeviceMAC:  signal.DeviceMAC,
+		DeviceName: signal.DeviceName,
+		Type:       anomalyType,
+		Delta:      float64(signal.SilentMinutes),
+		TopDomain:  signal.HintDomain,
 	}
 }
 
@@ -555,44 +287,29 @@ func findSource(sources []store.SourceWithTrends, sourceIP string) *store.Source
 	return nil
 }
 
-func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePrivacySummary, queryTrend, trackerTrend store.Trend, categoryCounts []store.CategoryCount, topDomains []store.DomainWithSource, pagination detailDomainPagination) privacyDetail {
+func makePrivacyDetail(actorKey string, totalActors int, summary store.DevicePrivacySummary, matches listMatches, topDomains []store.DomainWithSource, pagination detailDomainPagination) privacyDetail {
 	domains := make([]privacyDomainRow, 0, len(topDomains))
 	for _, domain := range topDomains {
 		domains = append(domains, makePrivacyDomainRow(domain, totalActors, actorKey))
 	}
 
 	return privacyDetail{
-		LiveActorKey:     actorKey,
-		CategoryOptions:  category.Options(),
-		PrivacySummary:   summary,
-		QueryTrend:       formatTrend(queryTrend, false),
-		TrackerTrend:     formatTrend(trackerTrend, true),
-		Breakdown:        makeBreakdownRows(summary.QueryCount, categoryCounts),
-		Domains:          domains,
-		RangeQuery:       "actor=" + url.QueryEscape(actorKey),
-		ChartDescription: "Tracker rate and volume over time",
-		EmptyMessage:     "No domains in the last 24 hours.",
-		DomainPage:       pagination.Page,
-		DomainPageCount:  pagination.PageCount,
-		DomainPageStart:  pagination.Start,
-		DomainPageEnd:    pagination.End,
-		DomainHasPrev:    pagination.HasPrev,
-		DomainHasNext:    pagination.HasNext,
-		DomainPrevPage:   pagination.PrevPage,
-		DomainNextPage:   pagination.NextPage,
+		LiveActorKey:   actorKey,
+		PrivacySummary: summary,
+		ListMatches:    matches,
+		Domains:        domains,
+		RangeQuery:     "actor=" + url.QueryEscape(actorKey),
+		Pagination:     pagination,
 	}
 }
 
-func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActors int, domainsPage int) (privacyDetail, error) {
+func (s *Server) loadDeviceDetail(now time.Time, selected store.DeviceWithTrends, totalActors int, domainsPage int) (privacyDetail, error) {
+	device := selected.Device
 	privacySummary, err := s.db.DevicePrivacySummaryAt(device.MAC, now)
 	if err != nil {
 		return privacyDetail{}, err
 	}
-	queryTrend, trackerTrend, err := s.db.LoadTrendsAt(now, "device_mac = ?", device.MAC)
-	if err != nil {
-		return privacyDetail{}, err
-	}
-	categoryCounts, err := s.db.DeviceCategoryBreakdown(device.MAC)
+	counts, err := s.db.DeviceCategoryCountsAt(device.MAC, now)
 	if err != nil {
 		return privacyDetail{}, err
 	}
@@ -602,18 +319,17 @@ func (s *Server) loadDeviceDetail(now time.Time, device store.Device, totalActor
 		return privacyDetail{}, err
 	}
 
-	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, queryTrend, trackerTrend, categoryCounts, topDomains, pagination)
-	detail.Mode = "device"
-	detail.Title = "Device Detail"
-	detail.Subtitle = detailSubtitle(device)
+	detail := makePrivacyDetail(actorKeyForDevice(device.MAC), totalActors, privacySummary, makeListMatches(counts), topDomains, pagination)
+	detail.Mode = actorTypeDevice
+	detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
+	detail.IdentifiedBy = identificationNote(device)
 	detail.Device = device
 	detail.DeviceName = deviceDisplayName(device)
-	detail.ChartID = "device-trend-chart"
-	detail.ChartTitle = "Device Trend"
 	return detail, nil
 }
 
-func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors int, domainsPage int) (privacyDetail, error) {
+func (s *Server) loadSourceDetail(now time.Time, selected store.SourceWithTrends, totalActors int, domainsPage int) (privacyDetail, error) {
+	sourceIP := selected.SourceIP
 	privacySummary, err := s.db.SourcePrivacySummaryAt(sourceIP, now)
 	if err != nil {
 		return privacyDetail{}, err
@@ -622,11 +338,7 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 	if err != nil {
 		return privacyDetail{}, err
 	}
-	queryTrend, trackerTrend, err := s.db.LoadTrendsAt(now, "device_mac = '' AND source_ip = ?", sourceIP)
-	if err != nil {
-		return privacyDetail{}, err
-	}
-	categoryCounts, err := s.db.SourceCategoryBreakdown(sourceIP)
+	counts, err := s.db.SourceCategoryCountsAt(sourceIP, now)
 	if err != nil {
 		return privacyDetail{}, err
 	}
@@ -636,176 +348,115 @@ func (s *Server) loadSourceDetail(now time.Time, sourceIP string, totalActors in
 		return privacyDetail{}, err
 	}
 
-	subtitle := "Unattributed source · " + sourceIP
-	if label != "" {
-		subtitle = sourceIP
-	}
-
-	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, queryTrend, trackerTrend, categoryCounts, topDomains, pagination)
-	detail.Mode = "source"
-	detail.Title = "Source Detail"
-	detail.Subtitle = subtitle
+	detail := makePrivacyDetail(actorKeyForSource(sourceIP), totalActors, privacySummary, makeListMatches(counts), topDomains, pagination)
+	detail.Mode = actorTypeSource
+	detail.TrackerChange = trackerTrendText(selected.TrackerTrend)
+	detail.IdentifiedBy = "No MAC address was seen for this source, so it is tracked by IP."
 	detail.DeviceName = sourceActorDisplayName(sourceIP, label)
 	detail.SourceIP = sourceIP
 	detail.SourceLabel = label
-	detail.ChartID = "source-trend-chart"
-	detail.ChartTitle = "Source Trend"
 	return detail, nil
 }
 
-func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
+	devices, sources, err := s.loadActorsWithTrends(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	anomalies, err := s.loadAttentionAnomalies(now)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	stats, err := s.db.DashboardSummaryAt(now)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	breakdownCounts, err := s.db.NetworkCategoryBreakdown()
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+	totalActors := len(devices) + len(sources)
+	flags := flagsByMAC(anomalies)
+
+	view := activityView{pageData: pageData{Active: "activity"}, Tab: parseTab(r.URL.Query().Get("tab"))}
+	selectedKey := ""
+	if raw := r.PathValue("key"); raw != "" {
+		actorType, value, ok := normalizeActorSelection(raw)
+		if !ok {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		domainsPage := 1
+		if pageValue := r.URL.Query().Get("page"); pageValue != "" {
+			if parsedPage, err := parseBoundedInt(pageValue, 1, 1000000); err == nil {
+				domainsPage = parsedPage
+			}
+		}
+		var detail privacyDetail
+		switch actorType {
+		case actorTypeDevice:
+			selected := findDevice(devices, value)
+			if selected == nil {
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+			detail, err = s.loadDeviceDetail(now, *selected, totalActors, domainsPage)
+			if flag, ok := flags[selected.MAC]; ok {
+				detail.Flag = &flag
+			}
+		default:
+			selected := findSource(sources, value)
+			if selected == nil {
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+			detail, err = s.loadSourceDetail(now, *selected, totalActors, domainsPage)
+		}
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		selectedKey = detail.LiveActorKey
+		view.Title = detail.DeviceName
+		view.Detail = &detail
+	} else {
+		pane, err := s.loadNetworkPane(now, stats, anomalies, totalActors)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		view.Title = "Activity"
+		view.Network = &pane
 	}
-	anomalies, err := s.loadAttentionAnomalies(now)
+	view.Roster = makeRoster(devices, sources, stats, flags, selectedKey)
+	s.renderPage(w, "activity", view)
+}
+
+func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, anomalies []store.Anomaly, totalActors int) (networkPane, error) {
+	counts, err := s.db.NetworkCategoryCountsAt(now)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+		return networkPane{}, err
 	}
 	topDomains, err := s.db.TopDomainsWithSource(10)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+		return networkPane{}, err
 	}
-
-	devices, sources, err := s.loadActorsWithTrends(now)
+	_, trackerTrend, err := s.db.LoadTrendsAt(now, "")
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+		return networkPane{}, err
 	}
-	totalActors := len(devices) + len(sources)
-
-	domainRows := make([]privacyDomainRow, 0, len(topDomains))
+	pane := networkPane{
+		Stats:         stats,
+		ListMatches:   makeListMatches(counts),
+		TrackerChange: trackerTrendText(trackerTrend),
+	}
+	for _, anomaly := range anomalies {
+		pane.Flags = append(pane.Flags, flagFor(anomaly))
+	}
 	for _, domain := range topDomains {
-		domainRows = append(domainRows, makePrivacyDomainRow(domain, totalActors, ""))
+		pane.TopDomains = append(pane.TopDomains, makePrivacyDomainRow(domain, totalActors, ""))
 	}
-
-	view := homePageView{
-		pageData: pageData{
-			Title:  "Home",
-			Active: "home",
-		},
-		Stats:             stats,
-		TrackerRate:       stats.TrackerPercent,
-		OverviewBreakdown: makeBreakdownRows(stats.TotalQueries, breakdownCounts),
-		Anomalies:         makeAnomalyRows(anomalies),
-		TopDomains:        domainRows,
-		TotalActors:       totalActors,
-	}
-
-	s.renderPage(w, "home", view)
-}
-
-func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
-	now := s.now()
-	devices, sources, err := s.loadActorsWithTrends(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	anomalies, err := s.loadAttentionAnomalies(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	rows := makeDeviceTrendRows(devices, sources)
-	flags := selectedDeviceAnomalies(anomalies)
-	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].TrackerPercent == rows[j].TrackerPercent {
-			return deviceTrendDisplayName(rows[i]) < deviceTrendDisplayName(rows[j])
-		}
-		return rows[i].TrackerPercent > rows[j].TrackerPercent
-	})
-	for i := range rows {
-		rows[i].AnomalyClass = flags[rows[i].MAC]
-	}
-
-	view := devicesListView{
-		pageData: pageData{
-			Title:  "Devices",
-			Active: "devices",
-		},
-		Devices:     rows,
-		TotalActors: len(rows),
-	}
-	s.renderPage(w, "devices", view)
-}
-
-func (s *Server) handleDeviceDetail(w http.ResponseWriter, r *http.Request) {
-	now := s.now()
-	domainsPage := 1
-	if pageValue := r.URL.Query().Get("page"); pageValue != "" {
-		if parsedPage, err := parseBoundedInt(pageValue, 1, 1000000); err == nil {
-			domainsPage = parsedPage
-		}
-	}
-	selectedRaw := r.PathValue("mac")
-	selectedType, selectedValue, hasSelected := normalizeActorSelection(selectedRaw)
-	if !hasSelected {
-		http.Redirect(w, r, "/devices", http.StatusSeeOther)
-		return
-	}
-
-	devices, sources, err := s.loadActorsWithTrends(now)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	totalActors := len(devices) + len(sources)
-
-	view := deviceDetailView{
-		pageData: pageData{
-			Active: "devices",
-		},
-	}
-
-	switch selectedType {
-	case actorTypeDevice:
-		selected := findDevice(devices, selectedValue)
-		if selected == nil {
-			http.Redirect(w, r, "/devices", http.StatusSeeOther)
-			return
-		}
-		view.Detail, err = s.loadDeviceDetail(now, selected.Device, totalActors, domainsPage)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		view.SelectedDeviceName = deviceDisplayName(selected.Device)
-		view.pageData.Title = view.SelectedDeviceName
-	case actorTypeSource:
-		selected := findSource(sources, selectedValue)
-		if selected == nil {
-			http.Redirect(w, r, "/devices", http.StatusSeeOther)
-			return
-		}
-		view.Detail, err = s.loadSourceDetail(now, selected.SourceIP, totalActors, domainsPage)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		view.SelectedDeviceName = view.Detail.DeviceName
-		view.pageData.Title = view.SelectedDeviceName
-	default:
-		http.Redirect(w, r, "/devices", http.StatusSeeOther)
-		return
-	}
-
-	if isHXRequest(r) {
-		s.renderFragment(w, "device_detail", "detail-content", view)
-		return
-	}
-
-	s.renderPage(w, "device_detail", view)
+	return pane, nil
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -827,18 +478,18 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		pageData
-		RetentionDays          int
-		ListRefreshHours       int
-		ListRefreshStatusClass string
-		ListRefreshStatusText  string
-		Lists                  interface{}
+		RetentionDays         int
+		ListRefreshHours      int
+		ListRefreshStatusTone string
+		ListRefreshStatusText string
+		Lists                 interface{}
 	}{
 		pageData:         pageData{Title: "Settings", Active: "settings"},
 		RetentionDays:    settings.RetentionDays,
 		ListRefreshHours: settings.ListRefreshHours,
 		Lists:            lists,
 	}
-	data.ListRefreshStatusText, data.ListRefreshStatusClass = listRefreshStatusView(refreshStatus)
+	data.ListRefreshStatusText, data.ListRefreshStatusTone = listRefreshStatusView(refreshStatus)
 	s.renderPage(w, "settings", data)
 }
 
@@ -886,13 +537,7 @@ func (s *Server) handleUIUpdateDeviceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "fragments", "label-edit", struct {
-			Device     store.Device
-			DeviceName string
-		}{
-			Device:     device,
-			DeviceName: deviceDisplayName(device),
-		})
+		s.renderFragment(w, "fragments", "label-edit", deviceLabelEditor(device))
 		return
 	}
 
@@ -916,15 +561,7 @@ func (s *Server) handleUIUpdateSourceLabel(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		s.renderFragment(w, "fragments", "source-label-edit", struct {
-			DeviceName  string
-			SourceIP    string
-			SourceLabel string
-		}{
-			DeviceName:  sourceActorDisplayName(sourceIP, label),
-			SourceIP:    sourceIP,
-			SourceLabel: label,
-		})
+		s.renderFragment(w, "fragments", "label-edit", sourceLabelEditor(sourceIP, label))
 		return
 	}
 
@@ -1000,7 +637,6 @@ func (s *Server) handleUISetOverride(w http.ResponseWriter, r *http.Request) {
 	row.CategoryLabel = categoryLabel(normalizedCategory)
 	row.SourceList = "manual"
 	row.ClassificationLabel = fmt.Sprintf("%s · manual", row.CategoryLabel)
-	row.ClassificationClass = classificationPillClass(normalizedCategory)
 
 	s.renderFragment(w, "fragments", "domain-row", row)
 }

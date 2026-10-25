@@ -81,21 +81,14 @@ func TestManagerOverrides(t *testing.T) {
 	}
 }
 
-func TestParseAndValidateListURLRejectsLocalhost(t *testing.T) {
+func TestParseAndValidateListURLRejectsLocalAddresses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	if _, err := ParseAndValidateListURL(ctx, "http://localhost/list.txt"); err == nil {
-		t.Fatal("expected localhost url to be rejected")
-	}
-}
-
-func TestParseAndValidateListURLRejectsPrivateIP(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	if _, err := ParseAndValidateListURL(ctx, "http://192.168.1.10/list.txt"); err == nil {
-		t.Fatal("expected private ip url to be rejected")
+	for _, raw := range []string{"http://localhost/list.txt", "http://192.168.1.10/list.txt"} {
+		if _, err := ParseAndValidateListURL(ctx, raw); err == nil {
+			t.Errorf("ParseAndValidateListURL(%q) accepted a local address", raw)
+		}
 	}
 }
 

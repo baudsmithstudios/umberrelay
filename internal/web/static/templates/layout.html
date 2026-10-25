@@ -1,32 +1,29 @@
 {{define "layout"}}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Umberrelay{{if .Title}} — {{.Title}}{{end}}</title>
-    <link rel="stylesheet" href="/static/css/pico.min.css">
-    <link rel="stylesheet" href="/static/css/theme.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    {{block "page_styles" .}}{{end}}
+    <link rel="stylesheet" href="/static/elumkit/index.css">
+    <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body>
-    <nav class="umberrelay-navbar" aria-label="Main navigation">
-        <a class="umberrelay-brand" href="/">
-            <span class="umberrelay-brand-umber">Umber</span><span class="umberrelay-brand-relay">relay</span>
-        </a>
-        <ul class="umberrelay-tabs">
-            <li><a class="umberrelay-tab" href="/"{{if eq .Active "home"}} aria-current="page"{{end}}>Home</a></li>
-            <li><a class="umberrelay-tab" href="/devices"{{if eq .Active "devices"}} aria-current="page"{{end}}>Devices</a></li>
-            <li><a class="umberrelay-tab" href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a></li>
-        </ul>
+    <a class="elum-skip-link" href="#main">Skip to content</a>
+    <nav class="elum-navbar ur-navbar" aria-label="Main navigation">
+        <a class="elum-navbar-brand ur-brand" href="/"><b>Umber</b><span>relay</span></a>
+        <section class="elum-navlinks">
+            <a class="elum-navlink" href="/"{{if eq .Active "activity"}} aria-current="page"{{end}}>Activity</a>
+            <a class="elum-navlink" href="/settings"{{if eq .Active "settings"}} aria-current="page"{{end}}>Settings</a>
+        </section>
     </nav>
-    <hr class="umberrelay-navbar-rule">
-    <main class="container" aria-live="polite">
+    <main id="main">
         {{template "content" .}}
     </main>
-    <hr class="umberrelay-footer-rule">
-    <div class="umberrelay-footer">Umberrelay 0.2.0 — forwarding DNS with attribution</div>
+    <footer class="elum-footer">
+        {{/* Release versions lack the tag's "v". */}}
+        <p class="elum-footer-brand">Umberrelay {{if eq version "dev"}}dev{{else}}v{{version}}{{end}} · forwarding DNS with attribution</p>
+    </footer>
     <script src="/static/js/htmx.min.js"></script>
     {{block "page_scripts" .}}{{end}}
 </body>

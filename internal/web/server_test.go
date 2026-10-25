@@ -18,12 +18,17 @@ import (
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
+	return testServerVersion(t, "dev")
+}
+
+func testServerVersion(t *testing.T, version string) *Server {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := store.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(db, classify.NewManager(db))
+	s := NewServer(db, classify.NewManager(db), version)
 	s.refreshListSources = func(context.Context, *classify.Manager, []classify.ListSource) error { return nil }
 	t.Cleanup(func() {
 		s.Close()
@@ -49,38 +54,33 @@ func TestHandlerSetsSecurityHeaders(t *testing.T) {
 	}
 }
 
-func TestMutationRejectsCrossSiteOrigin(t *testing.T) {
-	s := testServer(t)
-	req := httptest.NewRequest("PUT", "http://umberrelay.local/api/settings", bytes.NewBufferString(`{"retention_days":30}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", "http://evil.local")
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusForbidden)
+func TestMutationOriginGuard(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+		value  string
+		want   int
+	}{
+		{"cross-site origin", "Origin", "http://evil.local", http.StatusForbidden},
+		{"same origin", "Origin", "http://umberrelay.local", http.StatusNoContent},
+		{"cross-site fetch", "Sec-Fetch-Site", "cross-site", http.StatusForbidden},
+		{"cross-site referer", "Referer", "http://evil.local/page", http.StatusForbidden},
+		{"no browser signals", "", "", http.StatusNoContent},
 	}
-}
-
-func TestMutationRejectsCrossSiteFetchSite(t *testing.T) {
-	s := testServer(t)
-	req := httptest.NewRequest("POST", "/ui/settings", bytes.NewBufferString("retention_days=30&list_refresh_hours=24"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Sec-Fetch-Site", "cross-site")
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusForbidden)
-	}
-}
-
-func TestMutationAllowsRequestWithoutBrowserOriginSignals(t *testing.T) {
-	s := testServer(t)
-	req := httptest.NewRequest("PUT", "/api/settings", bytes.NewBufferString(`{"retention_days":30}`))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, req)
-	if w.Code == http.StatusForbidden {
-		t.Fatalf("status = %d, expected non-forbidden response", w.Code)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := testServer(t)
+			req := httptest.NewRequest("PUT", "http://umberrelay.local/api/settings", bytes.NewBufferString(`{"retention_days":30}`))
+			req.Header.Set("Content-Type", "application/json")
+			if c.header != "" {
+				req.Header.Set(c.header, c.value)
+			}
+			w := httptest.NewRecorder()
+			s.Handler().ServeHTTP(w, req)
+			if w.Code != c.want {
+				t.Fatalf("status = %d, want %d", w.Code, c.want)
+			}
+		})
 	}
 }
 

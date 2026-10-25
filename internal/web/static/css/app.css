@@ -1,0 +1,240 @@
+/* Umberrelay theme and the layout ElumKit lacks. Load after /static/elumkit/index.css. */
+
+:root {
+    color-scheme: dark;
+    --elum-color-bg: #0e0b04;
+    --elum-color-surface: #151006;
+    --elum-color-fg: #f0e6c8;
+    --elum-color-muted: #b09470;
+    --elum-color-border: #5a4528;
+    --elum-color-accent: #f5a623;
+    --elum-color-success: #1dbd5c;
+    --elum-color-warn: #e08700;
+    --elum-color-error: #ff4f4f;
+    --elum-color-info: #c8b88a;
+    --elum-color-focus: #ffbe4d;
+
+    --ur-relay: #c8b88a;
+    --ur-track: #2a1f0e;
+}
+
+body {
+    font-variant-ligatures: none;
+}
+
+.ur-brand {
+    --elum-navbar-brand-size: var(--elum-text-md);
+    color: var(--elum-color-accent);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.ur-brand b {
+    font-weight: 700;
+}
+
+.ur-brand span {
+    color: var(--ur-relay);
+}
+
+/* Keeps the links at the right edge, even at narrow widths where ElumKit hides the brand. */
+.ur-navbar {
+    grid-template-columns: 1fr auto;
+    justify-content: flex-end;
+}
+
+/* The columns wrap below 900px (340px + 560px bases), so the breakpoint matches. */
+.ur-activity {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.ur-roster {
+    border-inline-end: var(--elum-border-width) solid var(--elum-color-border);
+    display: flex;
+    flex: 1 1 340px;
+    flex-direction: column;
+    gap: var(--elum-space-3);
+    max-width: 420px;
+    padding: 0 var(--elum-space-4) var(--elum-space-4) var(--elum-shell-gutter);
+}
+
+/* ElumKit's display rules would otherwise override [hidden]. */
+.ur-roster [hidden] {
+    display: none;
+}
+
+.ur-roster-filter {
+    margin-bottom: var(--elum-space-3);
+}
+
+/* Equal thirds line up with the cards below; trimmed padding lets "[tracker]" fit. */
+.ur-roster-sort {
+    display: flex;
+}
+
+.ur-roster-sort > .elum-segmented-option {
+    flex: 1 1 0;
+    justify-content: center;
+    padding-inline: var(--elum-space-1);
+}
+
+.elum-query:is(.ur-filters, .ur-label-editor) {
+    border: 0;
+    padding: 0;
+}
+
+/* The margin collapses with the stack's gap, so it must exceed the gap to add space. */
+.elum-query.ur-filters {
+    margin-bottom: calc(var(--elum-space-3) * 2);
+}
+
+.ur-pane {
+    display: flex;
+    flex: 999 1 560px;
+    flex-direction: column;
+    gap: var(--elum-space-4);
+    min-width: 0;
+    padding: var(--elum-space-4) var(--elum-shell-gutter) calc(var(--elum-space-4) * 2);
+}
+
+@media (max-width: 56.25rem) {
+    .ur-roster {
+        border-inline-end: 0;
+        border-top: var(--elum-border-width) solid var(--elum-color-border);
+        max-width: none;
+        order: 2;
+        padding-top: var(--elum-space-4);
+    }
+}
+
+/* Keeps the h1 for screen readers; the label field shows the name on screen. */
+.ur-visually-hidden {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+/* Wide enough for a source's fallback name with a full IPv6 address. */
+.ur-label-editor > .elum-field-float {
+    flex: 0 1 24rem;
+    min-width: 0;
+}
+
+/* ElumKit stacks elum-query here, where the 24rem basis would become the height. */
+@media (max-width: 42rem) {
+    .ur-label-editor > .elum-field-float {
+        flex-basis: auto;
+    }
+}
+
+/* The placeholder shows the fallback name, so the label stays raised even when empty. */
+.ur-label-editor .elum-field-float > .elum-input + .elum-label {
+    background: var(--elum-color-bg);
+    color: var(--elum-color-accent);
+    font-size: var(--elum-text-xs);
+    padding-inline: var(--elum-space-1);
+    top: 0;
+}
+
+/* The pane's gap ignores margins, so these shift the tabs toward their panel. */
+.ur-pane > .elum-tabs {
+    margin-block: var(--elum-space-2) calc(var(--elum-space-2) * -1);
+}
+
+/* With tabs.js the selected tab names the panel; without it the stacked panels keep these titles. */
+[role="tabpanel"] > .ur-panel-title {
+    display: none;
+}
+
+.ur-flag {
+    font-size: var(--elum-text-sm);
+}
+
+.ur-attention-grid {
+    align-items: start;
+}
+
+/* Flag badges are measurements ("4.2x daily avg"), so they keep their case. */
+.ur-flag > .elum-badge {
+    text-transform: none;
+}
+
+.elum-row-meta .elum-status-label {
+    font-size: inherit;
+}
+
+.ur-domain-table,
+.ur-domain-table .elum-status-label,
+.ur-domain-table .elum-select {
+    font-size: var(--elum-text-xs);
+}
+
+.ur-override-form {
+    align-items: center;
+    display: flex;
+    gap: var(--elum-space-2);
+}
+
+.ur-domain-table [data-numeric="true"] {
+    white-space: nowrap;
+}
+
+/* The override menu keeps its longest option's width instead of shrinking with the column. */
+.ur-domain-table .elum-select {
+    flex: none;
+    min-height: 2rem;
+    padding-block: var(--elum-space-1);
+    width: auto;
+}
+
+/* The margin collapses with the stack's gap, so it must exceed the gap to add space. */
+.elum-stack > .ur-chart {
+    margin-bottom: calc(var(--elum-space-3) * 2);
+    margin-top: var(--elum-space-4);
+}
+
+/* Clears the card title raised onto the border below. */
+.ur-chart-range {
+    display: flex;
+    margin: 0 0 var(--elum-space-4) auto;
+    width: fit-content;
+}
+
+.ur-settings {
+    max-width: 64rem;
+}
+
+/* Each card's raised title eats into the stack's gap. */
+.ur-settings > * + * {
+    margin-top: calc(var(--elum-space-3) * 2);
+}
+
+.ur-card-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ur-mini {
+    background: var(--ur-track);
+    display: block;
+    height: 3px;
+    margin-top: var(--elum-space-1);
+}
+
+/* data-hot marks a tracker spike. */
+.ur-roster .elum-row-value[data-hot="true"] {
+    color: var(--elum-color-error);
+}
+
+.ur-mini > i {
+    background: var(--elum-color-muted);
+    display: block;
+    height: 100%;
+}

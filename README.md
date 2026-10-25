@@ -3,7 +3,7 @@
 </p>
 
 <p align="center" style="margin-top: 0;">
-  <img src="assets/readme-home.png" alt="Umberrelay home dashboard" width="800" style="border-radius: 5px;">
+  <img src="assets/readme-home.png" alt="Umberrelay Activity view" width="800" style="border-radius: 5px;">
 </p>
 
 <p align="center">
@@ -24,9 +24,10 @@ Umberrelay is a forwarding DNS server that logs every query, identifies which ne
 - **Attribution with source-IP fallback** — maps queries to devices via ARP table polling, DHCP snooping, mDNS, and SSDP discovery, and surfaces source IP when MAC is unavailable
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
-- **Web UI** — Home, Devices, and Settings pages covering query volume, tracker percentage, actor breakdown (device or source fallback), domain rankings, per-device detail, and runtime configuration
+- **Web UI** — an Activity view that lists every device and source-IP actor beside a detail pane for the whole network or the selected actor (tracker rate against a baseline, blocklist matches by category, tracker-rate chart, domains with overrides, live query stream), plus a Settings page for runtime configuration
+- **Anomaly flags** — flags known devices whose 24h tracker rate is more than 5 points above their prior 7 days, or whose 24h query count is more than three times their daily average
 - **Best-effort DoH/DoT bypass signal** — flags devices that appear active on LAN but stop using local DNS, with higher confidence when encrypted-DNS bootstrap domains were seen
-- **REST API** — JSON API for actors, devices, queries, activity, domains, lists, settings, and overrides
+- **REST API** — JSON API for actors, devices, queries, activity, anomalies, bypass signals, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
 - **Persistent storage** — SQLite (WAL mode), configurable retention, batched writes
 - **Configurable via UI** — retention, list refresh interval, blocklist management all from the settings page
@@ -162,6 +163,7 @@ The API is unauthenticated — see [Access And Hardening](#access-and-hardening)
 - Mutation endpoints accept `application/json`.
 - Mutation endpoints return either JSON or an empty success status (`204 No Content` / `202 Accepted`).
 - Errors return JSON in the form `{ "error": "message" }`.
+- Cross-origin mutation requests are rejected with a plain-text `403 Forbidden`.
 - `/ui/...` routes are internal SSR form handlers, not part of the public API contract.
 
 | Method | Endpoint | Description |
@@ -236,7 +238,7 @@ Selected error responses use this JSON shape:
 | `domain` | Filter by domain |
 | `from` | Start time (RFC3339) |
 | `to` | End time (RFC3339, defaults to now) |
-| `limit` | Results per page (default 100) |
+| `limit` | Results per page (default 100, max 1000) |
 | `offset` | Pagination offset |
 
 When `actor` is set, it takes precedence over `device`.
@@ -249,7 +251,7 @@ When `actor` is set, it takes precedence over `device`.
 | `device` | Filter by device MAC |
 | `domain` | Filter by domain |
 | `category` | Filter by category (`tracking`, `advertising`, `analytics`, `telemetry`, `malware`, `uncategorized`) |
-| `after` | Only emit events with query ID greater than this cursor (default: the latest query ID, so only new queries stream) |
+| `after` | Only emit events with query ID greater than this cursor (default: the `Last-Event-ID` header when sent, otherwise the latest query ID, so only new queries stream) |
 | `limit` | Batch size per poll (default 100, max 500) |
 
 When `actor` is set, it takes precedence over `device`.
@@ -265,13 +267,13 @@ When `actor` is set, it takes precedence over `device`.
 
 Filter precedence is `actor`, then `source`, then `device`.
 
-`GET /api/domains` returns an object with `total_devices` plus a `domains` array. Each domain item includes:
-
 `GET /api/domains` supports:
 
 | Param | Description |
 |---|---|
 | `limit` | Results per page (default 100, max 1000) |
+
+It returns an object with `total_devices` (distinct attribution actors that sent queries in the last 24h) plus a `domains` array. Each domain item includes:
 
 | Field | Description |
 |---|---|
@@ -306,7 +308,7 @@ The Dockerfile uses a two-stage build: compile in `golang:1.26-alpine`, run in `
 
 - **A device is missing** — confirm the device is actually using Umberrelay for DNS; devices with hardcoded resolvers or encrypted DNS may never appear
 - **A bypass signal is unexpected** — `/api/bypass` is best-effort, not packet-level proof; validate with direct DNS tests (`dig @<umberrelay-ip> ...`) and your router DNS policy
-- **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears as a source fallback actor in the Devices page or `/api/actors`
+- **Routed client is unattributed** — across subnets/VLANs, Umberrelay may only have source IP (no MAC); verify the client appears under *Unattributed sources* in the Activity roster or in `/api/actors`
 - **Devices appear but names are generic** — hostname enrichment depends on passive DHCP, mDNS, and SSDP traffic; some devices do not advertise much
 - **Tracker labels look wrong** — classifications come from community blocklists; use domain overrides when a list is too broad or out of date
 - **Some traffic is invisible** — Umberrelay does not see direct IP traffic or DNS that bypasses it, so partial visibility is an expected limitation in some networks
@@ -344,9 +346,8 @@ Purge Loop (goroutine)
     └─ Delete queries older than retention_days (daily)
 
 Web Server
-    ├─ Home, Devices, and Settings pages
-    ├─ Per-device detail view
-    ├─ HTMX fragment handlers for settings, overrides, and list management
+    ├─ Activity page (network and per-actor views) and Settings page
+    ├─ HTMX fragment handlers for labels, settings, overrides, and list management
     └─ REST API
 ```
 
@@ -403,8 +404,8 @@ Umberrelay fills a narrow niche: a fully local DNS forwarder that turns query lo
 | **Database** | [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) | Pure-Go SQLite driver (CGo-free) |
 | **Config parsing** | [BurntSushi/toml](https://github.com/BurntSushi/toml) | TOML configuration file parser |
 | **Frontend interactivity** | [HTMX](https://htmx.org/) | Server-rendered HTML with inline fragment swaps |
-| **Frontend styling** | [Pico CSS](https://picocss.com/) | Minimal classless CSS framework |
-| **Charts** | [uPlot](https://github.com/leeoniya/uPlot) | Fast canvas time-series plots |
+| **Frontend styling** | [ElumKit](https://github.com/baudsmithstudios/elumkit) | Terminal-style HTML-first components, copied into the app as source |
+| **Charts** | Canvas 2D | Single-series tracker-rate chart drawn in `charts.js` |
 | **Containerization** | [Docker](https://github.com/moby/moby) | Multi-stage build |
 
 

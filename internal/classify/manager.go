@@ -45,7 +45,7 @@ func NewManager(db *store.DB) *Manager {
 	return m
 }
 
-// Classify returns domain's category, or "" if unlisted. Case and a trailing dot are ignored.
+// Classify returns the domain's category, or "" if unlisted, ignoring case and a trailing dot.
 func (m *Manager) Classify(domain string) string {
 	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
 
@@ -85,7 +85,7 @@ func (m *Manager) LoadOverrides() error {
 	return nil
 }
 
-// Returns the number of domains loaded, or 0 if no cache exists.
+// LoadFromCache returns the number of domains loaded, or 0 if no cache exists.
 func (m *Manager) LoadFromCache() (int, error) {
 	cached, err := m.db.LoadCachedDomains()
 	if err != nil {

@@ -1,0 +1,101 @@
+.elum-alert {
+  background: var(--elum-color-surface);
+  border: var(--elum-border-width) solid var(--elum-color-border);
+  border-left: 3px solid var(--elum-color-info);
+  border-radius: var(--elum-radius-md);
+  color: var(--elum-color-fg);
+  padding: var(--elum-space-3);
+}
+
+.elum-alert[data-tone="success"] {
+  border-left-color: var(--elum-color-success);
+}
+
+.elum-alert[data-tone="warn"] {
+  border-left-color: var(--elum-color-warn);
+}
+
+.elum-alert[data-tone="error"] {
+  border-left-color: var(--elum-color-error);
+}
+
+.elum-badge {
+  color: var(--elum-color-muted);
+  display: inline-block;
+  font-size: var(--elum-text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: var(--elum-lh-tight);
+  padding: 0.125rem var(--elum-space-1);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.elum-badge[data-tone="success"] {
+  color: var(--elum-color-success);
+}
+
+.elum-badge[data-tone="warn"] {
+  color: var(--elum-color-warn);
+}
+
+.elum-badge[data-tone="error"] {
+  color: var(--elum-color-error);
+}
+
+.elum-status-label {
+  align-items: baseline;
+  color: var(--elum-status-label-color, var(--elum-color-muted));
+  display: inline-flex;
+  font-size: var(--elum-text-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  gap: var(--elum-space-1);
+  letter-spacing: 0.16em;
+  line-height: var(--elum-lh-tight);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.elum-status-label::before {
+  background: currentColor;
+  border-radius: 999px;
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 0.6rem;
+  width: 0.6rem;
+}
+
+.elum-status-label[data-tone="success"] {
+  --elum-status-label-color: var(--elum-color-success);
+}
+
+.elum-status-label[data-tone="warn"] {
+  --elum-status-label-color: var(--elum-color-warn);
+}
+
+.elum-status-label[data-tone="error"] {
+  --elum-status-label-color: var(--elum-color-error);
+}
+
+.elum-spinner {
+  align-items: baseline;
+  display: inline-flex;
+  gap: var(--elum-space-2);
+}
+
+.elum-spinner::before {
+  animation: elum-spinner 0.52s steps(1) infinite;
+  color: var(--elum-color-accent);
+  content: "|" / "";
+}
+
+@keyframes elum-spinner {
+  0% { content: "|" / ""; }
+  25% { content: "/" / ""; }
+  50% { content: "-" / ""; }
+  75% { content: "\\" / ""; }
+}
+

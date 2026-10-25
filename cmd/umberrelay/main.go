@@ -122,7 +122,7 @@ func run(configPath string, demoData bool) error {
 		workers.Go(func() { mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour) })
 	}
 
-	srv := web.NewServer(db, mgr)
+	srv := web.NewServer(db, mgr, version)
 
 	records := make(chan dns.QueryRecord, 4096)
 	errCh := make(chan error, 2)
