@@ -45,10 +45,10 @@
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <!-- CRT scanlines: 2px of every 4px dimmed 8%, matching the baudsmithstudios site.
+    <!-- CRT scanlines: 2px of every 4px dimmed 15%, in the style of the baudsmithstudios site.
          A mask on the title rather than an overlay, so the transparent background stays clear. -->
     <pattern id="scanline-bands" width="4" height="4" patternUnits="userSpaceOnUse">
-      <rect y="2" width="4" height="2" fill="#000" fill-opacity="0.08"/>
+      <rect y="2" width="4" height="2" fill="#000" fill-opacity="0.15"/>
     </pattern>
     <mask id="scanlines" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="88">
       <rect width="600" height="88" fill="#fff"/>
