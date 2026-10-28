@@ -1,20 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="600" height="120">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 88" width="600" height="88">
   <defs>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&amp;family=Courier+Prime&amp;display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&amp;display=swap');
 
       /* dark mode (default) */
       .title-umber { fill: #f5a623; }
       .title-relay { fill: #c8b88a; }
       .glow-text   { filter: url(#phosphor-glow); }
-      .tagline     { fill: #c8b88a; }
 
       /* light mode */
       @media (prefers-color-scheme: light) {
         .title-umber { fill: #6d4105; }
         .title-relay { fill: #2f2414; }
         .glow-text   { filter: url(#phosphor-glow-light); }
-        .tagline     { fill: #2f2414; }
       }
     </style>
     <!-- dark mode: layered amber phosphor glow -->
@@ -47,11 +45,21 @@
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+    <!-- CRT scanlines: 2px of every 4px dimmed 15%, in the style of the baudsmithstudios site.
+         A mask on the title rather than an overlay, so the transparent background stays clear. -->
+    <pattern id="scanline-bands" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect y="2" width="4" height="2" fill="#000" fill-opacity="0.15"/>
+    </pattern>
+    <mask id="scanlines" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="88">
+      <rect width="600" height="88" fill="#fff"/>
+      <rect width="600" height="88" fill="url(#scanline-bands)"/>
+    </mask>
   </defs>
 
   <!-- title: per-character tspans for uniform spacing with two-tone color -->
   <text
     class="glow-text"
+    mask="url(#scanlines)"
     x="300"
     y="44"
     font-family="'Orbitron', sans-serif"
@@ -61,15 +69,4 @@
     dominant-baseline="central"
     letter-spacing="6"
   ><tspan class="title-umber">U</tspan><tspan class="title-umber">M</tspan><tspan class="title-umber">B</tspan><tspan class="title-umber">E</tspan><tspan class="title-umber">R</tspan><tspan class="title-relay">R</tspan><tspan class="title-relay">E</tspan><tspan class="title-relay">L</tspan><tspan class="title-relay">A</tspan><tspan class="title-relay">Y</tspan></text>
-
-  <text
-    class="tagline"
-    x="300"
-    y="82"
-    font-family="'Courier Prime', 'Courier New', monospace"
-    font-size="12"
-    text-anchor="middle"
-    dominant-baseline="central"
-    letter-spacing="1.2"
-  >Trace the traffic your network never explains.</text>
 </svg>
