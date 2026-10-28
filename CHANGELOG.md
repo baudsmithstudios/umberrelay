@@ -27,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The `/devices` and `/domains` pages; actor pages stay at `/devices/{actorKey}`.
 - Pico CSS and the unused uPlot assets.
 
+### Security
+
+- Updated `x/net` to 0.62.0 for advisories in `x/net/html`, which Umberrelay does not use.
+
 ## [0.2.0] - 2026-10-18
 
 ### Changed
