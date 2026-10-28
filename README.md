@@ -271,7 +271,7 @@ Filter precedence is `actor`, then `source`, then `device`.
 
 | Param | Description |
 |---|---|
-| `limit` | Results per page (default 100, max 1000) |
+| `limit` | Maximum domains returned (default 100, max 1000) |
 
 It returns an object with `total_devices` (distinct attribution actors that sent queries in the last 24h) plus a `domains` array. Each domain item includes:
 
@@ -338,7 +338,7 @@ Device Tracker (goroutine) ─────────────┘
     └─ SSDP listener (239.255.255.250:1900)
 
 Classification Manager (goroutine)
-    ├─ Fetch lists on startup
+    ├─ Fetch lists on first run
     ├─ Cache to SQLite
     └─ Periodic refresh
 

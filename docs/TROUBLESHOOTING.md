@@ -62,7 +62,7 @@ sudo ss -lntup | grep ':53'
 ```
 
 Expected result:
-- `umberrelay` is bound on `0.0.0.0:53` for UDP and TCP
+- `umberrelay` is bound on `*:53` (all addresses) for UDP and TCP
 
 Red flags:
 - no process is listening on `:53`
@@ -114,8 +114,8 @@ http://<PI_IP>:8080/
 
 Expected result:
 - the Activity page loads
-- top-level query counters increase
-- the domain list updates after fresh DNS activity
+- fresh lookups appear in the Live tab
+- after a reload, the query count and Top domains include them
 
 ## Common Gotchas
 
