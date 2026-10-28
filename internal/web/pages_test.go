@@ -708,6 +708,13 @@ func TestNetworkOverviewNeedsAttentionEmpty(t *testing.T) {
 	}
 }
 
+func TestNetworkOverviewTopDomainsEmpty(t *testing.T) {
+	s := testServer(t)
+	if body := getPage(t, s, "/"); !strings.Contains(body, "No domains queried") {
+		t.Fatalf("top domains empty state missing")
+	}
+}
+
 func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()
