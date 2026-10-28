@@ -6,24 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-27
+
 ### Changed
 
-- The web UI is rebuilt on ElumKit as one Activity view: a device and source roster beside a detail pane with Overview, Domains and Live tabs.
-- Tracker rate change against the prior 7 days is shown in points ("+3 pts vs prior 7d").
-- Volume spike flags show their multiple of the daily average ("4.2x daily avg"); bypass flags show silent time ("2h 3m silent").
-- Blocklist matches are listed per category with share and change; telemetry is no longer counted as unclassified.
-- The tracker-rate chart plots one series with an average line and tooltips.
-- The footer shows the release version, or `dev` for other builds.
+- The web UI is now a single ElumKit Activity view: a device and source roster beside Overview, Domains and Live tabs.
+- Tracker rate change vs the prior 7 days is shown in points.
+- Volume spike flags show the multiple of the daily average; bypass flags show time silent.
+- Blocklist matches are listed per category with share and change.
+- The tracker-rate chart shows one series with an average line.
+- The footer shows the release version.
 
 ### Fixed
 
-- Unclassified domains no longer preselect "tracking" in the override menu.
+- Telemetry is no longer counted as unclassified.
+- The override menu no longer preselects "tracking" for unclassified domains.
 
 ### Removed
 
-- The stacked category bar.
-- The `/devices` and `/domains` pages; actor pages stay at `/devices/{actorKey}`.
-- Pico CSS and the unused uPlot assets.
+- The `/devices` and `/domains` pages; actor pages remain at `/devices/{actorKey}`.
+- The stacked category bar, Pico CSS and uPlot.
+
+### Security
+
+- Patched `x/net` advisories (x/net 0.62.0).
 
 ## [0.2.0] - 2026-10-18
 
@@ -62,6 +68,7 @@ Initial public release.
 - `--version` flag
 - Docker deployment (`network_mode: host`); ARM64 build for Raspberry Pi
 
-[Unreleased]: https://github.com/baudsmithstudios/umberrelay/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/baudsmithstudios/umberrelay/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/baudsmithstudios/umberrelay/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/baudsmithstudios/umberrelay/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/baudsmithstudios/umberrelay/releases/tag/v0.1.0

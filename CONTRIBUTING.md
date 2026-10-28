@@ -1,6 +1,6 @@
 # Contributing to Umberrelay
 
-Umberrelay is a small personal project, developed and maintained on my spare time. I am building in public to share ideas, keep myself (somewhat) accountable, and to maybe finish something that is marginally useful. To keep the project focused and maintainable, while also allowing myself space to experiment with different things, **I will not accept external pull requests.** Please don't spend time on a patch; it won't be merged.
+Umberrelay is a small personal project, developed and maintained in my spare time. I am building in public to share ideas, keep myself (somewhat) accountable, and to maybe finish something that is marginally useful. To keep the project focused and maintainable, while also allowing myself space to experiment with different things, **I will not accept external pull requests.** Please don't spend time on a patch; it won't be merged.
 
 Issues and discussion, however, are welcomed:
 

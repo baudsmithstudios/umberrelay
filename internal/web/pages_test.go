@@ -715,6 +715,13 @@ func TestNetworkOverviewTopDomainsEmpty(t *testing.T) {
 	}
 }
 
+func TestPageTitleSeparatesNameWithMiddleDot(t *testing.T) {
+	s := testServer(t)
+	if body := getPage(t, s, "/"); !strings.Contains(body, "<title>Umberrelay · Activity</title>") {
+		t.Fatalf("page title missing middle dot separator")
+	}
+}
+
 func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
 	s := testServer(t)
 	now := time.Now().UTC()

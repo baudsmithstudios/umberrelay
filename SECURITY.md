@@ -1,6 +1,6 @@
 # Security Policy
 
-Umberrelay is a small, self-hosted Raspberry Pi and homelab project. It is being developed and maintained on my spare time.
+Umberrelay is a small, self-hosted Raspberry Pi and homelab project. It is being developed and maintained in my spare time.
 
 ## Reporting a Vulnerability
 
