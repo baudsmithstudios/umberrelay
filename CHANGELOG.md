@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-27
+
 ### Changed
 
 - The web UI is rebuilt on ElumKit as one Activity view: a device and source roster beside a detail pane with Overview, Domains and Live tabs.
@@ -62,6 +64,7 @@ Initial public release.
 - `--version` flag
 - Docker deployment (`network_mode: host`); ARM64 build for Raspberry Pi
 
-[Unreleased]: https://github.com/baudsmithstudios/umberrelay/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/baudsmithstudios/umberrelay/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/baudsmithstudios/umberrelay/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/baudsmithstudios/umberrelay/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/baudsmithstudios/umberrelay/releases/tag/v0.1.0
