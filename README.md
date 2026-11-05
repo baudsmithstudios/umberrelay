@@ -354,7 +354,7 @@ Web Server
     └─ REST API
 ```
 
-- **DNS Listener** — dual-stack UDP/TCP, forwards to upstream with sequential fallback, emits records non-blocking (drops on channel full rather than blocking DNS)
+- **DNS Listener** — dual-stack UDP/TCP, forwards to upstream with sequential fallback, emits records non-blocking (drops on channel full rather than blocking DNS). Each source IP is limited to 100 queries a second; queries over the limit get `REFUSED` without being forwarded or logged
 - **Pipeline Writer** — batches queries (100 per batch or 1s flush), enriches with device MAC and domain category before writing
 - **Classification Manager** — atomic pointer swap on refresh, lock-free reads on the hot path
 - **SQLite** — WAL mode, `NORMAL` synchronous; schema auto-applied on startup

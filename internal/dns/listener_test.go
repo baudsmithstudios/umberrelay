@@ -11,21 +11,22 @@ import (
 	mdns "github.com/miekg/dns"
 )
 
+var listenerNetworks = []struct {
+	network string
+	require func(*testing.T, string, string)
+}{
+	{network: "udp", require: requirePacketConn},
+	{network: "tcp", require: requireListener},
+}
+
 func TestListenerForwardsQuery(t *testing.T) {
-	tests := []struct {
-		network string
-		require func(*testing.T, string, string)
-	}{
-		{network: "udp", require: requirePacketConn},
-		{network: "tcp", require: requireListener},
-	}
-	for _, tt := range tests {
+	for _, tt := range listenerNetworks {
 		t.Run(tt.network, func(t *testing.T) {
 			tt.require(t, tt.network, "127.0.0.1:0")
 			upstreamAddr := startFakeUpstream(t, tt.network)
 
 			records := make(chan QueryRecord, 10)
-			l := NewListener("127.0.0.1:0", []string{upstreamAddr}, records)
+			l := NewListener("127.0.0.1:0", []string{upstreamAddr}, NewRateLimiter(), records)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			go l.Run(ctx)
@@ -58,6 +59,60 @@ func TestListenerForwardsQuery(t *testing.T) {
 	}
 }
 
+func TestListenerRefusesSourceOverLimit(t *testing.T) {
+	for _, tt := range listenerNetworks {
+		t.Run(tt.network, func(t *testing.T) {
+			tt.require(t, tt.network, "127.0.0.1:0")
+			upstreamAddr := startFakeUpstream(t, tt.network)
+
+			// Sequential local queries finish well inside a second, so two
+			// windows' worth plus one must put one window over the limit.
+			maxQueries := 2*QueriesPerSecondPerSource + 1
+			records := make(chan QueryRecord, maxQueries)
+			l := NewListener("127.0.0.1:0", []string{upstreamAddr}, NewRateLimiter(), records)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go l.Run(ctx)
+			addr := l.Addr()
+
+			c := &mdns.Client{Net: tt.network}
+			m := new(mdns.Msg)
+			m.SetQuestion("example.com.", mdns.TypeA)
+			successes, refused := 0, false
+			for i := 1; i <= maxQueries && !refused; i++ {
+				resp, _, err := c.Exchange(m, addr)
+				if err != nil {
+					t.Fatalf("Exchange %d: %v", i, err)
+				}
+				switch resp.Rcode {
+				case mdns.RcodeSuccess:
+					successes++
+				case mdns.RcodeRefused:
+					refused = true
+				default:
+					t.Fatalf("query %d: Rcode = %d, want success or REFUSED", i, resp.Rcode)
+				}
+			}
+			if !refused {
+				t.Fatalf("no REFUSED response in %d queries", maxQueries)
+			}
+
+			for i := 0; i < successes; i++ {
+				select {
+				case <-records:
+				case <-time.After(2 * time.Second):
+					t.Fatalf("got %d query records, want %d", i, successes)
+				}
+			}
+			select {
+			case rec := <-records:
+				t.Fatalf("refused query emitted a record: %+v", rec)
+			case <-time.After(100 * time.Millisecond):
+			}
+		})
+	}
+}
+
 func TestListenerUpstreamFailure(t *testing.T) {
 	requirePacketConn(t, "udp", "127.0.0.1:0")
 
@@ -67,7 +122,7 @@ func TestListenerUpstreamFailure(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(prev) })
 
 	records := make(chan QueryRecord, 10)
-	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, records)
+	l := NewListener("127.0.0.1:0", []string{"127.0.0.1:1"}, NewRateLimiter(), records)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
