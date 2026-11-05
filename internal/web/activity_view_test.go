@@ -67,7 +67,7 @@ func TestMakeListMatchesOrder(t *testing.T) {
 }
 
 func TestFlagFor(t *testing.T) {
-	base := store.Anomaly{DeviceName: "TV", TopDomain: "ads.example", TopDomainSourceList: "Blocklist", Delta: 12, CurrentValue: 30, AverageValue: 10}
+	base := store.Anomaly{DeviceMAC: "aa:bb:cc:dd:ee:ff", DeviceName: "TV", TopDomain: "ads.example", TopDomainSourceList: "Blocklist", Delta: 12, CurrentValue: 30, AverageValue: 10}
 	cases := []struct {
 		anomalyType string
 		want        actorFlag
@@ -84,6 +84,9 @@ func TestFlagFor(t *testing.T) {
 		if got.Word != c.want.Word || got.Tone != c.want.Tone || got.Badge != c.want.Badge || got.Explanation != c.want.Explanation {
 			t.Errorf("flagFor(%s) = %+v, want %+v", c.anomalyType, got, c.want)
 		}
+		if got.ActorKey != "device:aa:bb:cc:dd:ee:ff" || got.Name != "TV" {
+			t.Errorf("flagFor(%s) actor = %q %q, want device:aa:bb:cc:dd:ee:ff TV", c.anomalyType, got.ActorKey, got.Name)
+		}
 	}
 }
 
@@ -94,12 +97,12 @@ func TestFlagForBypassBadgeCountsHours(t *testing.T) {
 	}
 }
 
-func TestFlagsByMACPriority(t *testing.T) {
-	flags := flagsByMAC([]store.Anomaly{
-		{Type: "volume_spike", DeviceMAC: "aa"},
-		{Type: "tracker_spike", DeviceMAC: "aa"},
+func TestFlagsByActorPriority(t *testing.T) {
+	flags := flagsByActor([]actorFlag{
+		flagFor(store.Anomaly{Type: "volume_spike", DeviceMAC: "aa"}),
+		flagFor(store.Anomaly{Type: "tracker_spike", DeviceMAC: "aa"}),
 	})
-	if got := flags["aa"].Word; got != "tracker spike" {
+	if got := flags["device:aa"].Word; got != "tracker spike" {
 		t.Fatalf("flag = %q, want tracker spike", got)
 	}
 }

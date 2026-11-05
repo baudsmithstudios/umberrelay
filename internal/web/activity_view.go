@@ -101,13 +101,13 @@ type actorFlag struct {
 	Tone        string
 	Badge       string
 	Explanation string
-	DeviceMAC   string
-	DeviceName  string
+	ActorKey    string
+	Name        string
 	priority    int
 }
 
 func flagFor(a store.Anomaly) actorFlag {
-	flag := actorFlag{Tone: "warn", DeviceMAC: a.DeviceMAC, DeviceName: a.DeviceName}
+	flag := actorFlag{Tone: "warn", ActorKey: actorKeyForDevice(a.DeviceMAC), Name: a.DeviceName}
 	switch a.Type {
 	case "tracker_spike":
 		flag.Word, flag.Tone, flag.priority = "tracker spike", "error", 3
@@ -137,14 +137,13 @@ func silentFor(minutes float64) string {
 	return fmt.Sprintf("%dh %dm silent", m/60, m%60)
 }
 
-func flagsByMAC(anomalies []store.Anomaly) map[string]actorFlag {
-	out := make(map[string]actorFlag, len(anomalies))
-	for _, a := range anomalies {
-		flag := flagFor(a)
-		if existing, ok := out[a.DeviceMAC]; ok && existing.priority >= flag.priority {
+func flagsByActor(flags []actorFlag) map[string]actorFlag {
+	out := make(map[string]actorFlag, len(flags))
+	for _, flag := range flags {
+		if existing, ok := out[flag.ActorKey]; ok && existing.priority >= flag.priority {
 			continue
 		}
-		out[a.DeviceMAC] = flag
+		out[flag.ActorKey] = flag
 	}
 	return out
 }
@@ -208,11 +207,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 	}}
 	for _, d := range devices {
 		key := actorKeyForDevice(d.MAC)
-		flag, flagged := flags[d.MAC]
-		note := trackerTrendText(d.TrackerTrend)
-		if flagged {
-			note = flag.Word
-		}
+		note, hot := rosterNote(flags, key, trackerTrendText(d.TrackerTrend))
 		r.Devices = append(r.Devices, rosterRow{
 			ActorKey:       key,
 			Href:           "/devices/" + key,
@@ -220,25 +215,36 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 			Meta:           joinMeta(d.Vendor, fmt.Sprintf("%d q", d.QueryCount), note),
 			TrackerPercent: d.TrackerPercent,
 			QueryCount:     d.QueryCount,
-			Hot:            flagged && flag.Tone == "error",
+			Hot:            hot,
 			Selected:       key == selectedKey,
 		})
 	}
 	for _, src := range sources {
 		key := actorKeyForSource(src.SourceIP)
+		note, hot := rosterNote(flags, key, trackerTrendText(src.TrackerTrend))
 		r.Sources = append(r.Sources, rosterRow{
 			ActorKey:       key,
 			Href:           "/devices/" + key,
 			Name:           sourceActorDisplayName(src.SourceIP, src.Label),
-			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), trackerTrendText(src.TrackerTrend)),
+			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), note),
 			TrackerPercent: src.TrackerPercent,
 			QueryCount:     src.QueryCount,
+			Hot:            hot,
 			Selected:       key == selectedKey,
 		})
 	}
 	sortRosterRows(r.Devices)
 	sortRosterRows(r.Sources)
 	return r
+}
+
+// rosterNote is a flagged actor's flag word, or the fallback note, and whether the row is hot.
+func rosterNote(flags map[string]actorFlag, actorKey, fallback string) (string, bool) {
+	flag, ok := flags[actorKey]
+	if !ok {
+		return fallback, false
+	}
+	return flag.Word, flag.Tone == "error"
 }
 
 func sortRosterRows(rows []rosterRow) {
