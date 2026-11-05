@@ -76,8 +76,7 @@ func TestListenerRefusesSourceOverLimit(t *testing.T) {
 			c := &mdns.Client{Net: tt.network}
 			m := new(mdns.Msg)
 			m.SetQuestion("example.com.", mdns.TypeA)
-			// Filling the window and sending the query can straddle a second
-			// boundary, which lets the query through, so retry.
+			// A second boundary between filling the window and the query lets it through, so retry.
 			successes, refused := 0, false
 			for attempt := 1; attempt <= 3 && !refused; attempt++ {
 				for range QueriesPerSecondPerSource {

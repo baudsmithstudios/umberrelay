@@ -171,8 +171,7 @@ func withHostGuard(httpHosts []string, next http.Handler) http.Handler {
 	})
 }
 
-// A DNS-rebound page sends its own hostname in Host, so only IPs, localhost
-// and names the operator listed are trusted.
+// Blocks DNS rebinding: a rebound page sends its own hostname in Host.
 func isRecognizedHost(hostport string, httpHosts []string) bool {
 	host, _ := splitHostPort(hostport)
 	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")

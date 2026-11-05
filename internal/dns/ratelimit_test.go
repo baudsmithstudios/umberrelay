@@ -8,7 +8,6 @@ import (
 
 var t0 = time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
 
-// allowFullWindow sends a full window of queries from ip at the given time, all of which must be allowed.
 func allowFullWindow(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 	t.Helper()
 	for i := 1; i <= QueriesPerSecondPerSource; i++ {
@@ -18,7 +17,6 @@ func allowFullWindow(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 	}
 }
 
-// refuseOnce fills ip's window at the given time and sends one more query, which must be refused.
 func refuseOnce(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 	t.Helper()
 	allowFullWindow(t, l, ip, at)

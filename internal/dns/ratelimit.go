@@ -7,13 +7,11 @@ import (
 	"time"
 )
 
-// shortcut: one limit per source IP, so a NAT or resolver forwarding for many devices shares it.
+// shortcut: one limit per source IP, so a NAT or forwarding resolver shares it.
 const QueriesPerSecondPerSource = 100
 
-// refusalsKeptFor is how long a source's refusals are remembered after its most recent one.
 const refusalsKeptFor = time.Hour
 
-// Refusal summarizes the queries refused from one source since its flood began.
 type Refusal struct {
 	SourceIP string
 	Count    int
@@ -21,7 +19,6 @@ type Refusal struct {
 	Last     time.Time
 }
 
-// RateLimiter caps queries per source IP in fixed one-second windows and remembers recent refusals.
 type RateLimiter struct {
 	mu          sync.Mutex
 	windowStart time.Time
@@ -33,7 +30,7 @@ func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{counts: map[string]int{}, refusals: map[string]Refusal{}}
 }
 
-// Allow reports whether sourceIP may send another query in now's one-second window, recording a refusal when it may not.
+// Allow records a refusal when it returns false.
 func (l *RateLimiter) Allow(sourceIP string, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -60,7 +57,6 @@ func (l *RateLimiter) Allow(sourceIP string, now time.Time) bool {
 	return false
 }
 
-// Refusals returns sources whose most recent refusal is under an hour old, most refused first.
 func (l *RateLimiter) Refusals(now time.Time) []Refusal {
 	l.mu.Lock()
 	defer l.mu.Unlock()

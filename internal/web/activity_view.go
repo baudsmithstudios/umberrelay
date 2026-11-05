@@ -131,8 +131,7 @@ func flagFor(a store.Anomaly) actorFlag {
 	return flag
 }
 
-// rateLimitFlag uses durations, not clock times, because server-rendered times
-// use the container's timezone, which is UTC on the stock image.
+// Durations, not clock times: server-rendered times are UTC in the stock container.
 func rateLimitFlag(name, actorKey string, r dns.Refusal, now time.Time) actorFlag {
 	minutes := func(d time.Duration) string { return formatMinutes(max(1, int(d.Minutes()))) }
 	flag := actorFlag{
@@ -263,7 +262,6 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 	return r
 }
 
-// rosterNote is a flagged actor's flag word, or the fallback note, and whether the row is hot.
 func rosterNote(flags map[string]actorFlag, actorKey, fallback string) (note string, hot bool) {
 	flag, ok := flags[actorKey]
 	if !ok {

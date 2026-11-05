@@ -7,5 +7,5 @@ data_dir = "/data"
 http_listen = "0.0.0.0"
 http_port = 8080
 
-# Hostnames the web UI answers to besides IP addresses and localhost, such as a reverse proxy's name.
+# Names the web UI answers to besides IPs and localhost, such as a reverse proxy's.
 # http_hosts = ["umberrelay.home.arpa"]

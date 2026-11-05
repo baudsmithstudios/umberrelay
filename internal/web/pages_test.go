@@ -75,7 +75,6 @@ func seedPrivacyPageData(t *testing.T, s *Server, now time.Time) {
 	}
 }
 
-// seedKitchenDisplaySource records a query from the unattributed source 10.44.0.7, labeled Kitchen Display.
 func seedKitchenDisplaySource(t *testing.T, s *Server, now time.Time) {
 	t.Helper()
 	if err := s.db.WriteQueries([]store.Query{{
@@ -93,7 +92,6 @@ func seedKitchenDisplaySource(t *testing.T, s *Server, now time.Time) {
 	}
 }
 
-// refuseOnce sends one query more than the per-second limit from sourceIP, so it is refused once.
 func refuseOnce(s *Server, sourceIP string, at time.Time) {
 	for i := 0; i <= dns.QueriesPerSecondPerSource; i++ {
 		s.limiter.Allow(sourceIP, at)

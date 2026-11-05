@@ -277,8 +277,6 @@ func (s *Server) loadAttentionFlags(now time.Time, devices []store.DeviceWithTre
 	return flags, nil
 }
 
-// refusedActor attributes a refused IP the way the pipeline attributes queries:
-// to the known device holding that IP, otherwise to the source IP itself.
 func refusedActor(sourceIP string, devices []store.DeviceWithTrends, sources []store.SourceWithTrends) (name, actorKey string) {
 	for _, d := range devices {
 		if d.IP == sourceIP {
