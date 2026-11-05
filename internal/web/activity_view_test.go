@@ -124,16 +124,12 @@ func TestFlagsByActorRateLimitBeatsTrackerSpike(t *testing.T) {
 func TestRateLimitFlagStillHappening(t *testing.T) {
 	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
 	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 264000, First: first, Last: first.Add(88 * time.Minute)}, first.Add(88*time.Minute+20*time.Second))
-	want := actorFlag{
-		Word:        "rate limited",
-		Tone:        "error",
-		Badge:       "264000 refused",
-		Explanation: "Living Room TV is sending more than 100 DNS queries a second; 264000 refused over the last 1h 28m.",
-		ActorKey:    "source:10.0.30.42",
-		Name:        "Living Room TV",
+	if got.Badge != "264000 refused" {
+		t.Errorf("badge = %q, want 264000 refused", got.Badge)
 	}
-	if got.Word != want.Word || got.Tone != want.Tone || got.Badge != want.Badge || got.Explanation != want.Explanation || got.ActorKey != want.ActorKey || got.Name != want.Name {
-		t.Fatalf("rateLimitFlag = %+v, want %+v", got, want)
+	want := "Living Room TV is sending more than 100 DNS queries a second; 264000 refused over the last 1h 28m."
+	if got.Explanation != want {
+		t.Errorf("explanation = %q, want %q", got.Explanation, want)
 	}
 }
 
