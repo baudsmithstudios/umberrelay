@@ -1,7 +1,7 @@
 # Host guard and DNS rate limit
 
 Date: 2026-11-04
-Status: draft for review
+Status: approved by Thom 2026-11-04
 
 ## Why
 
