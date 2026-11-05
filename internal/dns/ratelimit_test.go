@@ -8,8 +8,8 @@ import (
 
 var t0 = time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
 
-// allowLimit sends a full window of queries from ip at the given time, all of which must be allowed.
-func allowLimit(t *testing.T, l *RateLimiter, ip string, at time.Time) {
+// allowFullWindow sends a full window of queries from ip at the given time, all of which must be allowed.
+func allowFullWindow(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 	t.Helper()
 	for i := 1; i <= QueriesPerSecondPerSource; i++ {
 		if !l.Allow(ip, at) {
@@ -21,7 +21,7 @@ func allowLimit(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 // refuseOnce fills ip's window at the given time and sends one more query, which must be refused.
 func refuseOnce(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 	t.Helper()
-	allowLimit(t, l, ip, at)
+	allowFullWindow(t, l, ip, at)
 	if l.Allow(ip, at) {
 		t.Fatalf("query over the limit from %s at %s allowed, want refused", ip, at)
 	}
@@ -29,7 +29,7 @@ func refuseOnce(t *testing.T, l *RateLimiter, ip string, at time.Time) {
 
 func TestAllowRefusesOverLimitWithinWindow(t *testing.T) {
 	l := NewRateLimiter()
-	allowLimit(t, l, "10.0.30.42", t0)
+	allowFullWindow(t, l, "10.0.30.42", t0)
 	at := t0.Add(500 * time.Millisecond)
 	if l.Allow("10.0.30.42", at) {
 		t.Fatal("query over the limit allowed, want refused")
@@ -50,7 +50,7 @@ func TestAllowResetsInNextWindow(t *testing.T) {
 
 func TestAllowCountsSourcesSeparately(t *testing.T) {
 	l := NewRateLimiter()
-	allowLimit(t, l, "10.0.30.42", t0)
+	allowFullWindow(t, l, "10.0.30.42", t0)
 	if !l.Allow("10.0.30.43", t0) {
 		t.Fatal("first query from a second source refused, want allowed")
 	}

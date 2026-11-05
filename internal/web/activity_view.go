@@ -264,7 +264,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 }
 
 // rosterNote is a flagged actor's flag word, or the fallback note, and whether the row is hot.
-func rosterNote(flags map[string]actorFlag, actorKey, fallback string) (string, bool) {
+func rosterNote(flags map[string]actorFlag, actorKey, fallback string) (note string, hot bool) {
 	flag, ok := flags[actorKey]
 	if !ok {
 		return fallback, false

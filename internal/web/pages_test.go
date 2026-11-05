@@ -93,8 +93,8 @@ func seedKitchenDisplaySource(t *testing.T, s *Server, now time.Time) {
 	}
 }
 
-// floodDNS sends one query more than the per-second limit from sourceIP, so it is refused once.
-func floodDNS(s *Server, sourceIP string, at time.Time) {
+// refuseOnce sends one query more than the per-second limit from sourceIP, so it is refused once.
+func refuseOnce(s *Server, sourceIP string, at time.Time) {
 	for i := 0; i <= dns.QueriesPerSecondPerSource; i++ {
 		s.limiter.Allow(sourceIP, at)
 	}
@@ -752,7 +752,7 @@ func TestRateLimitedSourceIsFlagged(t *testing.T) {
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	seedKitchenDisplaySource(t, s, now)
-	floodDNS(s, "10.44.0.7", now)
+	refuseOnce(s, "10.44.0.7", now)
 
 	body := getPage(t, s, "/")
 	if !strings.Contains(body, `<a href="/devices/source:10.44.0.7">Kitchen Display · 10.44.0.7</a> · rate limited.`) {
@@ -771,7 +771,7 @@ func TestRateLimitedKnownDeviceFlagsTheDevice(t *testing.T) {
 	now := time.Now().UTC()
 	s.now = func() time.Time { return now }
 	seedPrivacyPageData(t, s, now)
-	floodDNS(s, "192.168.1.10", now)
+	refuseOnce(s, "192.168.1.10", now)
 
 	body := getPage(t, s, "/")
 	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · rate limited.`) {
