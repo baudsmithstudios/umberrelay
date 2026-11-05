@@ -66,6 +66,8 @@ Then point your router's DNS to the host running Umberrelay.
 
 Umberrelay works best when it is the DNS server your network uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
 
+Hand out Umberrelay's address as the DNS server over DHCP so each client queries it directly. If the router forwards every client's queries itself, Umberrelay sees a single source: the whole network shares one source's rate limit of 100 queries a second, and queries are attributed to the router instead of each device.
+
 ### Works With Pi-hole / AdGuard Home
 
 Umberrelay is a passive DNS pass-through observer and classifier, so you can run it alongside blocker-first tools instead of choosing one or the other.
@@ -382,7 +384,7 @@ Recommended pattern:
 
 This keeps the unauthenticated surface off the network and gives you one place to manage TLS, auth, and access policy. It also simplifies firewall rules, since you expose a single well-known port (e.g., `443`) instead of the app's HTTP port directly.
 
-Caddy's `reverse_proxy` passes the incoming `Host` through by default, so list the name you browse Caddy at in `http_hosts`, or set `header_up Host {upstream_hostport}` in the `reverse_proxy` block.
+Caddy's `reverse_proxy` passes the incoming `Host` through by default, so list the name you browse Caddy at in `http_hosts`. Don't rewrite `Host` at the proxy: the browser's `Origin` still carries the proxy's name, so every change made in the UI would be rejected as cross-origin.
 
 ## Comparison
 
