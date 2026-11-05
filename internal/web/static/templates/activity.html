@@ -94,7 +94,7 @@
                     {{range .Flags}}
                     <aside class="elum-alert ur-flag" data-tone="{{.Tone}}">
                         <span class="elum-badge" data-tone="{{.Tone}}">[{{.Badge}}]</span>
-                        <a href="/devices/device:{{.DeviceMAC}}">{{.DeviceName}}</a> · {{.Word}}. {{.Explanation}}
+                        <a href="/devices/{{.ActorKey}}">{{.Name}}</a> · {{.Word}}. {{.Explanation}}
                     </aside>
                     {{else}}
                     <div class="elum-empty"><div class="elum-empty-title">No unusual activity</div></div>

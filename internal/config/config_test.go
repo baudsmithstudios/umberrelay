@@ -33,6 +33,7 @@ upstream = ["9.9.9.9:53"]
 data_dir = "/tmp/umberrelay"
 http_listen = "127.0.0.1"
 http_port = 9090
+http_hosts = ["umberrelay.home.arpa"]
 `), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -52,6 +53,9 @@ http_port = 9090
 	}
 	if cfg.HTTPListen != "127.0.0.1" {
 		t.Errorf("HTTPListen = %q, want 127.0.0.1", cfg.HTTPListen)
+	}
+	if len(cfg.HTTPHosts) != 1 || cfg.HTTPHosts[0] != "umberrelay.home.arpa" {
+		t.Errorf("HTTPHosts = %v, want [umberrelay.home.arpa]", cfg.HTTPHosts)
 	}
 }
 

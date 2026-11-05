@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +17,7 @@ import (
 
 	"umberrelay/internal/category"
 	"umberrelay/internal/classify"
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 	"umberrelay/internal/web/static"
 )
@@ -25,6 +28,7 @@ const maxMutationBodyBytes int64 = 1 << 20
 type Server struct {
 	db                     *store.DB
 	classify               *classify.Manager
+	limiter                *dns.RateLimiter
 	queryHub               *queryStreamHub
 	mux                    *http.ServeMux
 	handler                http.Handler
@@ -38,11 +42,12 @@ type Server struct {
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
 
-func NewServer(db *store.DB, mgr *classify.Manager, version string) *Server {
+func NewServer(db *store.DB, mgr *classify.Manager, version string, httpHosts []string, limiter *dns.RateLimiter) *Server {
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 	s := &Server{
 		db:       db,
 		classify: mgr,
+		limiter:  limiter,
 		queryHub: newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
 			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
 		}, db.LatestQueryID, 500),
@@ -55,7 +60,7 @@ func NewServer(db *store.DB, mgr *classify.Manager, version string) *Server {
 		refreshListSources:     refreshManagerSources,
 	}
 	s.registerRoutes()
-	s.handler = withSecurityHeaders(withMutationOriginGuard(withMutationBodyLimit(s.mux)))
+	s.handler = withSecurityHeaders(withHostGuard(httpHosts, withMutationOriginGuard(withMutationBodyLimit(s.mux))))
 	return s
 }
 
@@ -154,6 +159,26 @@ func withSecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func withHostGuard(httpHosts []string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isRecognizedHost(r.Host, httpHosts) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "forbidden", http.StatusForbidden)
+	})
+}
+
+// Blocks DNS rebinding: a rebound page sends its own hostname in Host.
+func isRecognizedHost(hostport string, httpHosts []string) bool {
+	host, _ := splitHostPort(hostport)
+	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	if _, err := netip.ParseAddr(host); err == nil || strings.EqualFold(host, "localhost") {
+		return true
+	}
+	return slices.ContainsFunc(httpHosts, func(name string) bool { return strings.EqualFold(name, host) })
 }
 
 func withMutationOriginGuard(next http.Handler) http.Handler {

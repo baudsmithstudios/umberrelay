@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"umberrelay/internal/classify"
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -28,7 +29,7 @@ func testServerVersion(t *testing.T, version string) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(db, classify.NewManager(db), version)
+	s := NewServer(db, classify.NewManager(db), version, []string{"example.com", "umberrelay.local"}, dns.NewRateLimiter())
 	s.refreshListSources = func(context.Context, *classify.Manager, []classify.ListSource) error { return nil }
 	t.Cleanup(func() {
 		s.Close()
@@ -51,6 +52,29 @@ func TestHandlerSetsSecurityHeaders(t *testing.T) {
 	}
 	if got := w.Header().Get("Referrer-Policy"); got != "no-referrer" {
 		t.Fatalf("Referrer-Policy = %q, want no-referrer", got)
+	}
+}
+
+func TestHostGuard(t *testing.T) {
+	s := testServer(t)
+	cases := []struct {
+		host string
+		want int
+	}{
+		{"attacker.example:8080", http.StatusForbidden},
+		{"192.168.1.5:8080", http.StatusOK},
+		{"[::1]", http.StatusOK},
+		{"localhost:8080", http.StatusOK},
+		{"Umberrelay.Local:443", http.StatusOK},
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest("GET", "/api/health", nil)
+		req.Host = c.host
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, req)
+		if w.Code != c.want {
+			t.Errorf("Host %q: status = %d, want %d", c.host, w.Code, c.want)
+		}
 	}
 }
 

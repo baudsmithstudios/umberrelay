@@ -6,3 +6,6 @@ upstream = ["1.1.1.1:53", "8.8.8.8:53"]
 data_dir = "/data"
 http_listen = "0.0.0.0"
 http_port = 8080
+
+# Names the web UI answers to besides IPs and localhost, such as a reverse proxy's.
+# http_hosts = ["umberrelay.home.arpa"]

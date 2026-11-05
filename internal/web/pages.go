@@ -254,7 +254,12 @@ func (s *Server) loadActorsWithTrends(now time.Time) ([]store.DeviceWithTrends, 
 	return devices, sources, nil
 }
 
-func (s *Server) loadAttentionAnomalies(now time.Time) ([]store.Anomaly, error) {
+func (s *Server) loadAttentionFlags(now time.Time, devices []store.DeviceWithTrends, sources []store.SourceWithTrends) ([]actorFlag, error) {
+	var flags []actorFlag
+	for _, refusal := range s.limiter.Refusals(now) {
+		name, actorKey := refusedActor(refusal.SourceIP, devices, sources)
+		flags = append(flags, rateLimitFlag(name, actorKey, refusal, now))
+	}
 	anomalies, err := s.db.DeviceAnomalies()
 	if err != nil {
 		return nil, err
@@ -266,7 +271,23 @@ func (s *Server) loadAttentionAnomalies(now time.Time) ([]store.Anomaly, error) 
 	for _, signal := range bypassSignals {
 		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
 	}
-	return anomalies, nil
+	for _, anomaly := range anomalies {
+		flags = append(flags, flagFor(anomaly))
+	}
+	return flags, nil
+}
+
+func refusedActor(sourceIP string, devices []store.DeviceWithTrends, sources []store.SourceWithTrends) (name, actorKey string) {
+	for _, d := range devices {
+		if d.IP == sourceIP {
+			return deviceDisplayName(d.Device), actorKeyForDevice(d.MAC)
+		}
+	}
+	label := ""
+	if src := findSource(sources, sourceIP); src != nil {
+		label = src.Label
+	}
+	return sourceActorDisplayName(sourceIP, label), actorKeyForSource(sourceIP)
 }
 
 func findDevice(devices []store.DeviceWithTrends, mac string) *store.DeviceWithTrends {
@@ -365,7 +386,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	anomalies, err := s.loadAttentionAnomalies(now)
+	flags, err := s.loadAttentionFlags(now, devices, sources)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -376,7 +397,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	totalActors := len(devices) + len(sources)
-	flags := flagsByMAC(anomalies)
+	flagByActor := flagsByActor(flags)
 
 	view := activityView{pageData: pageData{Active: "activity"}, Tab: parseTab(r.URL.Query().Get("tab"))}
 	selectedKey := ""
@@ -401,9 +422,6 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			detail, err = s.loadDeviceDetail(now, *selected, totalActors, domainsPage)
-			if flag, ok := flags[selected.MAC]; ok {
-				detail.Flag = &flag
-			}
 		default:
 			selected := findSource(sources, value)
 			if selected == nil {
@@ -416,11 +434,14 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		if flag, ok := flagByActor[detail.LiveActorKey]; ok {
+			detail.Flag = &flag
+		}
 		selectedKey = detail.LiveActorKey
 		view.Title = detail.DeviceName
 		view.Detail = &detail
 	} else {
-		pane, err := s.loadNetworkPane(now, stats, anomalies, totalActors)
+		pane, err := s.loadNetworkPane(now, stats, flags, totalActors)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -428,11 +449,11 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		view.Title = "Activity"
 		view.Network = &pane
 	}
-	view.Roster = makeRoster(devices, sources, stats, flags, selectedKey)
+	view.Roster = makeRoster(devices, sources, stats, flagByActor, selectedKey)
 	s.renderPage(w, "activity", view)
 }
 
-func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, anomalies []store.Anomaly, totalActors int) (networkPane, error) {
+func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, flags []actorFlag, totalActors int) (networkPane, error) {
 	counts, err := s.db.NetworkCategoryCountsAt(now)
 	if err != nil {
 		return networkPane{}, err
@@ -449,9 +470,7 @@ func (s *Server) loadNetworkPane(now time.Time, stats store.DashboardStats, anom
 		Stats:         stats,
 		ListMatches:   makeListMatches(counts),
 		TrackerChange: trackerTrendText(trackerTrend),
-	}
-	for _, anomaly := range anomalies {
-		pane.Flags = append(pane.Flags, flagFor(anomaly))
+		Flags:         flags,
 	}
 	for _, domain := range topDomains {
 		pane.TopDomains = append(pane.TopDomains, makePrivacyDomainRow(domain, totalActors, ""))

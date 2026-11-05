@@ -228,7 +228,6 @@ body {
     margin-top: var(--elum-space-1);
 }
 
-/* data-hot marks a tracker spike. */
 .ur-roster .elum-row-value[data-hot="true"] {
     color: var(--elum-color-error);
 }

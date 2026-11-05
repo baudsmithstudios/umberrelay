@@ -1,8 +1,11 @@
 package web
 
 import (
+	"strings"
 	"testing"
+	"time"
 
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -67,7 +70,7 @@ func TestMakeListMatchesOrder(t *testing.T) {
 }
 
 func TestFlagFor(t *testing.T) {
-	base := store.Anomaly{DeviceName: "TV", TopDomain: "ads.example", TopDomainSourceList: "Blocklist", Delta: 12, CurrentValue: 30, AverageValue: 10}
+	base := store.Anomaly{DeviceMAC: "aa:bb:cc:dd:ee:ff", DeviceName: "TV", TopDomain: "ads.example", TopDomainSourceList: "Blocklist", Delta: 12, CurrentValue: 30, AverageValue: 10}
 	cases := []struct {
 		anomalyType string
 		want        actorFlag
@@ -84,6 +87,9 @@ func TestFlagFor(t *testing.T) {
 		if got.Word != c.want.Word || got.Tone != c.want.Tone || got.Badge != c.want.Badge || got.Explanation != c.want.Explanation {
 			t.Errorf("flagFor(%s) = %+v, want %+v", c.anomalyType, got, c.want)
 		}
+		if got.ActorKey != "device:aa:bb:cc:dd:ee:ff" || got.Name != "TV" {
+			t.Errorf("flagFor(%s) actor = %q %q, want device:aa:bb:cc:dd:ee:ff TV", c.anomalyType, got.ActorKey, got.Name)
+		}
 	}
 }
 
@@ -94,12 +100,52 @@ func TestFlagForBypassBadgeCountsHours(t *testing.T) {
 	}
 }
 
-func TestFlagsByMACPriority(t *testing.T) {
-	flags := flagsByMAC([]store.Anomaly{
-		{Type: "volume_spike", DeviceMAC: "aa"},
-		{Type: "tracker_spike", DeviceMAC: "aa"},
+func TestFlagsByActorPriority(t *testing.T) {
+	flags := flagsByActor([]actorFlag{
+		flagFor(store.Anomaly{Type: "volume_spike", DeviceMAC: "aa"}),
+		flagFor(store.Anomaly{Type: "tracker_spike", DeviceMAC: "aa"}),
 	})
-	if got := flags["aa"].Word; got != "tracker spike" {
+	if got := flags["device:aa"].Word; got != "tracker spike" {
 		t.Fatalf("flag = %q, want tracker spike", got)
+	}
+}
+
+func TestFlagsByActorRateLimitBeatsTrackerSpike(t *testing.T) {
+	at := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	flags := flagsByActor([]actorFlag{
+		flagFor(store.Anomaly{Type: "tracker_spike", DeviceMAC: "aa"}),
+		rateLimitFlag("TV", "device:aa", dns.Refusal{Count: 1, First: at, Last: at}, at),
+	})
+	if got := flags["device:aa"].Word; got != "rate limited" {
+		t.Fatalf("flag = %q, want rate limited", got)
+	}
+}
+
+func TestRateLimitFlagStillHappening(t *testing.T) {
+	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 264000, First: first, Last: first.Add(88 * time.Minute)}, first.Add(88*time.Minute+20*time.Second))
+	if got.Badge != "264000 refused" {
+		t.Errorf("badge = %q, want 264000 refused", got.Badge)
+	}
+	want := "Living Room TV is sending more than 100 DNS queries a second; 264000 refused over the last 1h 28m."
+	if got.Explanation != want {
+		t.Errorf("explanation = %q, want %q", got.Explanation, want)
+	}
+}
+
+func TestRateLimitFlagStopped(t *testing.T) {
+	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 354000, First: first, Last: first.Add(118 * time.Minute)}, first.Add(148*time.Minute))
+	want := "Living Room TV sent more than 100 DNS queries a second; 354000 refused over 1h 58m, ending 30m ago."
+	if got.Explanation != want {
+		t.Fatalf("explanation = %q, want %q", got.Explanation, want)
+	}
+}
+
+func TestRateLimitFlagFirstMinute(t *testing.T) {
+	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 50, First: first, Last: first.Add(10 * time.Second)}, first.Add(20*time.Second))
+	if !strings.HasSuffix(got.Explanation, "refused over the last 1m.") {
+		t.Fatalf("explanation = %q, want it to end %q", got.Explanation, "refused over the last 1m.")
 	}
 }

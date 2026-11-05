@@ -122,12 +122,13 @@ func run(configPath string, demoData bool) error {
 		workers.Go(func() { mgr.Run(ctx, sources, time.Duration(refreshHours)*time.Hour) })
 	}
 
-	srv := web.NewServer(db, mgr, version)
+	limiter := dns.NewRateLimiter()
+	srv := web.NewServer(db, mgr, version, cfg.HTTPHosts, limiter)
 
 	records := make(chan dns.QueryRecord, 4096)
 	errCh := make(chan error, 2)
 	if !demoData {
-		listener := dns.NewListener(cfg.Listen, cfg.Upstream, records)
+		listener := dns.NewListener(cfg.Listen, cfg.Upstream, limiter, records)
 		workers.Go(func() {
 			if err := listener.Run(ctx); err != nil && ctx.Err() == nil {
 				select {

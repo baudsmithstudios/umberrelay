@@ -20,14 +20,16 @@ type QueryRecord struct {
 type Listener struct {
 	addr     string
 	upstream []string
+	limiter  *RateLimiter
 	out      chan<- QueryRecord
 	ready    chan struct{}
 }
 
-func NewListener(addr string, upstream []string, out chan<- QueryRecord) *Listener {
+func NewListener(addr string, upstream []string, limiter *RateLimiter, out chan<- QueryRecord) *Listener {
 	return &Listener{
 		addr:     addr,
 		upstream: upstream,
+		limiter:  limiter,
 		out:      out,
 		ready:    make(chan struct{}),
 	}
@@ -83,6 +85,11 @@ func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
 		sourceIP = addr.IP.String()
 	}
 
+	if !l.limiter.Allow(sourceIP, time.Now()) {
+		replyWithRcode(w, r, mdns.RcodeRefused)
+		return
+	}
+
 	upstreamNet := "udp"
 	if _, ok := w.RemoteAddr().(*net.TCPAddr); ok {
 		upstreamNet = "tcp"
@@ -100,9 +107,7 @@ func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
 
 	if resp == nil {
 		log.Printf("all upstreams failed for query type=%s", formatQuestionForLog(r))
-		m := new(mdns.Msg)
-		m.SetRcode(r, mdns.RcodeServerFailure)
-		w.WriteMsg(m)
+		replyWithRcode(w, r, mdns.RcodeServerFailure)
 		return
 	}
 
@@ -122,6 +127,12 @@ func (l *Listener) handleQuery(w mdns.ResponseWriter, r *mdns.Msg) {
 			// Drop rather than block DNS when the channel is full.
 		}
 	}
+}
+
+func replyWithRcode(w mdns.ResponseWriter, r *mdns.Msg, rcode int) {
+	m := new(mdns.Msg)
+	m.SetRcode(r, rcode)
+	w.WriteMsg(m)
 }
 
 func formatQuestionForLog(r *mdns.Msg) string {

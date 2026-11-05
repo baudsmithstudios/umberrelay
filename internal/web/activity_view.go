@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"umberrelay/internal/category"
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -101,13 +103,13 @@ type actorFlag struct {
 	Tone        string
 	Badge       string
 	Explanation string
-	DeviceMAC   string
-	DeviceName  string
+	ActorKey    string
+	Name        string
 	priority    int
 }
 
 func flagFor(a store.Anomaly) actorFlag {
-	flag := actorFlag{Tone: "warn", DeviceMAC: a.DeviceMAC, DeviceName: a.DeviceName}
+	flag := actorFlag{Tone: "warn", ActorKey: actorKeyForDevice(a.DeviceMAC), Name: a.DeviceName}
 	switch a.Type {
 	case "tracker_spike":
 		flag.Word, flag.Tone, flag.priority = "tracker spike", "error", 3
@@ -129,22 +131,43 @@ func flagFor(a store.Anomaly) actorFlag {
 	return flag
 }
 
-func silentFor(minutes float64) string {
-	m := int(minutes)
-	if m < 60 {
-		return fmt.Sprintf("%dm silent", m)
+// Durations, not clock times: server-rendered times are UTC in the stock container.
+func rateLimitFlag(name, actorKey string, r dns.Refusal, now time.Time) actorFlag {
+	minutes := func(d time.Duration) string { return formatMinutes(max(1, int(d.Minutes()))) }
+	flag := actorFlag{
+		Word:     "rate limited",
+		Tone:     "error",
+		Badge:    fmt.Sprintf("%d refused", r.Count),
+		ActorKey: actorKey,
+		Name:     name,
+		priority: 4,
 	}
-	return fmt.Sprintf("%dh %dm silent", m/60, m%60)
+	if now.Sub(r.Last) < time.Minute {
+		flag.Explanation = fmt.Sprintf("%s is sending more than %d DNS queries a second; %d refused over the last %s.", name, dns.QueriesPerSecondPerSource, r.Count, minutes(now.Sub(r.First)))
+	} else {
+		flag.Explanation = fmt.Sprintf("%s sent more than %d DNS queries a second; %d refused over %s, ending %s ago.", name, dns.QueriesPerSecondPerSource, r.Count, minutes(r.Last.Sub(r.First)), minutes(now.Sub(r.Last)))
+	}
+	return flag
 }
 
-func flagsByMAC(anomalies []store.Anomaly) map[string]actorFlag {
-	out := make(map[string]actorFlag, len(anomalies))
-	for _, a := range anomalies {
-		flag := flagFor(a)
-		if existing, ok := out[a.DeviceMAC]; ok && existing.priority >= flag.priority {
+func silentFor(minutes float64) string {
+	return formatMinutes(int(minutes)) + " silent"
+}
+
+func formatMinutes(m int) string {
+	if m < 60 {
+		return fmt.Sprintf("%dm", m)
+	}
+	return fmt.Sprintf("%dh %dm", m/60, m%60)
+}
+
+func flagsByActor(flags []actorFlag) map[string]actorFlag {
+	out := make(map[string]actorFlag, len(flags))
+	for _, flag := range flags {
+		if existing, ok := out[flag.ActorKey]; ok && existing.priority >= flag.priority {
 			continue
 		}
-		out[a.DeviceMAC] = flag
+		out[flag.ActorKey] = flag
 	}
 	return out
 }
@@ -208,11 +231,7 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 	}}
 	for _, d := range devices {
 		key := actorKeyForDevice(d.MAC)
-		flag, flagged := flags[d.MAC]
-		note := trackerTrendText(d.TrackerTrend)
-		if flagged {
-			note = flag.Word
-		}
+		note, hot := rosterNote(flags, key, trackerTrendText(d.TrackerTrend))
 		r.Devices = append(r.Devices, rosterRow{
 			ActorKey:       key,
 			Href:           "/devices/" + key,
@@ -220,25 +239,35 @@ func makeRoster(devices []store.DeviceWithTrends, sources []store.SourceWithTren
 			Meta:           joinMeta(d.Vendor, fmt.Sprintf("%d q", d.QueryCount), note),
 			TrackerPercent: d.TrackerPercent,
 			QueryCount:     d.QueryCount,
-			Hot:            flagged && flag.Tone == "error",
+			Hot:            hot,
 			Selected:       key == selectedKey,
 		})
 	}
 	for _, src := range sources {
 		key := actorKeyForSource(src.SourceIP)
+		note, hot := rosterNote(flags, key, trackerTrendText(src.TrackerTrend))
 		r.Sources = append(r.Sources, rosterRow{
 			ActorKey:       key,
 			Href:           "/devices/" + key,
 			Name:           sourceActorDisplayName(src.SourceIP, src.Label),
-			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), trackerTrendText(src.TrackerTrend)),
+			Meta:           joinMeta(src.SourceIP, fmt.Sprintf("%d q", src.QueryCount), note),
 			TrackerPercent: src.TrackerPercent,
 			QueryCount:     src.QueryCount,
+			Hot:            hot,
 			Selected:       key == selectedKey,
 		})
 	}
 	sortRosterRows(r.Devices)
 	sortRosterRows(r.Sources)
 	return r
+}
+
+func rosterNote(flags map[string]actorFlag, actorKey, fallback string) (note string, hot bool) {
+	flag, ok := flags[actorKey]
+	if !ok {
+		return fallback, false
+	}
+	return flag.Word, flag.Tone == "error"
 }
 
 func sortRosterRows(rows []rosterRow) {

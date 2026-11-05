@@ -25,7 +25,7 @@ Umberrelay is a forwarding DNS server that logs every query, identifies which ne
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
 - **Web UI** — an Activity view that lists every device and source-IP actor beside a detail pane for the whole network or the selected actor (tracker rate against a baseline, blocklist matches by category, tracker-rate chart, domains with overrides, live query stream), plus a Settings page for runtime configuration
-- **Anomaly flags** — flags known devices whose 24h tracker rate is more than 5 points above their prior 7 days, or whose 24h query count is more than three times their daily average
+- **Anomaly flags** — flags known devices whose 24h tracker rate is more than 5 points above their prior 7 days, or whose 24h query count is more than three times their daily average. Devices and sources over the DNS rate limit are flagged "rate limited" with the refused count and whether it is still happening
 - **Best-effort DoH/DoT bypass signal** — flags devices that appear active on LAN but stop using local DNS, with higher confidence when encrypted-DNS bootstrap domains were seen
 - **REST API** — JSON API for actors, devices, queries, activity, anomalies, bypass signals, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong
@@ -60,11 +60,11 @@ docker compose up -d
 
 Then open `http://localhost:8080` in a browser.
 If you are connecting from another device on your LAN, use `http://<host-ip>:8080` instead.
-Then point your router's DNS to the host running Umberrelay.
+Then set the DNS server your router hands out over DHCP to the host running Umberrelay.
 
 ## Deployment Model
 
-Umberrelay works best when it is the DNS server your network uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
+Umberrelay works best when it is the DNS server your network uses. In the common setup, that means setting the DNS server your router hands out over DHCP to the host running Umberrelay, so each client queries it directly. If the router instead forwards every client's queries itself, Umberrelay sees a single source: the whole network shares one source's rate limit of 100 queries a second, and every query is attributed to the router.
 
 ### Works With Pi-hole / AdGuard Home
 
@@ -103,6 +103,7 @@ upstream  = ["1.1.1.1:53", "8.8.8.8:53"]
 data_dir  = "/data"
 http_listen = "0.0.0.0"
 http_port = 8080
+http_hosts = []
 ```
 
 | Field | Default | Description |
@@ -112,6 +113,7 @@ http_port = 8080
 | `data_dir` | `/data` | SQLite database and data directory |
 | `http_listen` | `0.0.0.0` | Web UI and API bind address (host/interface only) |
 | `http_port` | `8080` | Web UI and API port |
+| `http_hosts` | `[]` | Hostnames the web UI and API answer to besides IP addresses and `localhost` |
 
 All fields are optional. Umberrelay runs with sane defaults if no config file exists.
 
@@ -164,6 +166,7 @@ The API is unauthenticated — see [Access And Hardening](#access-and-hardening)
 - Mutation endpoints return either JSON or an empty success status (`204 No Content` / `202 Accepted`).
 - Errors return JSON in the form `{ "error": "message" }`.
 - Cross-origin mutation requests are rejected with a plain-text `403 Forbidden`.
+- Requests whose `Host` is not an IP address, `localhost`, or a name in `http_hosts` are rejected with a plain-text `403 Forbidden`.
 - `/ui/...` routes are internal SSR form handlers, not part of the public API contract.
 
 | Method | Endpoint | Description |
@@ -351,7 +354,7 @@ Web Server
     └─ REST API
 ```
 
-- **DNS Listener** — dual-stack UDP/TCP, forwards to upstream with sequential fallback, emits records non-blocking (drops on channel full rather than blocking DNS)
+- **DNS Listener** — dual-stack UDP/TCP, forwards to upstream with sequential fallback, emits records non-blocking (drops on channel full rather than blocking DNS). Each source IP is limited to 100 queries a second; queries over the limit get `REFUSED` without being forwarded or logged
 - **Pipeline Writer** — batches queries (100 per batch or 1s flush), enriches with device MAC and domain category before writing
 - **Classification Manager** — atomic pointer swap on refresh, lock-free reads on the hot path
 - **SQLite** — WAL mode, `NORMAL` synchronous; schema auto-applied on startup
@@ -360,6 +363,7 @@ Web Server
 
 - **No blocking** — Umberrelay observes and classifies but does not block or modify DNS responses
 - **No authentication** — the web UI and API are unauthenticated; see [Access And Hardening](#access-and-hardening) below
+- **No per-source storage cap** — a source that stays under the DNS rate limit is never refused or flagged, so everything it sends is stored until retention purges it: roughly a gigabyte a day at a steady 100 queries a second
 - **No telemetry** — Umberrelay does not send analytics or cloud telemetry; outbound network traffic is limited to DNS forwarding and blocklist fetches
 - **Passive discovery** — device identification uses only broadcast/multicast traffic and the local ARP table
 - **Parameterized queries** — all SQL uses parameterized statements
@@ -378,6 +382,8 @@ Recommended pattern:
 - Optionally add rate limiting or IP allowlists
 
 This keeps the unauthenticated surface off the network and gives you one place to manage TLS, auth, and access policy. It also simplifies firewall rules, since you expose a single well-known port (e.g., `443`) instead of the app's HTTP port directly.
+
+The proxy must pass the browser's `Host` header through unchanged, and that hostname must be listed in `http_hosts`. Caddy and Traefik pass it through by default; nginx needs `proxy_set_header Host $host;`. If the proxy rewrites `Host`, every change made in the UI is rejected as cross-origin, because the browser's `Origin` still carries the proxy's name.
 
 ## Comparison
 
