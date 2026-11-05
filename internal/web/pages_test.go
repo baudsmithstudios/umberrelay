@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -74,11 +75,9 @@ func seedPrivacyPageData(t *testing.T, s *Server, now time.Time) {
 	}
 }
 
-func TestDeviceDetailPageSourceRoute(t *testing.T) {
-	s := testServer(t)
-	now := time.Now().UTC()
-	s.now = func() time.Time { return now }
-
+// seedKitchenDisplaySource records a query from the unattributed source 10.44.0.7, labeled Kitchen Display.
+func seedKitchenDisplaySource(t *testing.T, s *Server, now time.Time) {
+	t.Helper()
 	if err := s.db.WriteQueries([]store.Query{{
 		DeviceMAC: "",
 		SourceIP:  "10.44.0.7",
@@ -92,6 +91,20 @@ func TestDeviceDetailPageSourceRoute(t *testing.T) {
 	if err := s.db.SetSourceLabel("10.44.0.7", "Kitchen Display"); err != nil {
 		t.Fatalf("SetSourceLabel: %v", err)
 	}
+}
+
+// floodDNS sends one query more than the per-second limit from sourceIP, so it is refused once.
+func floodDNS(s *Server, sourceIP string, at time.Time) {
+	for i := 0; i <= dns.QueriesPerSecondPerSource; i++ {
+		s.limiter.Allow(sourceIP, at)
+	}
+}
+
+func TestDeviceDetailPageSourceRoute(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedKitchenDisplaySource(t, s, now)
 
 	req := httptest.NewRequest("GET", "/devices/source:10.44.0.7", nil)
 	w := httptest.NewRecorder()
@@ -731,6 +744,38 @@ func TestNetworkOverviewNeedsAttentionShowsFlags(t *testing.T) {
 	body := getPage(t, s, "/")
 	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · tracker spike.`) {
 		t.Fatalf("needs attention missing the tracker spike flag")
+	}
+}
+
+func TestRateLimitedSourceIsFlagged(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedKitchenDisplaySource(t, s, now)
+	floodDNS(s, "10.44.0.7", now)
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `<a href="/devices/source:10.44.0.7">Kitchen Display · 10.44.0.7</a> · rate limited.`) {
+		t.Fatalf("needs attention missing the rate limited flag for the source")
+	}
+	if row := rowFor(t, body, "/devices/source:10.44.0.7"); !strings.Contains(row, "rate limited") {
+		t.Fatalf("source roster row = %q, want it to say rate limited", row)
+	}
+	if detail := getPage(t, s, "/devices/source:10.44.0.7"); !strings.Contains(detail, `data-tone="error">rate limited</span>`) {
+		t.Fatalf("source detail page missing the rate limited flag")
+	}
+}
+
+func TestRateLimitedKnownDeviceFlagsTheDevice(t *testing.T) {
+	s := testServer(t)
+	now := time.Now().UTC()
+	s.now = func() time.Time { return now }
+	seedPrivacyPageData(t, s, now)
+	floodDNS(s, "192.168.1.10", now)
+
+	body := getPage(t, s, "/")
+	if !strings.Contains(body, `<a href="/devices/device:aa:bb:cc:dd:ee:ff">Living Room TV</a> · rate limited.`) {
+		t.Fatalf("needs attention missing the rate limited flag for the device")
 	}
 }
 

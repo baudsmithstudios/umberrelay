@@ -17,6 +17,7 @@ import (
 
 	"umberrelay/internal/category"
 	"umberrelay/internal/classify"
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 	"umberrelay/internal/web/static"
 )
@@ -27,6 +28,7 @@ const maxMutationBodyBytes int64 = 1 << 20
 type Server struct {
 	db                     *store.DB
 	classify               *classify.Manager
+	limiter                *dns.RateLimiter
 	queryHub               *queryStreamHub
 	mux                    *http.ServeMux
 	handler                http.Handler
@@ -40,11 +42,12 @@ type Server struct {
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
 
-func NewServer(db *store.DB, mgr *classify.Manager, version string, httpHosts []string) *Server {
+func NewServer(db *store.DB, mgr *classify.Manager, version string, httpHosts []string, limiter *dns.RateLimiter) *Server {
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 	s := &Server{
 		db:       db,
 		classify: mgr,
+		limiter:  limiter,
 		queryHub: newQueryStreamHub(func(afterID int64, limit int) ([]store.Query, error) {
 			return db.QueryFeed(afterID, store.QueryFeedFilter{}, limit)
 		}, db.LatestQueryID, 500),

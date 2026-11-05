@@ -123,7 +123,7 @@ func run(configPath string, demoData bool) error {
 	}
 
 	limiter := dns.NewRateLimiter()
-	srv := web.NewServer(db, mgr, version, cfg.HTTPHosts)
+	srv := web.NewServer(db, mgr, version, cfg.HTTPHosts, limiter)
 
 	records := make(chan dns.QueryRecord, 4096)
 	errCh := make(chan error, 2)

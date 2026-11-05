@@ -1,8 +1,11 @@
 package web
 
 import (
+	"strings"
 	"testing"
+	"time"
 
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -104,5 +107,49 @@ func TestFlagsByActorPriority(t *testing.T) {
 	})
 	if got := flags["device:aa"].Word; got != "tracker spike" {
 		t.Fatalf("flag = %q, want tracker spike", got)
+	}
+}
+
+func TestFlagsByActorRateLimitBeatsTrackerSpike(t *testing.T) {
+	at := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	flags := flagsByActor([]actorFlag{
+		flagFor(store.Anomaly{Type: "tracker_spike", DeviceMAC: "aa"}),
+		rateLimitFlag("TV", "device:aa", dns.Refusal{Count: 1, First: at, Last: at}, at),
+	})
+	if got := flags["device:aa"].Word; got != "rate limited" {
+		t.Fatalf("flag = %q, want rate limited", got)
+	}
+}
+
+func TestRateLimitFlagStillHappening(t *testing.T) {
+	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 264000, First: first, Last: first.Add(88 * time.Minute)}, first.Add(88*time.Minute+20*time.Second))
+	want := actorFlag{
+		Word:        "rate limited",
+		Tone:        "error",
+		Badge:       "264000 refused",
+		Explanation: "Living Room TV is sending more than 100 DNS queries a second; 264000 refused over the last 1h 28m.",
+		ActorKey:    "source:10.0.30.42",
+		Name:        "Living Room TV",
+	}
+	if got.Word != want.Word || got.Tone != want.Tone || got.Badge != want.Badge || got.Explanation != want.Explanation || got.ActorKey != want.ActorKey || got.Name != want.Name {
+		t.Fatalf("rateLimitFlag = %+v, want %+v", got, want)
+	}
+}
+
+func TestRateLimitFlagStopped(t *testing.T) {
+	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 354000, First: first, Last: first.Add(118 * time.Minute)}, first.Add(148*time.Minute))
+	want := "Living Room TV sent more than 100 DNS queries a second; 354000 refused over 1h 58m, ending 30m ago."
+	if got.Explanation != want {
+		t.Fatalf("explanation = %q, want %q", got.Explanation, want)
+	}
+}
+
+func TestRateLimitFlagFirstMinute(t *testing.T) {
+	first := time.Date(2026, 11, 4, 14, 2, 0, 0, time.UTC)
+	got := rateLimitFlag("Living Room TV", "source:10.0.30.42", dns.Refusal{Count: 50, First: first, Last: first.Add(10 * time.Second)}, first.Add(20*time.Second))
+	if !strings.HasSuffix(got.Explanation, "refused over the last 1m.") {
+		t.Fatalf("explanation = %q, want it to end %q", got.Explanation, "refused over the last 1m.")
 	}
 }

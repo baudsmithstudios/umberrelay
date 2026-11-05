@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"umberrelay/internal/classify"
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -28,7 +29,7 @@ func testServerVersion(t *testing.T, version string) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(db, classify.NewManager(db), version, []string{"example.com", "umberrelay.local"})
+	s := NewServer(db, classify.NewManager(db), version, []string{"example.com", "umberrelay.local"}, dns.NewRateLimiter())
 	s.refreshListSources = func(context.Context, *classify.Manager, []classify.ListSource) error { return nil }
 	t.Cleanup(func() {
 		s.Close()

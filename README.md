@@ -25,7 +25,7 @@ Umberrelay is a forwarding DNS server that logs every query, identifies which ne
 - **Domain classification** — matches queries against configurable blocklists (Steven Black, EasyPrivacy, Disconnect.me) with automatic refresh
 - **OUI vendor lookup** — identifies device manufacturers from MAC address prefixes
 - **Web UI** — an Activity view that lists every device and source-IP actor beside a detail pane for the whole network or the selected actor (tracker rate against a baseline, blocklist matches by category, tracker-rate chart, domains with overrides, live query stream), plus a Settings page for runtime configuration
-- **Anomaly flags** — flags known devices whose 24h tracker rate is more than 5 points above their prior 7 days, or whose 24h query count is more than three times their daily average
+- **Anomaly flags** — flags known devices whose 24h tracker rate is more than 5 points above their prior 7 days, or whose 24h query count is more than three times their daily average. Devices and sources over the DNS rate limit are flagged "rate limited" with the refused count and whether it is still happening
 - **Best-effort DoH/DoT bypass signal** — flags devices that appear active on LAN but stop using local DNS, with higher confidence when encrypted-DNS bootstrap domains were seen
 - **REST API** — JSON API for actors, devices, queries, activity, anomalies, bypass signals, domains, lists, settings, and overrides
 - **Domain overrides** — manually classify any domain when the lists get it wrong

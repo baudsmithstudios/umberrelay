@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"umberrelay/internal/category"
+	"umberrelay/internal/dns"
 	"umberrelay/internal/store"
 )
 
@@ -129,12 +131,35 @@ func flagFor(a store.Anomaly) actorFlag {
 	return flag
 }
 
-func silentFor(minutes float64) string {
-	m := int(minutes)
-	if m < 60 {
-		return fmt.Sprintf("%dm silent", m)
+// rateLimitFlag uses durations, not clock times, because server-rendered times
+// use the container's timezone, which is UTC on the stock image.
+func rateLimitFlag(name, actorKey string, r dns.Refusal, now time.Time) actorFlag {
+	minutes := func(d time.Duration) string { return formatMinutes(max(1, int(d.Minutes()))) }
+	flag := actorFlag{
+		Word:     "rate limited",
+		Tone:     "error",
+		Badge:    fmt.Sprintf("%d refused", r.Count),
+		ActorKey: actorKey,
+		Name:     name,
+		priority: 4,
 	}
-	return fmt.Sprintf("%dh %dm silent", m/60, m%60)
+	if now.Sub(r.Last) < time.Minute {
+		flag.Explanation = fmt.Sprintf("%s is sending more than %d DNS queries a second; %d refused over the last %s.", name, dns.QueriesPerSecondPerSource, r.Count, minutes(now.Sub(r.First)))
+	} else {
+		flag.Explanation = fmt.Sprintf("%s sent more than %d DNS queries a second; %d refused over %s, ending %s ago.", name, dns.QueriesPerSecondPerSource, r.Count, minutes(r.Last.Sub(r.First)), minutes(now.Sub(r.Last)))
+	}
+	return flag
+}
+
+func silentFor(minutes float64) string {
+	return formatMinutes(int(minutes)) + " silent"
+}
+
+func formatMinutes(m int) string {
+	if m < 60 {
+		return fmt.Sprintf("%dm", m)
+	}
+	return fmt.Sprintf("%dh %dm", m/60, m%60)
 }
 
 func flagsByActor(flags []actorFlag) map[string]actorFlag {

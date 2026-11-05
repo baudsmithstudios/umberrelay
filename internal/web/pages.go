@@ -254,7 +254,12 @@ func (s *Server) loadActorsWithTrends(now time.Time) ([]store.DeviceWithTrends, 
 	return devices, sources, nil
 }
 
-func (s *Server) loadAttentionFlags(now time.Time) ([]actorFlag, error) {
+func (s *Server) loadAttentionFlags(now time.Time, devices []store.DeviceWithTrends, sources []store.SourceWithTrends) ([]actorFlag, error) {
+	var flags []actorFlag
+	for _, refusal := range s.limiter.Refusals(now) {
+		name, actorKey := refusedActor(refusal.SourceIP, devices, sources)
+		flags = append(flags, rateLimitFlag(name, actorKey, refusal, now))
+	}
 	anomalies, err := s.db.DeviceAnomalies()
 	if err != nil {
 		return nil, err
@@ -266,11 +271,25 @@ func (s *Server) loadAttentionFlags(now time.Time) ([]actorFlag, error) {
 	for _, signal := range bypassSignals {
 		anomalies = append(anomalies, bypassSignalAsAnomaly(signal))
 	}
-	var flags []actorFlag
 	for _, anomaly := range anomalies {
 		flags = append(flags, flagFor(anomaly))
 	}
 	return flags, nil
+}
+
+// refusedActor attributes a refused IP the way the pipeline attributes queries:
+// to the known device holding that IP, otherwise to the source IP itself.
+func refusedActor(sourceIP string, devices []store.DeviceWithTrends, sources []store.SourceWithTrends) (name, actorKey string) {
+	for _, d := range devices {
+		if d.IP == sourceIP {
+			return deviceDisplayName(d.Device), actorKeyForDevice(d.MAC)
+		}
+	}
+	label := ""
+	if src := findSource(sources, sourceIP); src != nil {
+		label = src.Label
+	}
+	return sourceActorDisplayName(sourceIP, label), actorKeyForSource(sourceIP)
 }
 
 func findDevice(devices []store.DeviceWithTrends, mac string) *store.DeviceWithTrends {
@@ -369,7 +388,7 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	flags, err := s.loadAttentionFlags(now)
+	flags, err := s.loadAttentionFlags(now, devices, sources)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
