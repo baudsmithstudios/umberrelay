@@ -103,6 +103,7 @@ upstream  = ["1.1.1.1:53", "8.8.8.8:53"]
 data_dir  = "/data"
 http_listen = "0.0.0.0"
 http_port = 8080
+http_hosts = []
 ```
 
 | Field | Default | Description |
@@ -112,6 +113,7 @@ http_port = 8080
 | `data_dir` | `/data` | SQLite database and data directory |
 | `http_listen` | `0.0.0.0` | Web UI and API bind address (host/interface only) |
 | `http_port` | `8080` | Web UI and API port |
+| `http_hosts` | `[]` | Hostnames the web UI and API answer to besides IP addresses and `localhost` |
 
 All fields are optional. Umberrelay runs with sane defaults if no config file exists.
 
@@ -164,6 +166,7 @@ The API is unauthenticated — see [Access And Hardening](#access-and-hardening)
 - Mutation endpoints return either JSON or an empty success status (`204 No Content` / `202 Accepted`).
 - Errors return JSON in the form `{ "error": "message" }`.
 - Cross-origin mutation requests are rejected with a plain-text `403 Forbidden`.
+- Requests whose `Host` is not an IP address, `localhost`, or a name in `http_hosts` are rejected with a plain-text `403 Forbidden`.
 - `/ui/...` routes are internal SSR form handlers, not part of the public API contract.
 
 | Method | Endpoint | Description |
@@ -378,6 +381,8 @@ Recommended pattern:
 - Optionally add rate limiting or IP allowlists
 
 This keeps the unauthenticated surface off the network and gives you one place to manage TLS, auth, and access policy. It also simplifies firewall rules, since you expose a single well-known port (e.g., `443`) instead of the app's HTTP port directly.
+
+Caddy's `reverse_proxy` passes the incoming `Host` through by default, so list the name you browse Caddy at in `http_hosts`, or set `header_up Host {upstream_hostport}` in the `reverse_proxy` block.
 
 ## Comparison
 

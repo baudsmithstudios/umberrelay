@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- The web UI and API reject requests whose `Host` is not an IP address, `localhost`, or a name in the new `http_hosts` setting, closing a DNS rebinding hole. Hostname access needs the name listed.
+
 ## [0.3.0] - 2026-10-27
 
 ### Changed

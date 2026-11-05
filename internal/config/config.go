@@ -14,6 +14,7 @@ type Config struct {
 	DataDir    string   `toml:"data_dir"`
 	HTTPListen string   `toml:"http_listen"`
 	HTTPPort   int      `toml:"http_port"`
+	HTTPHosts  []string `toml:"http_hosts"`
 }
 
 func Defaults() Config {

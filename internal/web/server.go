@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,7 +40,7 @@ type Server struct {
 	refreshListSources     func(context.Context, *classify.Manager, []classify.ListSource) error
 }
 
-func NewServer(db *store.DB, mgr *classify.Manager, version string) *Server {
+func NewServer(db *store.DB, mgr *classify.Manager, version string, httpHosts []string) *Server {
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 	s := &Server{
 		db:       db,
@@ -55,7 +57,7 @@ func NewServer(db *store.DB, mgr *classify.Manager, version string) *Server {
 		refreshListSources:     refreshManagerSources,
 	}
 	s.registerRoutes()
-	s.handler = withSecurityHeaders(withMutationOriginGuard(withMutationBodyLimit(s.mux)))
+	s.handler = withSecurityHeaders(withHostGuard(httpHosts, withMutationOriginGuard(withMutationBodyLimit(s.mux))))
 	return s
 }
 
@@ -154,6 +156,27 @@ func withSecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func withHostGuard(httpHosts []string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isRecognizedHost(r.Host, httpHosts) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "forbidden", http.StatusForbidden)
+	})
+}
+
+// A DNS-rebound page sends its own hostname in Host, so only IPs, localhost
+// and names the operator listed are trusted.
+func isRecognizedHost(hostport string, httpHosts []string) bool {
+	host, _ := splitHostPort(hostport)
+	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	if _, err := netip.ParseAddr(host); err == nil || strings.EqualFold(host, "localhost") {
+		return true
+	}
+	return slices.ContainsFunc(httpHosts, func(name string) bool { return strings.EqualFold(name, host) })
 }
 
 func withMutationOriginGuard(next http.Handler) http.Handler {
