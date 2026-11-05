@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
-- The web UI and API reject requests whose `Host` is not an IP address, `localhost`, or a name in the new `http_hosts` setting, closing a DNS rebinding hole. Hostname access needs the name listed.
+- **Breaking:** The web UI and API reject requests whose `Host` is not an IP address, `localhost`, or a name in the new `http_hosts` setting, closing a DNS rebinding hole. If you browse by hostname, including through a reverse proxy, add that name to `http_hosts`.
 - DNS queries are limited to 100 a second per source IP; queries over the limit get `REFUSED` and are not forwarded or logged. Rate-limited devices and sources are flagged in Needs attention.
 
 ## [0.3.0] - 2026-10-27

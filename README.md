@@ -60,13 +60,11 @@ docker compose up -d
 
 Then open `http://localhost:8080` in a browser.
 If you are connecting from another device on your LAN, use `http://<host-ip>:8080` instead.
-Then point your router's DNS to the host running Umberrelay.
+Then set the DNS server your router hands out over DHCP to the host running Umberrelay.
 
 ## Deployment Model
 
-Umberrelay works best when it is the DNS server your network uses. In the common setup, that means pointing your router's LAN DNS setting at the host running Umberrelay so client devices send their queries through it.
-
-Hand out Umberrelay's address as the DNS server over DHCP so each client queries it directly. If the router forwards every client's queries itself, Umberrelay sees a single source: the whole network shares one source's rate limit of 100 queries a second, and queries are attributed to the router instead of each device.
+Umberrelay works best when it is the DNS server your network uses. In the common setup, that means setting the DNS server your router hands out over DHCP to the host running Umberrelay, so each client queries it directly. If the router instead forwards every client's queries itself, Umberrelay sees a single source: the whole network shares one source's rate limit of 100 queries a second, and every query is attributed to the router.
 
 ### Works With Pi-hole / AdGuard Home
 
@@ -365,7 +363,7 @@ Web Server
 
 - **No blocking** — Umberrelay observes and classifies but does not block or modify DNS responses
 - **No authentication** — the web UI and API are unauthenticated; see [Access And Hardening](#access-and-hardening) below
-- **Storage is not capped per source** — a source that stays under the DNS rate limit is never refused or flagged, so every query it sends is stored until retention purges it; at a steady 100 queries a second that is on the order of a gigabyte a day
+- **No per-source storage cap** — a source that stays under the DNS rate limit is never refused or flagged, so everything it sends is stored until retention purges it: roughly a gigabyte a day at a steady 100 queries a second
 - **No telemetry** — Umberrelay does not send analytics or cloud telemetry; outbound network traffic is limited to DNS forwarding and blocklist fetches
 - **Passive discovery** — device identification uses only broadcast/multicast traffic and the local ARP table
 - **Parameterized queries** — all SQL uses parameterized statements
@@ -385,7 +383,7 @@ Recommended pattern:
 
 This keeps the unauthenticated surface off the network and gives you one place to manage TLS, auth, and access policy. It also simplifies firewall rules, since you expose a single well-known port (e.g., `443`) instead of the app's HTTP port directly.
 
-Caddy's `reverse_proxy` passes the incoming `Host` through by default, so list the name you browse Caddy at in `http_hosts`. Don't rewrite `Host` at the proxy: the browser's `Origin` still carries the proxy's name, so every change made in the UI would be rejected as cross-origin.
+The proxy must pass the browser's `Host` header through unchanged, and that hostname must be listed in `http_hosts`. Caddy and Traefik pass it through by default; nginx needs `proxy_set_header Host $host;`. If the proxy rewrites `Host`, every change made in the UI is rejected as cross-origin, because the browser's `Origin` still carries the proxy's name.
 
 ## Comparison
 
