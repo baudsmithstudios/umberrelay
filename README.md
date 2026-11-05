@@ -365,6 +365,7 @@ Web Server
 
 - **No blocking** — Umberrelay observes and classifies but does not block or modify DNS responses
 - **No authentication** — the web UI and API are unauthenticated; see [Access And Hardening](#access-and-hardening) below
+- **Storage is not capped per source** — a source that stays under the DNS rate limit is never refused or flagged, so every query it sends is stored until retention purges it; at a steady 100 queries a second that is on the order of a gigabyte a day
 - **No telemetry** — Umberrelay does not send analytics or cloud telemetry; outbound network traffic is limited to DNS forwarding and blocklist fetches
 - **Passive discovery** — device identification uses only broadcast/multicast traffic and the local ARP table
 - **Parameterized queries** — all SQL uses parameterized statements
