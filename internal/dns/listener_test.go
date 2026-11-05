@@ -65,11 +65,9 @@ func TestListenerRefusesSourceOverLimit(t *testing.T) {
 			tt.require(t, tt.network, "127.0.0.1:0")
 			upstreamAddr := startFakeUpstream(t, tt.network)
 
-			// Sequential local queries finish well inside a second, so two
-			// windows' worth plus one must put one window over the limit.
-			maxQueries := 2*QueriesPerSecondPerSource + 1
-			records := make(chan QueryRecord, maxQueries)
-			l := NewListener("127.0.0.1:0", []string{upstreamAddr}, NewRateLimiter(), records)
+			records := make(chan QueryRecord, 10)
+			limiter := NewRateLimiter()
+			l := NewListener("127.0.0.1:0", []string{upstreamAddr}, limiter, records)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			go l.Run(ctx)
@@ -78,11 +76,16 @@ func TestListenerRefusesSourceOverLimit(t *testing.T) {
 			c := &mdns.Client{Net: tt.network}
 			m := new(mdns.Msg)
 			m.SetQuestion("example.com.", mdns.TypeA)
+			// Filling the window and sending the query can straddle a second
+			// boundary, which lets the query through, so retry.
 			successes, refused := 0, false
-			for i := 1; i <= maxQueries && !refused; i++ {
+			for attempt := 1; attempt <= 3 && !refused; attempt++ {
+				for range QueriesPerSecondPerSource {
+					limiter.Allow("127.0.0.1", time.Now())
+				}
 				resp, _, err := c.Exchange(m, addr)
 				if err != nil {
-					t.Fatalf("Exchange %d: %v", i, err)
+					t.Fatalf("Exchange: %v", err)
 				}
 				switch resp.Rcode {
 				case mdns.RcodeSuccess:
@@ -90,11 +93,11 @@ func TestListenerRefusesSourceOverLimit(t *testing.T) {
 				case mdns.RcodeRefused:
 					refused = true
 				default:
-					t.Fatalf("query %d: Rcode = %d, want success or REFUSED", i, resp.Rcode)
+					t.Fatalf("Rcode = %d, want success or REFUSED", resp.Rcode)
 				}
 			}
 			if !refused {
-				t.Fatalf("no REFUSED response in %d queries", maxQueries)
+				t.Fatal("query from a source over the limit was not refused")
 			}
 
 			for i := 0; i < successes; i++ {
