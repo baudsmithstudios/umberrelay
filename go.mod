@@ -5,7 +5,7 @@ go 1.26.10
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/miekg/dns v1.1.72
-	modernc.org/sqlite v1.61.0
+	modernc.org/sqlite v1.61.1
 )
 
 require (
